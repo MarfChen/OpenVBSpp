@@ -333,3 +333,26 @@ pip download --only-binary=:all: --no-deps openvbspp==0.9.15 -d tmp    # 必须�
 ```
 
 拿到的若是 `py3-none-any.whl`，就说明这个包对 Python 版本和 CPU 架构都没有额外要求。
+
+### 9.5 打包元数据卫生（v0.9.15 已达标）
+
+`python -m build` 现在**零警告**，改动如下：
+
+- 许可证元数据改成 PEP 639 写法：`license = "Apache-2.0"` +
+  `license-files = ["LICENSE", "NOTICE"]`，`build-system.requires` 提到
+  `setuptools>=77`；删掉已弃用的 `License :: OSI Approved` classifier。
+  wheel 的 `dist-info/licenses/` 现在带 `LICENSE` 与 `NOTICE`，满足 Apache-2.0
+  对分发件保留声明的要求。
+- `MANIFEST.in` 去掉 Windows 上会被按 cp936 读坏的中文模式行（相关说明改写在
+  `.gitignore` 与本文档里），并补齐 `packaging/*`、`tools/*.py`、`doc/*.docx`：
+  这样从 sdist 也能重建 exe（`packaging/openvbs.spec`）并跑基准（`tools/bench.py`），
+  README 引用的 `doc/OpenVBS spec.docx` 也在 sdist 内。
+- `packages` 列表补 `OpenVBSPP.ide.static` 与 `OpenVBSPP.vendor`，消除 setuptools 的
+  “absent from the `packages` configuration” 提示。
+
+自检：
+
+```powershell
+python -m build --outdir dist      # 应当没有任何 warning
+python -m twine check dist/*
+```

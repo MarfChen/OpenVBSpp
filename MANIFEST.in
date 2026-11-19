@@ -7,16 +7,14 @@ include AGENTS.md
 include pyproject.toml
 
 recursive-include OpenVBSPP *.py py.typed
-recursive-include OpenVBSPP/vendor *.py *.json *.md
+recursive-include OpenVBSPP/vendor *.py *.json
 recursive-include extras *.py *.json *.md *.vbs *.js
 recursive-include examples *.vbs
+recursive-include packaging *
 recursive-include tests *.py
-recursive-include doc *.md
+recursive-include tools *.py
+recursive-include doc *.md *.docx
 
-exclude doc/*.docx
-exclude doc/*.pdf
-exclude doc/~$*
-exclude doc/微软官方vbscript参考手册*
 prune venv
 prune .vs
 prune __pycache__
