@@ -1,11 +1,12 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-485%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-497%20passing-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.15-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![python](https://img.shields.io/badge/python-3.9%2B-yellow)
+![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
 [![CI](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml)
+[![coverage](https://codecov.io/gh/MarfChen/OpenVBSpp/branch/main/graph/badge.svg)](https://codecov.io/gh/MarfChen/OpenVBSpp)
 
 **Run your existing `.vbs` scripts on a modern compiler — and get classes, try/catch,
 packages and real COM while you are at it.**
@@ -16,7 +17,7 @@ running as-is while you can opt into a superset of modern syntax: `Class ... Inh
 `Try / Catch / Finally`, string interpolation, optional chaining, a dependency manager
 (`over`) and real Windows COM automation through `pywin32`.
 
-> 中文文档：[README.zh-CN.md](README.zh-CN.md)
+> 中文文档：[README.zh-CN.md](README.zh-CN.md) · 文档站：[marfchen.github.io/OpenVBSpp](https://marfchen.github.io/OpenVBSpp/) · 变更记录：[CHANGELOG.md](CHANGELOG.md)
 
 > **Disclaimer.** OpenVBS++ is an independent implementation. It is not affiliated with,
 > endorsed by, or sponsored by Microsoft. VBScript is a trademark of Microsoft
@@ -44,6 +45,8 @@ running as-is while you can opt into a superset of modern syntax: `Class ... Inh
 - [Roadmap](#roadmap)
 - [License, third parties, trademarks](#license-third-parties-trademarks)
 - [Security model](#security-model)
+- [Documentation site](https://marfchen.github.io/OpenVBSpp/)
+- [Changelog](CHANGELOG.md)
 
 ---
 
@@ -61,11 +64,12 @@ The runtime has **no required third-party dependency**. `pywin32` is only needed
 want COM objects, and the shipped `openvbs.exe` already bundles it.
 Release process (TestPyPI → PyPI → exe) lives in [doc/RELEASE.md](doc/RELEASE.md).
 
-**Supported Python: 3.9 – 3.13 (CPython).** The package is pure Python and ships as a
+**Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (485 tests) is run on
-every version in CI and was verified locally on 3.9.13 and 3.13.15. See
-[doc/RELEASE.md](doc/RELEASE.md) §9 for the version policy and what to build for ARM.
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (497 tests) runs on
+every supported version in CI; the runtime code itself still parses and runs on 3.9
+(`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
+See [doc/RELEASE.md](doc/RELEASE.md) §9 for the version policy and what to build for ARM.
 
 ## Quick start
 
@@ -95,12 +99,16 @@ echo Fact(5)                  ' 120
 
 ```
 openvbs [script.vbs] [-v] [--save] [--save-dir DIR]
+openvbs -c "echo 1 + 1"                    # inline source, no file needed
+echo "echo 6 * 7" | openvbs -c -           # read the source from stdin
 python -m OpenVBSPP <same arguments>     # equivalent
 ```
 
 | Argument | Meaning |
 |---|---|
 | `script.vbs` | file to run; omitted → built-in demo |
+| `-c, --code CODE` | run CODE directly; `-c -` reads it from stdin; cannot be combined with a script file |
+| `-` | shorthand for `-c -` (read source from stdin) |
 | `-v, --verbose` | print token stream, AST and generated Python |
 | `--save` | also write `.pyc` and `.ast.txt` |
 | `--save-dir` | output directory, default `./__pycache__` |
@@ -437,7 +445,7 @@ OpenVBSPP/
   vendor/com-support/                              # Windows COM adapter, shipped with the package
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
-tests/               # 485 unittest cases
+tests/               # 497 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # language spec, superset notes, object model, LSP design, legal audit
@@ -447,7 +455,7 @@ doc/                 # language spec, superset notes, object model, LSP design, 
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 485 tests, ~2.2 s
+python -m unittest discover -s tests          # 497 tests, ~2.6 s
 ```
 
 | File | Covers |

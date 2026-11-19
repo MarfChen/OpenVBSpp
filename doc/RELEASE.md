@@ -202,24 +202,29 @@ PyPI / GitHub Release 上贴的正文从这里取，写完记得和 README 的�
 
 ## 7. CI（GitHub Actions）
 
-工作流只有一个：`.github/workflows/ci.yml`，两个 job。
+有两个工作流：`.github/workflows/ci.yml`（测试 + exe）与
+`.github/workflows/docs.yml`（文档站，见 §7.1）。
 
 **`test`（每次 push / PR / 手动触发）**
 
 | 维度 | 值 |
 |---|---|
-| Windows（硬门禁） | Python 3.9 / 3.10 / 3.11 / 3.12 / 3.13 |
-| Linux（实验性） | Python 3.9 / 3.13，`continue-on-error: true` |
-| 步骤 | toolchain → `pip install -e ".[dev]" --no-build-isolation` → 装 pywin32（仅 Windows）→ `python -m unittest discover -s tests` → 入口点自检 → COM 冒烟（仅 Windows）→ `python -m build` → 干净 venv 装 wheel 冒烟（含 `vendor/com-support` 存在性断言）→ 上传 `dist` 产物 |
+| Windows（硬门禁） | Python 3.10 / 3.11 / 3.12 / 3.13 |
+| Linux（硬门禁） | Python 3.10 / 3.13，`continue-on-error` 在 v0.9.15 已移除 |
+| 步骤 | toolchain → `pip install -e ".[dev]" --no-build-isolation` → 装 pywin32（仅 Windows）→ `coverage run -m unittest discover -s tests` → `coverage report` + `coverage xml` → 上传 Codecov（仅 Windows 3.13 且配了 token）→ 入口点自检（含 `-c` 内联）→ COM 冒烟（仅 Windows）→ `python -m build` → 干净 venv 装 wheel 冒烟（含 `vendor/com-support` 存在性断言与 `-c` 冒烟）→ 上传 `dist` 产物 |
 
 Windows 之所以是硬门禁：语言支持的 COM、WScript 语义、路径行为都在 Windows 上验证过。
-Linux 先以 `experimental` 收数据 —— **如果你想让 Linux 也变成门禁，把矩阵里
-`ubuntu-latest` 的 `experimental: true` 和 job 上的 `continue-on-error` 删掉即可。**
+Linux 从 v0.9.15 起同样是**硬门禁**（3.10 与 3.13 两个点），矩阵里已没有
+`experimental` 这一维；如果某个 Linux 版本临时不稳定，再给它单独加回
+`continue-on-error: true` 即可。
 
 **`exe`（只在打 tag 或手动触发时跑）**
 
 PyInstaller 构建 `dist/openvbs.exe`，再把它拷到临时目录做冒烟（`--version` + 真实
-`CreateObject("WScript.Shell")`），最后上传为 `openvbs-exe` 产物。
+`CreateObject("WScript.Shell")`），最后按架构上传为 `openvbs-exe-x64` /
+`openvbs-exe-arm64` 产物。矩阵是
+`[{runner: windows-latest, arch: x64}, {runner: windows-11-arm, arch: arm64}]`；
+注意 `windows-11-arm` 运行器**只对公共仓库开放**，私有仓库会直接失败。
 
 ### 完成 CI 还需要你本人做的事
 
@@ -231,24 +236,28 @@ PyInstaller 构建 `dist/openvbs.exe`，再把它拷到临时目录做冒烟（`
 2. 仓库 Settings → Actions → General：确认允许 workflow（新仓库默认允许，无需改）。
 3. **不需要任何 secret** 就能跑测试。只有下面两件事需要额外配：
    - 想在 CI 里发 PyPI：加 `PYPI_API_TOKEN` secret，再加一个 `twine upload` 的 job；
-   - 想要覆盖率徽章：接 Codecov / Coveralls 并加对应 token。
-4. 首次 push 后约 3–5 分钟出结果：7 个矩阵任务（5 Windows + 2 Linux）+ 1 个手动 exe 任务。
+   - 想要覆盖率徽章：在仓库里配 `CODECOV_TOKEN` secret（工作流已经写好了上传步骤，
+     没有这个 secret 时那一步会被 `if` 跳过，徽章保持灰色而不是报错）。
+4. 首次 push 后约 3–5 分钟出结果：6 个测试矩阵任务（4 Windows + 2 Linux）+ 2 个手动 exe 任务。
    全绿之后 CI 徽章自动变绿，**不需要改 README**。
+5. 想让文档站上线：Settings → Pages → Build and deployment → Source 选
+   **GitHub Actions**（默认是 Deploy from a branch，不选这个 `docs.yml` 会失败）。
 
 ---
 
 ## 8. 徽章（怎么变绿）
 
-README 首屏有 6 个徽章，分两类：
+README 首屏有 7 个徽章，分两类：
 
 | 徽章 | 类型 | 变成 / 保持绿色要做什么 |
 |---|---|---|
-| `tests-485 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
+| `tests-497 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
 | `version-0.9.15` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
 | `license-Apache--2.0` | 静态 | 常绿 |
-| `python-3.9+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |
+| `python-3.10+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |
 | `dependencies-none` | 静态 | 常绿（`pywin32` 是可选 extra，不算运行期依赖） |
 | **CI** | **动态** | 仓库 push 后，`main` 分支上有一次成功的 workflow 运行即变绿；显示 `no status` 说明默认分支还没有运行记录 |
+| **coverage** | **动态** | 由 Codecov 提供；`CODECOV_TOKEN` 没配时是灰色，首次成功上传后变绿 |
 
 静态徽章 = 项目自称，动态 CI 徽章 = 机器实测，两者都保留；评审者更看后者。
 
@@ -259,8 +268,9 @@ README 首屏有 6 个徽章，分两类：
 ![pyversions](https://img.shields.io/pypi/pyversions/openvbspp)
 ```
 
-覆盖率徽章需要先接 Codecov（或 Coveralls）并上传 token，目前**没有**配置覆盖率采集，
-所以不要提前放这个徽章。
+覆盖率采集从 v0.9.15 起已经在 CI 里（`coverage run` → `coverage xml` → `codecov-action@v5`），
+README 也已经放上 Codecov 徽章；**只要在仓库里配好 `CODECOV_TOKEN`，第一次成功运行后它就会变绿**。
+如果不想接 Codecov，把 README 里那一行徽章和 ci.yml 的上传步骤一起删掉即可。
 
 ---
 
@@ -270,14 +280,16 @@ README 首屏有 6 个徽章，分两类：
 
 | 项 | 现在的状态 |
 |---|---|
-| 声明 | `requires-python = ">=3.9"`，classifiers 列到 3.13 |
+| 声明 | `requires-python = ">=3.10"`，classifiers 列 3.10 – 3.13 |
 | 静态校验 | `vermin --eval-annotations --target=3.9 --violations OpenVBSPP cli.py tests` → **零违规**，最低需求 3.9（无 `match`、无 `X | Y` 注解、无 `tomllib`、无 `except*`） |
-| 运行时实测 | Windows embeddable **3.9.13** 与开发 venv **3.13.15** 各跑 485 个用例**全绿** |
-| CI | Windows 3.9 / 3.10 / 3.11 / 3.12 / 3.13 硬门禁 |
+| 运行时实测 | Windows embeddable **3.9.13** 与开发 venv **3.13.15** 各跑 485 个用例**全绿**（3.9 属于兼容性实测，已不在声明范围内） |
+| CI | Windows 3.10 / 3.11 / 3.12 / 3.13 硬门禁；Linux 3.10 / 3.13 硬门禁 |
 
-**策略建议**：3.9 已于 2025-10 结束安全支持。等 3.11 铺开之后可以把下限提到 3.10 或 3.11，
-**代码不用改**（vermin 证明 3.9 就够，往上都兼容），只需要同步三处：
-`pyproject.toml` 的 `requires-python` 与 classifiers、两个 README 的 Python 徽章。
+**已经做的调整（v0.9.15）**：3.9 已于 2025-10 结束安全支持，所以声明下限提到 **3.10**。
+**0.9.14 是最后一个声明支持 3.9 的版本**；运行期代码本身仍然 3.9 兼容
+（vermin 的静态结论没变，只是不再承诺），所以愿意的人仍可以在 3.9 上跑。
+将来再提下限，只需同步三处：`pyproject.toml` 的 `requires-python` 与 classifiers、
+两个 README 的 Python 徽章。
 
 ### 9.2 PyPI 上应该传什么
 
@@ -324,10 +336,25 @@ python -m twine upload dist/*                          # 再发正式 PyPI
    Linux arm64 同理用 `ubuntu-24.04-arm` 运行器；不过 exe 本身只面向 Windows，
    Linux 分发走 `pip install` 即可。
 
+### 7.1 文档站（GitHub Pages）
+
+文档站从 v0.9.15 起可发布：仓库根的 `mkdocs.yml` 指向 `doc/` 作为站点根目录，
+`doc/index.md` 是落地页，`.github/workflows/docs.yml` 在 `doc/**` 或 `mkdocs.yml`
+有变动时构建并部署到 GitHub Pages（PR 只构建不部署）。
+
+```powershell
+pip install "mkdocs-material>=9.5"     # 或 pip install -e ".[docs]"
+mkdocs serve                          # 本地预览 http://127.0.0.1:8000
+mkdocs build --site-dir site          # 生成静态站（site/ 已进 .gitignore）
+```
+
+`doc/` 里的 `.docx` 会被原样拷进站点，`.md` 的目录结构由 `nav` 决定；新增一篇文档时，
+记得同时把它加进 `mkdocs.yml` 的 `nav`，否则只能靠搜索找到。
+
 ### 9.4 与版本 / 架构相关的发版自检
 
 ```powershell
-python -m unittest discover -s tests                                    # 485 OK
+python -m unittest discover -s tests                                    # 497 OK
 python -m twine check dist/*
 pip download --only-binary=:all: --no-deps openvbspp==0.9.15 -d tmp    # 必须拿到 py3-none-any.whl
 ```

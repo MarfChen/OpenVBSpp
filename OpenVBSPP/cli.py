@@ -45,6 +45,8 @@ def build_arg_parser():
                         help="同时写出 .pyc 与 .ast.txt")
     parser.add_argument("--save-dir", default=None,
                         help="落盘目录，默认为 ./__pycache__")
+    parser.add_argument("-c", "--code", default=None, metavar="CODE",
+                        help="直接运行一段源码（`-` 表示从标准输入读）")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="打印 token 流、AST 与生成的 Python 代码")
     parser.add_argument("--version", action="version",
@@ -75,16 +77,27 @@ def main(argv=None):
     as_json = "--json" in argv
     argv = [item for item in argv if item != "--json"]
 
-    # 子命令：openvbs [--json] check|run <script>
+    # 子命令：openvbs [--json] check|run <script>[-c CODE]
     if argv and argv[0] in ("check", "run"):
         rest = argv[1:]
-        target = next((item for item in rest if not item.startswith("-")), None)
-        if target is None:
+        inline = None
+        for flag in ("-c", "--code"):
+            if flag in rest:
+                index = rest.index(flag)
+                if index + 1 >= len(rest):
+                    print(f"usage: openvbs {argv[0]} {flag} <code>", file=sys.stderr)
+                    return 2
+                inline = rest[index + 1]
+                rest = rest[:index] + rest[index + 2:]
+                break
+        target = next((item for item in rest
+                       if item == "-" or not item.startswith("-")), None)
+        if target is None and inline is None:
             print("usage: openvbs [--json] check|run <script>", file=sys.stderr)
             return 2
         if argv[0] == "check":
-            return _command_check(target, as_json)
-        return _command_run(target, as_json)
+            return _command_check(target, as_json, inline)
+        return _command_run(target, as_json, inline)
     # 子命令：openvbs over ...  —— 包管理器（over 包 + python 依赖）
     if argv and argv[0] == "over":
         from OpenVBSPP import over as over_pkg
@@ -231,7 +244,18 @@ def main(argv=None):
 
     args = build_arg_parser().parse_args(argv)
 
-    if args.script:
+    if args.code is not None and args.script:
+        print("openvbs: 用 `-c CODE` 和脚本文件只能二选一", file=sys.stderr)
+        return 2
+
+    if args.code is not None:
+        if args.code == "-":
+            code, filename = sys.stdin.read(), "<stdin>"
+        else:
+            code, filename = args.code, "<-c>"
+    elif args.script == "-":
+        code, filename = sys.stdin.read(), "<stdin>"
+    elif args.script:
         path = Path(args.script)
         if not path.is_file():
             print(f"File not found: {path}", file=sys.stderr)
@@ -257,8 +281,12 @@ def main(argv=None):
 
     return 0
 
-def _load_source(target):
-    """读脚本：`-` 表示从标准输入读，`utf-8-sig` 吃掉 BOM。"""
+def _load_source(target, inline=None):
+    """读源码：`inline` 直接给源码，`target` 为 `-` 时读标准输入，`utf-8-sig` 吃掉 BOM。"""
+    if inline is not None:
+        if inline == "-":
+            return sys.stdin.read(), "<stdin>"
+        return inline, "<-c>"
     if target == "-":
         return sys.stdin.read(), "<stdin>"
     path = Path(target)
@@ -267,12 +295,12 @@ def _load_source(target):
     return path.read_text(encoding="utf-8-sig"), str(path)
 
 
-def _command_check(target, as_json):
+def _command_check(target, as_json, inline=None):
     """只编译不运行：拿诊断。"""
     import json as _json
     from OpenVBSPP.ide import service
 
-    source, name = _load_source(target)
+    source, name = _load_source(target, inline)
     if source is None:
         payload = {"ok": False, "diagnostics": [],
                    "error": {"kind": "FileNotFound", "message": f"File not found: {name}"}}
@@ -295,12 +323,12 @@ def _command_check(target, as_json):
     return 0 if result["ok"] else 1
 
 
-def _command_run(target, as_json):
+def _command_run(target, as_json, inline=None):
     """编译并运行。"""
     import json as _json
     from OpenVBSPP.ide import service
 
-    source, name = _load_source(target)
+    source, name = _load_source(target, inline)
     if source is None:
         payload = {"ok": False, "output": "",
                    "error": {"kind": "FileNotFound",

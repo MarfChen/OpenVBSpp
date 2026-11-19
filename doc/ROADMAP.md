@@ -24,7 +24,7 @@
 | 0.9.14 | `over` M5/M6：`python` 依赖交给 pip（锁里记真实闭包）、`platforms` 平台条件、bundled `com-support`（Windows 真 COM，脚本里无需 `import`） |
 | 0.9.15 | 性能：启动懒加载、只读 `ByRef` 不再装箱（调用 13.7× → 1.35×）、无 `On Error` 的过程不建错误帧（递归 12× → 6.9×）、`For` 安全时生成 `range`（循环 1.65× → 0.99×） |
 
-**当前状态**：VBScript 原生语法全齐；485 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
+**当前状态**：VBScript 原生语法全齐；497 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
 `com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错），
 见 §3 末尾的说明。
 
@@ -36,7 +36,7 @@
 
 | # | 任务 | 为什么现在做 |
 |---|---|---|
-| 1 | `.github/workflows/test.yml`（3.9–3.13 × win/linux/mac） | 绿徽章是仓库可信度的第一眼 |
+| 1 | `.github/workflows/ci.yml`（3.10–3.13 × win/linux，含 coverage） | ✅ v0.9.15 已完成 |
 | 2 | issue / PR 模板（bug、feature、超集违规） | 降低外部贡献的沟通成本 |
 | 3 | `over pack`（把包目录打成 `.ovppkg`） | 没有它，`over` 只能从目录装，没法分发 |
 | 4 | ~~`openvbs --json check/run`~~ | ✅ 已完成（v0.9.12） |

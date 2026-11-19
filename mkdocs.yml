@@ -1,0 +1,68 @@
+site_name: OpenVBS++
+site_description: A VBScript-flavoured language that compiles to Python AST
+site_url: https://marfchen.github.io/OpenVBSpp/
+repo_url: https://github.com/MarfChen/OpenVBSpp
+repo_name: MarfChen/OpenVBSpp
+edit_uri: edit/main/doc/
+docs_dir: doc
+copyright: Apache-2.0 · VBScript is a Microsoft trademark; OpenVBS++ is an independent implementation.
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: 切换到深色
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: 切换到浅色
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - 首页: index.md
+  - 语言参考:
+      - VBScript 超集: VBS_SUPERSET.md
+      - 对象模型: OBJECT_MODEL.md
+      - 面向对象: OOP.md
+      - 现代特性: MODERN_FEATURES.md
+      - Try/Catch 设计: TRY_CATCH_DESIGN.md
+  - 工具链:
+      - over 包管理器: OVER.md
+      - 网页 IDE: WEB_IDE.md
+      - IDE / LSP 设计: IDE_LSP_DESIGN.md
+  - 项目:
+      - 路线图: ROADMAP.md
+      - 发版说明: RELEASE.md
+      - 法务与合规: LEGAL.md
+      - 适合上手的任务: good-first-issues.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/MarfChen/OpenVBSpp

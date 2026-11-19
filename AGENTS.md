@@ -58,7 +58,8 @@ tests/            回归测试（examples + 过程 + 语法糖 + VBS 超集 + �
 doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计、法务自查（LEGAL.md）
 extras/           可分发的示例包：com-support（COM 支持 over 包）、web-ide、
                   vscode-openvbspp（VS Code 语法/片段/运行诊断扩展）
-.github/          CI（ci.yml：Windows 3.9–3.13 硬门禁 + Linux 实验性）、issue/PR 模板
+.github/          CI（ci.yml：Windows 3.10–3.13 + Linux 3.10/3.13，全是硬门禁，带 coverage）、
+                  docs.yml（mkdocs → GitHub Pages）、issue/PR 模板
 ```
 
 ## 关键实现约定（改代码前必读）
@@ -123,8 +124,16 @@ extras/           可分发的示例包：com-support（COM 支持 over 包）�
 9. 改 `extras/vscode-openvbspp/` 后至少要自检：4 个 JSON 都能 `python -m json.tool` 解析、
    `node --check extension.js` 通过、语法里的 `include` 都能在 `repository` 找到；
    新增的语法特性要同步 `syntaxes/openvbspp.tmLanguage.json` 与 README 的特性表。
-10. 改 `.github/workflows/ci.yml` 后用 PyYAML `safe_load` 校验一遍，并确认矩阵里
-    Windows 仍是硬门禁、Linux 仍是 `experimental`（要提级就显式删掉这两个标记）。
+10. 改 `.github/workflows/ci.yml`（或 `docs.yml`、`mkdocs.yml`）后用 PyYAML `safe_load`
+    校验一遍。Windows 与 Linux 现在都是硬门禁（Linux 的 `experimental` 维已在 v0.9.15
+    移除）；某个版本临时不稳定时再给它单独加回 `continue-on-error: true`。
+11. 动 `cli.py` 的取参逻辑（`-c` / `--code` / stdin / 与脚本文件互斥）必须跑
+    `tests/test_cli_inline.py`；新增子命令也照这个模式补用例。
+12. 改 `doc/*.md` 或 `mkdocs.yml` 后跑一次 `mkdocs build --site-dir site`（需要
+    `pip install "mkdocs-material>=9.5"` 或 `pip install -e ".[docs]"`），新文档要进 `nav`，
+    构建出的 `site/` 不要提交（已在 `.gitignore`）。
+13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`doc/RELEASE.md` §9.4
+    三处必须一致（当前 **497**），改测试后一起改。
 
 ## 环境坑
 

@@ -1,10 +1,12 @@
 include README.md
 include README.zh-CN.md
+include CHANGELOG.md
 include LICENSE
 include NOTICE
 include CONTRIBUTING.md
 include AGENTS.md
 include pyproject.toml
+include mkdocs.yml
 
 recursive-include OpenVBSPP *.py py.typed
 recursive-include OpenVBSPP/vendor *.py *.json

@@ -1,9 +1,9 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-485%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-497%20passing-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.15-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
-![python](https://img.shields.io/badge/python-3.9%2B-yellow)
+![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
 [![CI](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml)
 
@@ -15,6 +15,9 @@
 > 主文档是英文版 [README.md](README.md)，本文件是完整中文版。
 > 第一次来？看 [CONTRIBUTING.md](CONTRIBUTING.md)，挑一个
 > [新手任务](doc/good-first-issues.md)。
+>
+> 文档站：<https://marfchen.github.io/OpenVBSpp/> · 变更记录：[CHANGELOG.md](CHANGELOG.md) ·
+> 法务自查：[doc/LEGAL.md](doc/LEGAL.md)
 
 >
 > **免责声明 / Disclaimer** —— OpenVBS++ 是独立实现，与 Microsoft 无任何关联；
@@ -41,7 +44,7 @@
 ## 快速开始
 
 ```bash
-# 仓库自带虚拟环境（Python 3.9+）
+# 仓库自带虚拟环境（Python 3.10+；0.9.14 是最后一个声明支持 3.9 的版本）
 .\venv\Scripts\python.exe cli.py examples\procedures.vbs
 
 # 不带参数跑内置示例
@@ -90,11 +93,15 @@ exec(code_obj, {})
 
 ```
 python cli.py [script.vbs] [-v] [--save] [--save-dir DIR]
+python cli.py -c "echo 1 + 1"            # 直接运行一段源码，不用建文件
+echo "echo 6 * 7" | python cli.py -c -   # 从标准输入读源码
 ```
 
 | 参数 | 说明 |
 |---|---|
 | `script.vbs` | 要运行的文件；省略则运行内置示例 |
+| `-c, --code CODE` | 直接运行 CODE（`-c -` 从标准输入读）；与脚本文件互斥 |
+| `-` | `-c -` 的简写，从标准输入读源码 |
 | `-v, --verbose` | 打印 token 流、AST 与生成的 Python 代码 |
 | `--save` | 额外写出 `.pyc` 与 `.ast.txt` |
 | `--save-dir` | 落盘目录，默认 `./__pycache__`（自动创建） |
@@ -157,10 +164,11 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 项目已预留好：`[project.scripts]` 入口、`MANIFEST.in`、`packaging/openvbs.spec`
 （PyInstaller 配置）、`tools/build.ps1`。
 
-**支持的 Python：3.9 – 3.13（CPython）。** 本项目是纯 Python，发布的是
+**支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。485 个测试在每个版本上都跑 CI，
-本机另实测过 3.9.13 与 3.13.15 全绿。版本策略与 ARM 相关要做的事见
+`pip install openvbspp` 在 x64 与 ARM64 上通用。497 个测试在每个受支持的版本上都跑 CI；
+运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
+但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
 [doc/RELEASE.md](doc/RELEASE.md) §9。
 
 ## 已支持的语法
@@ -534,7 +542,7 @@ OpenVBSPP/
 ├── plugins/debug_tools.py  ast2str()：把生成的 Python AST 反编译成源码
 └── vendor/com-support/ 随包分发的 COM 支持包（Windows 零配置可用）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
-tests/                  回归测试（485 个用例）
+tests/                  回归测试（497 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 

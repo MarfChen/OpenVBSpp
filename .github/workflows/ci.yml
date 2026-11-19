@@ -22,24 +22,17 @@ jobs:
     name: test / ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    # Windows is the supported platform and is a hard gate. Linux is marked
-    # experimental (continue-on-error) until the suite is proven there in CI;
-    # delete `experimental` from the ubuntu entries to promote it to a gate.
-    continue-on-error: ${{ matrix.experimental }}
+    # Windows and Linux are both hard gates. Linux keeps the cheapest matrix
+    # (3.10 and 3.13) so the badge still reflects the supported platforms.
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        include:
-          - os: windows-latest
-            experimental: false
-          - os: ubuntu-latest
-            experimental: true
+        python: ["3.10", "3.11", "3.12", "3.13"]
         exclude:
           # Keep the Linux lane cheap: oldest and newest interpreter only.
-          - os: ubuntu-latest
-            python: "3.10"
           - os: ubuntu-latest
             python: "3.11"
           - os: ubuntu-latest
@@ -54,7 +47,7 @@ jobs:
           cache: pip
 
       - name: Toolchain
-        run: python -m pip install --upgrade pip "setuptools>=75" wheel build
+        run: python -m pip install --upgrade pip "setuptools>=77" wheel build
 
       - name: Install (editable, dev extras)
         run: python -m pip install -e ".[dev]" --no-build-isolation
@@ -65,13 +58,27 @@ jobs:
         if: runner.os == 'Windows'
         run: python -m pip install "pywin32>=306"
 
-      - name: Unit tests
-        run: python -m unittest discover -s tests
+      - name: Unit tests with coverage
+        run: python -m coverage run --source=OpenVBSPP,cli -m unittest discover -s tests
+
+      - name: Coverage report
+        run: |
+          python -m coverage report --skip-covered --skip-empty
+          python -m coverage xml -o coverage.xml
+
+      - name: Upload coverage to Codecov
+        if: runner.os == 'Windows' && matrix.python == '3.13' && env.CODECOV_TOKEN != ''
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Verify entry points
         run: |
           python -m OpenVBSPP --version
           python -c "import OpenVBSPP; print('OpenVBSPP', OpenVBSPP.__version__)"
+          python -m OpenVBSPP -c "echo 6 * 7"
 
       - name: COM smoke test (Windows only)
         if: runner.os == 'Windows'
@@ -97,8 +104,7 @@ jobs:
           "$BIN/python" -m pip install --upgrade pip >/dev/null
           "$BIN/python" -m pip install dist/*.whl
           "$BIN/python" -m OpenVBSPP --version
-          printf 'Option Explicit\nDim i, s\ns = 0\nFor i = 1 To 10\n  s = s + i\nNext\necho s\n' > smoke.vbs
-          "$BIN/python" -m OpenVBSPP smoke.vbs
+          "$BIN/python" -m OpenVBSPP -c "echo 21 * 2"
           # vendor/com-support must be shipped inside the wheel.
           "$BIN/python" -c "import OpenVBSPP.ovpprt.com as c; print('com-support:', c.resolve())"
 
@@ -111,11 +117,21 @@ jobs:
           if-no-files-found: error
 
   exe:
-    name: exe / windows-latest / Python 3.13
-    runs-on: windows-latest
-    timeout-minutes: 25
+    name: exe / ${{ matrix.runner }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
     # The single-file build is slow; run it for tags and manual dispatches only.
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    # `windows-11-arm` is available to public repositories only (GA since
+    # 2025-08). If you publish from a private repo, delete that matrix entry.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+          - runner: windows-11-arm
+            arch: arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -126,7 +142,7 @@ jobs:
           cache: pip
 
       - name: Toolchain
-        run: python -m pip install --upgrade pip "setuptools>=75" wheel "pyinstaller>=6.0"
+        run: python -m pip install --upgrade pip "setuptools>=77" wheel "pyinstaller>=6.0"
 
       - name: Install package with COM support
         run: python -m pip install -e ".[com]" --no-build-isolation
@@ -135,17 +151,16 @@ jobs:
         run: python -m PyInstaller packaging/openvbs.spec --noconfirm --distpath dist --workpath build/pyinstaller
 
       - name: Smoke test the exe
-        shell: bash
+        shell: pwsh
         run: |
-          set -e
-          cp dist/openvbs.exe "$RUNNER_TEMP/openvbs.exe"
-          "$RUNNER_TEMP/openvbs.exe" --version
-          printf 'Set sh = CreateObject("WScript.Shell")\necho sh.ExpandEnvironmentStrings("%%OS%%")\n' > com_smoke.vbs
-          "$RUNNER_TEMP/openvbs.exe" com_smoke.vbs
+          Copy-Item dist/openvbs.exe "$env:RUNNER_TEMP/openvbs.exe"
+          & "$env:RUNNER_TEMP/openvbs.exe" --version
+          Set-Content -Path com_smoke.vbs -Encoding utf8 -Value 'Set sh = CreateObject("WScript.Shell")', 'echo sh.ExpandEnvironmentStrings("%OS%")'
+          & "$env:RUNNER_TEMP/openvbs.exe" com_smoke.vbs
 
       - name: Upload exe
         uses: actions/upload-artifact@v4
         with:
-          name: openvbs-exe
+          name: openvbs-exe-${{ matrix.arch }}
           path: dist/openvbs.exe
           if-no-files-found: error
