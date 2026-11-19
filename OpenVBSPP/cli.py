@@ -23,7 +23,6 @@ from pathlib import Path
 
 from OpenVBSPP import __version__
 from OpenVBSPP.exceptions import OVPPError
-from OpenVBSPP.runtime import vbs_run
 
 
 DEMO = """
@@ -245,6 +244,10 @@ def main(argv=None):
         filename = "<demo>"
 
     try:
+        # 延迟 import：runtime 会把 compiler/transformer/typecheck 一路拉进来
+        # （约 27 ms），而 `openvbs --version`、`openvbs over ...` 根本用不到。
+        from OpenVBSPP.runtime import vbs_run
+
         vbs_run(code, filename=filename, verbose=args.verbose,
                 mode="save" if args.save else "exec",
                 save_dir=args.save_dir)

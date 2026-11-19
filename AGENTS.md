@@ -55,7 +55,7 @@ OpenVBSPP/        编译器与运行时（23 个模块）
   ovpprt/         运行时库（boolean/string/array/empty/null/nothing/ref/err/builtins/format）
 examples/         示例脚本（每个都会被 tests 跑）
 tests/            回归测试（examples + 过程 + 语法糖 + VBS 超集）
-doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计
+doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计、法务自查（LEGAL.md）
 ```
 
 ## 关键实现约定（改代码前必读）
@@ -65,9 +65,15 @@ doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计
 - **标识符大小写不敏感**：`canon(name) = name.lower()`，生成代码统一用小写。
 - **ByRef**：实参包进 `ovpprt/ref.Ref`，过程内读写成 `参数.v`，调用后写回。
   表达式里的 ByRef 调用靠 `_pending_pre/_pending_post` + `_hoist()` 把语句提升到外层。
+  v0.9.15 起只给「真的会被写」的 ByRef 参数装箱（`_ref_param_names()`：过程体里被赋值 /
+  `ReDim` / `For` / 作为实参继续传递才算）；只读参数按值传，被调方开头内联拆包
+  `if type(n) is _ovpp_ref.Ref: n = n.v` —— 因为跨模块 `namespace` 与 `AddressOf` 委托
+  仍可能把 `Ref` 传进来，这个拆包不能省。
 - **作用域**：过程里对模块级变量赋值会自动生成 `global` 声明。
-- **`On Error Resume Next`**：编译期开关，之后的语句被包进 `try/except` 调 `_ovpp_err.capture`；
-  每个过程 `_ovpp_err.enter()`/`leave()` 一帧。
+- **`On Error Resume Next`**：编译期开关，之后的语句被包进 `try/except` 调 `_ovpp_err.capture`。
+  v0.9.15 起只有过程体里出现 `On Error ...` / `Resume` / `Err` 才生成
+  `_ovpp_err.enter()`/`try/finally` + `leave()`（判定见 `_needs_error_frame()`），
+  其余过程直接执行——`ovpprt/err.py` 模块加载时就有基帧，`capture()` 不会越界。
 - **`With`**：对象表达式存进临时变量，`_with_stack` 保存节点，`.member` 编译成对它取属性。
 - **类**：`Class Foo` → `class _ovpp_cls_foo`，带 `_vbs_name`；字段用 Python 属性，
   `Property Get` → `@property`，`Property Let/Set` → setter，`Me` → `self`，
@@ -83,6 +89,14 @@ doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计
   （行号保持不变），Transformer 把占位编译成 `exec(源码, globals(), globals())`。
 - **`Option Typing`**：`OpenVBSPP/typecheck.py` 在编译前跑一遍，只在出现
   `Option Typing` 时生效；注解语法是 `->`（`:` 已用于语句分隔）。
+- **`For` 快路径**：步长是常量、循环体不给计数器赋值时生成
+  `for i in _ovpp_arr.for_seq(start, end, step)` + `else: if seq: i = i + step`
+  （`_transform_for_seq()`）；其余情况仍生成 `while`。三条必须保住的语义：正常结束后
+  计数器 = 末值 + 步长、`Exit For` 不加步长、空区间保留起点值。
+- **启动性能**：`ovpprt` 里 `re`/`json`/`datetime`/`math`/`random` 一律延迟导入
+  （`regexp.py`、`jsonobj.py`、`object.py`、`builtins.py` 的 `_LazyModule`）；
+  `cli.py` 只在真正执行脚本时才 `import OpenVBSPP.runtime`。加新的顶层 import 前先想清楚
+  它会不会被每个脚本付一次启动成本。
 - **运行时别名**：`_ovpp_bool` `_ovpp_str` `_ovpp_arr` `_ovpp_builtin` `_ovpp_ref` `_ovpp_err`
   `_ovpp_obj` `_ovpp_collections` `_ovpp_empty` `_ovpp_null` `_ovpp_nothing`、
   类注册表 `_ovpp_classes`，用户变量不会撞名。
@@ -96,6 +110,10 @@ doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计
    `plugins/__init__.py`、`pyproject.toml` 五处一致。
 5. 改到 `vendor/com-support/` 时，同步 `extras/com-support/` 的 `com_support.py` 与
    `over.json`（两份必须逐字节一致，`tests/test_com.py` 会校验）。
+6. 动编译器生成的代码形态（Ref 装箱、错误帧、`For` 快路径、懒加载）必须同时跑
+   `tests/test_perf_semantics.py`；它专门钉这些优化的语义边界，改性能前后都要绿。
+7. 性能数字变了就同步 `README.md` 的「## 性能」小节和 `tools/bench.py` 的说明文字——
+   那张表是项目的对外承诺，不能和实测漂移。
 
 ## 环境坑
 
@@ -128,6 +146,8 @@ doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计
 - **版本号**：`OpenVBSPP/__init__.py`、`ast_nodes/__init__.py`、`ovpprt/__init__.py`、
   `plugins/__init__.py`、`pyproject.toml` 五处必须一致。
 - **对象模型**：完整清单与"不适用关键字"的说明在 `doc/OOP.md`，改 OOP 前先读它。
+- **法务口径**：与微软 VBScript 的关系（独立实现、商标指名性使用、不复制其文档）
+  写在 `doc/LEGAL.md`；新增文档/示例别整段照抄微软帮助文本，演示代码自己写。
 
 ## 环境坑（续）
 

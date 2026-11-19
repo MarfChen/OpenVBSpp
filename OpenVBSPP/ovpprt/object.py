@@ -20,12 +20,13 @@ VBS 的对象来自 COM（IDispatch）；本项目不模拟 COM，只提供两�
   2. 内置类（目前是 Scripting.Dictionary）。
 
 `CreateObject` 的 ProgID 解析就发生在这里。
+
+性能说明：内置对象各自的模块（collections / filesystem / regexp）都在
+`create_object` 里延迟 import——`filesystem` 会拉起 os/tempfile/pathlib，
+`regexp` 会拉起 re，只有真正构造这些对象时才需要付这份钱。
 '''
 
 from OpenVBSPP.exceptions import OVPPObjectNotSupportedError
-from OpenVBSPP.ovpprt.collections import Dictionary
-from OpenVBSPP.ovpprt.filesystem import FileSystemObject
-from OpenVBSPP.ovpprt.regexp import RegExp
 
 
 _DEFAULT_MEMBER = "_default_member"
@@ -42,12 +43,15 @@ def create_object(progid, registry, *args):
     key = str(progid).strip().lower()
 
     if key == "scripting.dictionary":
+        from OpenVBSPP.ovpprt.collections import Dictionary
         return Dictionary()
 
     if key == "scripting.filesystemobject":
+        from OpenVBSPP.ovpprt.filesystem import FileSystemObject
         return FileSystemObject()
 
     if key in ("vbscript.regexp", "regexp"):
+        from OpenVBSPP.ovpprt.regexp import RegExp
         return RegExp()
 
     cls = registry.get(key)

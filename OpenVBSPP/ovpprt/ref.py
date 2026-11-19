@@ -23,6 +23,11 @@ VBS 的过程参数默认是 ByRef（按引用传递）。Python 只有按值传
     调用之后：x = _r.v                         （写回）
 
 这样 `Sub Swap(ByRef a, ByRef b)` 这类代码才能生效。
+
+性能备注：只读的 ByRef 参数（过程体里既不赋值、也不外传给别的调用）
+按值传递即可，编译器会跳过 Ref 与回写。但跨模块（namespace）和委托
+（AddressOf）这类"编译期看不到被调方签名"的调用仍然会传 Ref，所以过程
+入口用 `unwrap()` 统一拆包，两种调用约定都能接受。
 '''
 
 from OpenVBSPP.ovpprt.empty import EMPTY
@@ -38,3 +43,8 @@ class Ref:
 
     def __repr__(self):
         return f"Ref({self.v!r})"
+
+
+def unwrap(value):
+    """可能是 Ref 时取出真实值，否则原样返回。"""
+    return value.v if type(value) is Ref else value

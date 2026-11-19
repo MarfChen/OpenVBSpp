@@ -18,12 +18,12 @@ VBS 常用内置函数。
 编译器把 `Len(x)` 这样的调用翻译成 `_ovpp_builtin.Len(x)`，
 所以这里的函数名保持 VBS 的写法（首字母大写）。
 REGISTRY 用小写名字做键，从而实现 VBS 的大小写不敏感。
+
+性能说明：`datetime` / `math` / `random` / `re` 合计约 5 ms，而绝大多数脚本
+只用到 CStr/Left/IsEmpty 这类纯函数，所以这四个模块用 `_LazyModule` 代理，
+第一次真正取属性时才 import。
 '''
 
-import datetime as _datetime
-import math
-import random
-import re
 import sys
 
 from OpenVBSPP.ovpprt.array import lbound, ubound
@@ -31,6 +31,33 @@ from OpenVBSPP.ovpprt.boolean import VBool, to_bool
 from OpenVBSPP.ovpprt.empty import EMPTY, EmptyType
 from OpenVBSPP.ovpprt.format import to_text
 from OpenVBSPP.ovpprt.null import NULL, NullType
+
+
+class _LazyModule:
+    """按需 import 的模块代理：第一次取属性时才真正 import 目标模块。"""
+
+    __slots__ = ("_name", "_module")
+
+    def __init__(self, name):
+        self._name = name
+        self._module = None
+
+    def __getattr__(self, attr):
+        module = self._module
+        if module is None:
+            import importlib
+
+            module = self._module = importlib.import_module(self._name)
+        return getattr(module, attr)
+
+    def __repr__(self):
+        return f"_LazyModule({self._name!r})"
+
+
+_datetime = _LazyModule("datetime")
+math = _LazyModule("math")
+random = _LazyModule("random")
+re = _LazyModule("re")
 
 
 # --------------------------------------------------------------------- 工具

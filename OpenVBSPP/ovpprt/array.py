@@ -80,3 +80,25 @@ def erase(array):
     if isinstance(array[0], list):
         return [erase(row) for row in array]
     return [EMPTY] * len(array)
+
+
+def for_seq(start, end, step):
+    """`For i = start To end Step step` 的可迭代序列（跳过循环变量赋值）。
+
+    整数情形直接给 range，Python 的 for 比"while + 比较 + 自增"快得多；
+    VBS 允许浮点步长，那种情况退化成列表。
+    """
+    try:
+        return range(start, end + (1 if step > 0 else -1), step)
+    except TypeError:
+        values = []
+        current = start
+        if step >= 0:
+            while current <= end:
+                values.append(current)
+                current += step
+        else:
+            while current >= end:
+                values.append(current)
+                current += step
+        return values

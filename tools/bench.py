@@ -298,8 +298,9 @@ def main(argv=None) -> int:
     print_inproc(run_in_process(max(1, args.repeat)))
     if args.e2e:
         print_e2e(run_e2e(max(1, args.repeat)))
-    print("\n说明：VBS 的 For 带步长语义、& 走类型转换，比 Python 的加法多做一层工作；"
-          "过程内与模块级的差距来自 Python 的 locals 与 globals 查找差异。")
+    print("\n说明：For 在“步长是常量、循环体不改计数器”时编译成 range，已和 Python 的 for 同速；"
+          "剩下的差距来自 VBS 的 & 要走类型转换、函数调用要多一层参数处理，"
+          "以及过程内（locals）与模块级（globals）的查找差异。")
     return 0
 
 

@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-457%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.14-blue)
+![tests](https://img.shields.io/badge/tests-485%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.15-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.9%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -24,8 +24,9 @@
 > VBScript 是 Microsoft Corporation 的商标。本仓库不包含 Microsoft 的任何代码或文档。
 > OpenVBS++ is an independent reimplementation, not affiliated with or endorsed by
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
+> 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.14**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.15**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -388,9 +389,10 @@ Source: echo zzz
 
 ## 性能
 
-先给结论：**作为「老脚本的迁移执行层」，它比原生 `cscript.exe` 快 2–2.6 倍，启动也快约 1.5 倍；
-但函数调用密集和 CPU 密集的循环，比手写 Python 慢数倍。** 适合批处理、胶水、运维自动化，
-不适合把百万次循环塞进 VBS 里做数值计算。
+先给结论：**作为「老脚本的迁移执行层」，它比原生 `cscript.exe` 快 2.5–3 倍，启动也快约 1.5 倍；
+循环、数组、函数调用的运行时开销已经压到接近手写 Python（1.0–1.4 倍），
+剩下明显偏慢的只有 `Dictionary` 的成员访问和深递归。** 适合批处理、胶水、运维自动化，
+不适合把百万次字典插入或深递归塞进 VBS 里做核心计算。
 
 自己复现（不需要任何参数，读取仓库内源码，不含硬编码路径）：
 
@@ -403,37 +405,42 @@ python tools/bench.py --e2e    # 额外跑端到端（含解释器启动），Wi
 
 | 脚本 | OpenVBS++ | cscript.exe | CPython |
 |---|---:|---:|---:|
-| 只 echo 一行 | **118 ms** | 174 ms | 70 ms |
-| 1M 次算术循环 | **170 ms** | 443 ms | 101 ms |
-| fib(24) | **186 ms** | 396 ms | 76 ms |
+| 只 echo 一行 | **114 ms** | 169 ms | 70 ms |
+| 1M 次算术循环 | **142 ms** | 438 ms | 101 ms |
+| fib(24) | **150 ms** | 394 ms | 76 ms |
 
 ### 进程内（编译一次、反复执行，纯运行开销；中位数）
 
 | 用例 | OpenVBS++ | 等价 CPython | 倍数 |
 |---|---:|---:|---:|
-| 1M 算术循环（过程内） | 50 ms | 30 ms | 1.7× |
-| 1M 算术循环（模块级） | 144 ms | 72 ms | 2.0× |
-| 20k 字符串拼接 | 7.8 ms | 4.3 ms | 1.8× |
-| 100k 数组读写 | 26 ms | 13 ms | 2.1× |
-| 200k 函数调用 | 118 ms | 20 ms | 6.1× |
-| 50k Dictionary 插入 | 63 ms | 4.5 ms | 14.0× |
-| fib(24) 递归 | 67 ms | 5.6 ms | 12.0× |
+| 1M 算术循环（过程内） | 29.7 ms | 30.1 ms | **0.99×** |
+| 1M 算术循环（模块级） | 69.7 ms | 67.0 ms | **1.04×** |
+| 100k 数组读写 | 12.8 ms | 12.7 ms | **1.00×** |
+| 200k 函数调用 | 23.1 ms | 17.1 ms | 1.35× |
+| 20k 字符串拼接 | 6.3 ms | 4.5 ms | 1.39× |
+| fib(24) 递归 | 37.9 ms | 5.5 ms | 6.85× |
+| 50k Dictionary 插入 | 58.4 ms | 4.5 ms | 13.1× |
 
-### 开销都花在哪
+### v0.9.15 做的四项优化
 
-生成的 Python 代码里，每一处都对应一条 VBScript 语义，而不是实现失误：
+这四项的共同前提是「只改生成的代码，不改语言语义」，每一项都由
+`tests/test_perf_semantics.py` 钉住边界：
 
-- **每个实参一个 `Ref` 对象**，调用后还要回写——为了支持 VBS 的 `ByRef` 默认传参语义。
-- **每次过程调用 `enter()/leave()`**——为了支持 `On Error Resume Next` 的错误作用域。
-- **`For` 编译成 `while` + 步长判断**——为了支持 `Step 2`、负数步长、循环体内改计数器。
-- **模块级变量是 Python globals**，所以模块级代码比过程内慢约 2.5 倍（CPython 的 `LOAD_NAME` 比 `LOAD_FAST` 慢）。
+| 优化 | 做法 | 效果 |
+|---|---|---|
+| 启动懒加载 | `regexp`/`jsonobj`/`object`/`builtins` 里的 `re`、`json`、`datetime`、`math`、`random` 改成首次使用时才导入；`cli.py` 只在真正执行脚本时才导入 `runtime` | 冷启动开销 27 ms → 13 ms，`openvbs --version` 82 ms |
+| 只读 `ByRef` 参数不再装箱 | 编译器静态判断形参是否真的被写（赋值、`ReDim`、`For`、或继续传给下层），只读的按值传，被调方内联拆包 `if type(n) is Ref: n = n.v` | 200k 次函数调用 118 ms → 23 ms（13.7× → 1.35×） |
+| 无 `On Error` 的过程不再建错误帧 | 过程体里没有 `On Error ...`/`Resume`/`Err` 就不生成 `enter()/try/finally/leave()`，模块加载时已有一个基帧兜底 | 递归 fib(24) 67 ms → 38 ms（12.0× → 6.85×） |
+| `For` 安全时编译成 `range` | 步长是常量、循环体不给计数器赋值时，生成 `for i in for_seq(...)` + `else: i = i + step`，复现「正常结束后计数器 = 末值 + 步长、`Exit For` 不加、空区间保留起点」 | 1M 循环 50 → 29.7 ms（1.65× → 0.99×），模块级 144 → 69.7 ms（4.19× → 1.04×） |
 
-已做的优化：`Dictionary` 成员分派从「线性扫全部键」改成「方法名直接判定」（O(n²) → O(1)，
-5 万次插入从 103 秒降到 63 毫秒）；`&` 拼接在两端都是字符串时走原生 `+` 快路径。
+早先还做过两项：`Dictionary` 成员分派从「线性扫全部键」改成「方法名直接判定」
+（O(n²) → O(1)，5 万次插入从 103 秒降到 58 ms）；`&` 拼接在两端都是字符串时走原生 `+` 快路径。
 
-还能再快、但会牵动语义的项（未做，欢迎练手）：启动懒加载（省约 28 ms）、
-字面量实参不建 `Ref`、过程体内无 `On Error` 时省略 `enter/leave`、
-`For` 在安全时生成 `range`、`Dim a(n)` 改用原生列表。
+### 还能再快、但收益与代价要再权衡的项
+
+- `Dictionary` 每次成员访问仍要过一遍运行时函数调用（13×），要彻底解决得让编译器识别 `d.Add` 这种模式。
+- 递归慢在「每次调用都是一次 Python 函数调用 + 参数绑定」，要更快需要内联或尾调用优化，会牵动 `On Error` 语义。
+- `Dim a(n)` 仍是运行时数组对象，改成原生 `list` 能再省一点，但会破坏 `LBound/UBound` 的可扩展性。
 
 ## 项目结构
 
@@ -466,7 +473,7 @@ OpenVBSPP/
 ├── plugins/debug_tools.py  ast2str()：把生成的 Python AST 反编译成源码
 └── vendor/com-support/ 随包分发的 COM 支持包（Windows 零配置可用）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
-tests/                  回归测试（457 个用例）
+tests/                  回归测试（485 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 
@@ -526,6 +533,7 @@ git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [doc/good-first-issues.md](doc/good-first-issues.md)。
 
 包管理器用法见 [doc/OVER.md](doc/OVER.md)。完整路线图与推迟项见 [doc/ROADMAP.md](doc/ROADMAP.md)。
+与微软 VBScript 的法律关系自查见 [doc/LEGAL.md](doc/LEGAL.md)。
 
 ## 路线图
 
@@ -538,7 +546,8 @@ git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
   `Option COP`、类型检查补强 —— 已完成
 - **v0.7.x–v0.9.x**：over 包管理器 M1/M2（本地源、git 源、锁文件、Python 依赖、bundled 包）、
   `CreateObject` 回归 VBS 语义、真实 COM 支持（`com-support`）、网页 IDE、`--json` 诊断 —— 已完成
-- **v0.9.14**：下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
+- **v0.9.15**：性能优化（启动懒加载、只读 `ByRef` 不再装箱、无 `On Error` 的过程不建错误帧、`For` 安全时生成 `range`）
+- 下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
 - **v1.0**：稳定语言规范、官方运行时库 `ovpprt`、IDE / LSP 支持
 
 ## 许可

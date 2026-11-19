@@ -46,16 +46,17 @@ password = pypi-<TestPyPI 的 Token>
 # 1) 全量测试必须全绿
 .\venv\Scripts\python.exe -m unittest discover -s tests
 
-# 2) 版本号四处一致
+# 2) 版本号五处一致
 Select-String -Path OpenVBSPP\__init__.py,OpenVBSPP\ast_nodes\__init__.py,`
-  OpenVBSPP\ovpprt\__init__.py,pyproject.toml -Pattern "0\.\d+\.\d+"
+  OpenVBSPP\ovpprt\__init__.py,OpenVBSPP\plugins\__init__.py,`
+  pyproject.toml -Pattern "0\.\d+\.\d+"
 
 # 3) 干净构建（先删掉旧产物）
 Remove-Item -Recurse -Force dist, build -ErrorAction SilentlyContinue
 ```
 
 版本号规则：`OpenVBSPP/__init__.py`、`ast_nodes/__init__.py`、`ovpprt/__init__.py`、
-`pyproject.toml` **四处必须一致**（测试里也有约定）。
+`plugins/__init__.py`、`pyproject.toml` **五处必须一致**（测试里也有约定）。
 
 ---
 
@@ -75,8 +76,8 @@ Remove-Item -Recurse -Force dist, build -ErrorAction SilentlyContinue
 
 ```
 dist/
-├── openvbspp-0.9.14-py3-none-any.whl     # 纯 Python，无平台依赖
-└── openvbspp-0.9.14.tar.gz               # sdist（含 examples/tests/doc）
+├── openvbspp-0.9.15-py3-none-any.whl     # 纯 Python，无平台依赖
+└── openvbspp-0.9.15.tar.gz               # sdist（含 examples/tests/doc）
 ```
 
 本地自检：
@@ -87,7 +88,7 @@ dist/
 
 # 装到临时环境里试一下
 python -m venv .tmp-venv
-.tmp-venv\Scripts\python.exe -m pip install dist\openvbspp-0.9.14-py3-none-any.whl
+.tmp-venv\Scripts\python.exe -m pip install dist\openvbspp-0.9.15-py3-none-any.whl
 .tmp-venv\Scripts\python.exe -m OpenVBSPP examples\control1.vbs
 .tmp-venv\Scripts\python.exe -m OpenVBSPP --version
 ```
@@ -158,3 +159,41 @@ openvbs.exe            # 无参数跑内置示例
 | exe 运行时 `ModuleNotFoundError: OpenVBSPP.ovpprt.xxx` | 新增运行时模块后忘记加进 `hiddenimports` |
 | exe 被杀软误报 | PyInstaller 单文件的常见问题，可改用 `--onedir`（改 spec 里的 `EXE`/`COLLECT`） |
 | wheel 里缺 examples | sdist 有 `MANIFEST.in` 控制，wheel 只装包本身，属预期行为 |
+
+---
+
+## 6. 发版说明（Release Notes）
+
+PyPI / GitHub Release 上贴的正文从这里取，写完记得和 README 的「更新日志」与
+`doc/ROADMAP.md` 的版本表对齐。
+
+### v0.9.15 — 性能
+
+纯性能版本：**只改生成的 Python 代码，不改语言语义**，全部由
+`tests/test_perf_semantics.py` 钉住边界。
+
+- **启动懒加载**：`ovpprt/regexp.py`、`jsonobj.py`、`object.py`、`builtins.py` 里的
+  `re`、`json`、`datetime`、`math`、`random` 改成首次使用时才导入；`cli.py` 只在真正
+  执行脚本时才 `import OpenVBSPP.runtime`。冷启动开销 27 ms → 13 ms。
+- **只读 `ByRef` 参数不再装箱**：编译器静态判断形参是否真的被写（赋值、`ReDim`、`For`、
+  或继续传给下层），只读的按值传；被调方内联拆包 `if type(n) is Ref: n = n.v`，
+  兼容 `namespace` 跨模块调用与 `AddressOf` 委托仍传 `Ref` 的情况。
+  200k 次函数调用 118 ms → 23 ms（13.7× → 1.35× 手写 Python）。
+- **无 `On Error` 的过程不再建错误帧**：过程体里没有 `On Error ...` / `Resume` / `Err`
+  就不生成 `enter()/try/finally/leave()`。递归 fib(24) 67 ms → 38 ms（12.0× → 6.85×）。
+- **`For` 安全时编译成 `range`**：步长是常量、循环体不给计数器赋值时，生成
+  `for i in for_seq(...)` + `else: i = i + step`，复现「正常结束后计数器 = 末值 + 步长、
+  `Exit For` 不加、空区间保留起点」三条 VBScript 语义。1M 循环 50 → 29.7 ms（0.99× 手写 Python）。
+
+其它：用例数 457 → 485；`tools/bench.py` 的说明与 README 性能小节同步更新。
+
+### v0.9.14 — `over` 的 Python 依赖与 COM 支持
+
+- `over.json` 新增 `python` 字段：整个依赖图的 Python 依赖一次性交给 pip 解析，
+  `over.lock`（v2）记录真实闭包与 `required_by`；`over list` / `info` / `remove --python`
+  可查看与卸载。
+- `over.json` 新增 `platforms` 字段；不匹配的平台只跳过，不报错。
+- COM 支持做成 `over` 包 `com-support`（封 `pywin32`）：随包分发（Windows 上零配置可用），
+  项目里装了就用项目的，`over install --with-com` 可装进项目、`OPENVBS_COM=0` 可关；
+  脚本里照旧 `CreateObject("WScript.Shell")`，**不需要 import**。
+- 修掉 `object.py` 三处 `Dictionary` 成员分派里的未定义变量。

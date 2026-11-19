@@ -1,7 +1,7 @@
 # OpenVBS++
 
-[![tests](https://img.shields.io/badge/tests-457%20passing-brightgreen)](tests)
-[![version](https://img.shields.io/badge/version-0.9.14-blue)](doc/RELEASE.md)
+[![tests](https://img.shields.io/badge/tests-485%20passing-brightgreen)](tests)
+[![version](https://img.shields.io/badge/version-0.9.15-blue)](doc/RELEASE.md)
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.9%2B-yellow)](pyproject.toml)
 [![CI](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml)
@@ -119,7 +119,7 @@ Measured with `python tools/bench.py` (reproducible, no hard-coded paths):
 
 ## Status and limits
 
-- 457 tests pass on Windows (Python 3.9–3.13); CI covers Windows and Linux.
+- 485 tests pass on Windows (Python 3.9–3.13); CI covers Windows and Linux.
 - Not implemented: `Declare` (P/Invoke) and the `Collection` built-in class.
 - `Option Explicit`, error codes, `Err`, number/boolean coercion, arrays, `With`, `Property`, classes,
   and COM all follow VBScript semantics, including the odd ones.
@@ -136,6 +136,7 @@ Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for third-party componen
 
 OpenVBS++ is an independent implementation. It is not affiliated with Microsoft; VBScript is a
 Microsoft trademark. This repository contains no Microsoft code or documentation.
+The trademark/copyright self-review is documented in [doc/LEGAL.md](doc/LEGAL.md).
 
 > **Security**: OpenVBS++ executes scripts with your privileges, exactly like `cscript.exe`. `<% %>`
 > blocks embed Python, and `over install` invokes `pip` — both are arbitrary code execution. Never run

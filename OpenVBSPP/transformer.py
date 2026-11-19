@@ -154,14 +154,155 @@ def canon(name):
     return name.lower()
 
 
+def _var_names_in(node):
+    """收集表达式里出现的所有变量名（保守：Member 的 base 也算进去）。"""
+    found = set()
+    stack = [node]
+    seen = set()
+    while stack:
+        current = stack.pop()
+        if current is None or isinstance(current, (str, bytes, int, float, bool)):
+            continue
+        if isinstance(current, (list, tuple)):
+            stack.extend(current)
+            continue
+        if isinstance(current, dict):
+            stack.extend(current.values())
+            continue
+        values = getattr(current, "__dict__", None)
+        if values is None:
+            continue
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, Var):
+            found.add(canon(current.name))
+        stack.extend(values.values())
+    return found
+
+
+def _ref_param_names(node):
+    """算出哪些 ByRef 参数必须真的用 Ref 盒子。
+
+    只需要两类：过程体里被赋过值的（新值要回写给调用方），以及作为实参
+    传给别的调用的（对方可能再回写）。只读的 ByRef 参数按值传即可——
+    调用方省掉一次 `Ref(...)` 与一次回写，被调方也不用每次访问走 `.v`。
+
+    这是纯静态判断，宁可保守：算不出确定就保留 Ref。
+    """
+    names = frozenset(canon(p.name) for p in node.params if p.byref)
+    if not names:
+        return frozenset()
+
+    needed = set()
+    stack = list(node.body)
+    seen = set()
+    while stack:
+        current = stack.pop()
+        if current is None or isinstance(current, (str, bytes, int, float, bool)):
+            continue
+        if isinstance(current, (list, tuple)):
+            stack.extend(current)
+            continue
+        values = getattr(current, "__dict__", None)
+        if values is None:
+            continue
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, (Assign, AssignIndex, ReDimDecl)):
+            needed.add(canon(current.name))
+        elif isinstance(current, (For, ForEach)):
+            needed.add(canon(current.var))
+        elif isinstance(current, (Call, CallStmt)):
+            for arg in current.args:
+                needed.update(_var_names_in(arg))
+        stack.extend(values.values())
+
+    return frozenset(needed & names)
+
+
+def _needs_error_frame(body):
+    """过程体是否真的需要错误处理帧（enter / leave）。
+
+    只有出现 On Error 系列语句、Resume，或者直接引用了 `Err` 时才需要；
+    其余过程按 VBS 语义根本不可能捕获错误，省掉帧就省掉每次调用的
+    两次函数调用。
+    """
+    stack = list(body)
+    seen = set()
+    while stack:
+        current = stack.pop()
+        if current is None or isinstance(current, (str, bytes, int, float, bool)):
+            continue
+        if isinstance(current, (list, tuple)):
+            stack.extend(current)
+            continue
+        if isinstance(current, (OnErrorResumeNext, OnErrorGoToZero,
+                                OnErrorGoToLabel, ResumeStmt)):
+            return True
+        if isinstance(current, Var) and canon(current.name) == "err":
+            return True
+        values = getattr(current, "__dict__", None)
+        if values is None:
+            continue
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        stack.extend(values.values())
+    return False
+
+
+def _writes_name(body, name):
+    """过程体（或循环体）里是否给某个变量赋过值。"""
+    stack = list(body)
+    seen = set()
+    while stack:
+        current = stack.pop()
+        if current is None or isinstance(current, (str, bytes, int, float, bool)):
+            continue
+        if isinstance(current, (list, tuple)):
+            stack.extend(current)
+            continue
+        values = getattr(current, "__dict__", None)
+        if values is None:
+            continue
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, (Assign, AssignIndex, ReDimDecl)):
+            if canon(current.name) == name:
+                return True
+        elif isinstance(current, (For, ForEach)):
+            if canon(current.var) == name:
+                return True
+        stack.extend(values.values())
+    return False
+
+
+def _const_step(node):
+    """`Step` 是字面量常量时返回它的数值，否则返回 None。"""
+    step = node.step
+    if step is None:
+        return 1
+    if isinstance(step, (Number, Float)):
+        return step.val
+    if isinstance(step, UnaryOp) and step.op == "-":
+        inner = step.operand
+        if isinstance(inner, (Number, Float)):
+            return -inner.val
+    return None
+
+
 class _ProcInfo:
-    __slots__ = ("name", "kind", "params", "py_name")
+    __slots__ = ("name", "kind", "params", "py_name", "ref_params")
 
     def __init__(self, node, py_name):
         self.name = node.name
         self.kind = node.kind
         self.params = list(node.params)
         self.py_name = py_name
+        self.ref_params = _ref_param_names(node)
 
     @property
     def arity(self):
@@ -616,7 +757,9 @@ class Transformer:
             # 方法参数统一通过 Ref 传入，ByVal 在函数体开头解包
             self.byref_params = frozenset(canon(p.name) for p in info.params if p.byref)
         else:
-            self.byref_params = frozenset(canon(p.name) for p in info.params if p.byref)
+            # 只有"会被写回"的 ByRef 参数才走 Ref 盒子，其余按值传
+            self.byref_params = frozenset(canon(p.name) for p in info.params
+                                          if p.byref and canon(p.name) in info.ref_params)
         self._with_stack = []
         self._on_error_resume = False
 
@@ -668,6 +811,29 @@ class Transformer:
                         targets=[ast.Name(id=pname, ctx=ast.Store())],
                         value=ast.Attribute(value=ast.Name(id=pname, ctx=ast.Load()),
                                             attr="v", ctx=ast.Load())))
+            else:
+                # 只读的 ByRef 参数按值传；但跨模块 / 委托调用仍然会传 Ref，
+                # 这里统一拆包，两种调用约定都能接住。
+                for param in info.params:
+                    if not param.byref or param.paramarray:
+                        continue
+                    pname = canon(param.name)
+                    if pname in info.ref_params:
+                        continue
+                    prologue.append(ast.If(
+                        test=ast.Compare(
+                            left=ast.Call(func=ast.Name(id="type", ctx=ast.Load()),
+                                          args=[ast.Name(id=pname, ctx=ast.Load())],
+                                          keywords=[]),
+                            ops=[ast.Is()],
+                            comparators=[ast.Attribute(
+                                value=ast.Name(id=REF_MODULE, ctx=ast.Load()),
+                                attr="Ref", ctx=ast.Load())]),
+                        body=[ast.Assign(
+                            targets=[ast.Name(id=pname, ctx=ast.Store())],
+                            value=ast.Attribute(value=ast.Name(id=pname, ctx=ast.Load()),
+                                                attr="v", ctx=ast.Load()))],
+                        orelse=[]))
             if info.kind == "function":
                 # 返回值用"函数名"这个局部变量承载，先初始化成 Empty
                 prologue.insert(0, ast.Assign(
@@ -706,18 +872,22 @@ class Transformer:
             self._method_locals = saved_locals
             self._var_classes = saved_var_classes
 
-        # 每个过程一个错误处理帧：enter + try/finally leave
-        leave_call = ast.Expr(value=ast.Call(
-            func=ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
-                               attr="leave", ctx=ast.Load()),
-            args=[], keywords=[]))
-        enter_call = ast.Expr(value=ast.Call(
-            func=ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
-                               attr="enter", ctx=ast.Load()),
-            args=[], keywords=[]))
-
-        guarded = ast.Try(body=prologue + (body or [ast.Pass()]),
-                          handlers=[], orelse=[], finalbody=[leave_call])
+        # 过程默认要一个错误处理帧：enter + try/finally leave。
+        # 但过程体里没有 On Error / Resume / Err 时根本不会捕获错误，
+        # 省略帧可以省掉每次调用的两次函数调用（函数调用密集的代码很吃这个）。
+        statements = prologue + (body or [ast.Pass()])
+        if _needs_error_frame(node.body):
+            leave_call = ast.Expr(value=ast.Call(
+                func=ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
+                                   attr="leave", ctx=ast.Load()),
+                args=[], keywords=[]))
+            enter_call = ast.Expr(value=ast.Call(
+                func=ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
+                                   attr="enter", ctx=ast.Load()),
+                args=[], keywords=[]))
+            guarded = ast.Try(body=statements, handlers=[], orelse=[],
+                              finalbody=[leave_call])
+            statements = [enter_call, guarded]
 
         arg_nodes = [ast.arg(arg="self")] if as_method else []
         defaults = []
@@ -733,8 +903,8 @@ class Transformer:
                     default_value = ast.Name(id=EMPTY_NAME, ctx=ast.Load())
                 else:
                     default_value = self.transform(param.default)
-                # 方法的所有参数都是 Ref；过程的 ByRef 参数是 Ref
-                if as_method or param.byref:
+                # 方法的所有参数都是 Ref；过程的 ByRef 参数按需是 Ref
+                if as_method or (param.byref and canon(param.name) in info.ref_params):
                     default_value = self._ref_call(default_value)
                 defaults.append(default_value)
 
@@ -756,7 +926,7 @@ class Transformer:
         return ast.FunctionDef(
             name=method_name,
             args=arguments,
-            body=[enter_call, guarded],
+            body=statements,
             decorator_list=[],
             returns=None,
             type_comment=None,
@@ -1403,12 +1573,18 @@ class Transformer:
                                attr="Ref", ctx=ast.Load()),
             args=[value], keywords=[])
 
-    def _call_with_refs(self, func_expr, params, args, node):
-        """通用的"按签名处理 ByRef"调用构造器：普通过程和对象方法共用。"""
+    def _call_with_refs(self, func_expr, params, args, node, ref_names=None):
+        """通用的"按签名处理 ByRef"调用构造器：普通过程和对象方法共用。
+
+        `ref_names` 为 None 表示"所有 ByRef 参数都要 Ref"（方法调用；
+        方法的形参本来就是 Ref）。传入集合时只有命中的参数才建 Ref。
+        """
         py_args, setups, writebacks = [], [], []
         for index, arg in enumerate(args):
             param = params[index] if index < len(params) else None
-            if param is not None and getattr(param, "byref", False):
+            wants_ref = (param is not None and getattr(param, "byref", False)
+                         and (ref_names is None or canon(param.name) in ref_names))
+            if wants_ref:
                 tmp = self._new_tmp("ref")
                 setups.append(ast.Assign(
                     targets=[ast.Name(id=tmp, ctx=ast.Store())],
@@ -1428,7 +1604,8 @@ class Transformer:
 
     def _proc_call(self, info, args, node):
         return self._call_with_refs(
-            ast.Name(id=info.py_name, ctx=ast.Load()), info.params, args, node)
+            ast.Name(id=info.py_name, ctx=ast.Load()), info.params, args, node,
+            info.ref_params)
 
     # ------------------------------------------------------------------ 对象方法
     def _class_chain(self, key):
@@ -1968,6 +2145,13 @@ class Transformer:
         step_tmp = self._new_tmp("for_step")
         key = canon(node.var)
 
+        # 快路径：步长是字面量常量、循环体不改计数器 —— 直接用 range，
+        # 省掉每次迭代的 Step 比较与自增。
+        constant_step = _const_step(node)
+        if (constant_step is not None and constant_step != 0
+                and not _writes_name(node.body, key)):
+            return self._transform_for_seq(node, key, constant_step)
+
         end_value = self.transform(node.end)
         step_value = (self.transform(node.step) if node.step is not None
                       else ast.Constant(value=1))
@@ -2013,6 +2197,47 @@ class Transformer:
 
         loop = ast.While(test=test, body=body, orelse=[])
         return ast.If(test=ast.Constant(value=True), body=prologue + [loop], orelse=[])
+
+    def _transform_for_seq(self, node, key, step):
+        """For 的快路径：`for i in for_seq(a, b, step): ...`。"""
+        seq_tmp = self._new_tmp("for_seq")
+
+        start_value = self.transform(node.start)
+        end_value = self.transform(node.end)
+        pre, post = self._take_pending()
+
+        prologue = pre + [
+            ast.Assign(targets=[self._name_store(key)],
+                       value=start_value),
+            ast.Assign(
+                targets=[ast.Name(id=seq_tmp, ctx=ast.Store())],
+                value=ast.Call(
+                    func=ast.Attribute(value=ast.Name(id=ARR_MODULE, ctx=ast.Load()),
+                                       attr="for_seq", ctx=ast.Load()),
+                    args=[self._name_load(key), end_value, ast.Constant(value=step)],
+                    keywords=[])),
+        ] + post
+
+        body = self._stmts(node.body)
+        # VBS 正常结束后计数器停在"第一个越界值"；for...else 只在没有
+        # Exit For 时执行，`if seq` 保证空区间不会凭空加一次 step。
+        tail = ast.If(
+            test=ast.Name(id=seq_tmp, ctx=ast.Load()),
+            body=[ast.Assign(
+                targets=[self._name_store(key)],
+                value=ast.BinOp(left=self._name_load(key), op=ast.Add(),
+                                right=ast.Constant(value=step)))],
+            orelse=[])
+
+        loop = ast.For(
+            target=self._name_store(key),
+            iter=ast.Name(id=seq_tmp, ctx=ast.Load()),
+            body=body,
+            orelse=[tail],
+            type_comment=None,
+        )
+        return ast.If(test=ast.Constant(value=True),
+                      body=prologue + [loop], orelse=[])
 
     def _transform_for_each(self, node):
         key = canon(node.var)
@@ -2305,13 +2530,13 @@ class Transformer:
                 f"Sub '{func.name}' cannot be used as a function",
                 line_number=node.line)
 
-        if any(p.byref for p in info.params):
+        if info.ref_params:
             # ByRef 函数在表达式里调用：实参先装进 Ref 盒子，
             # 写回语句由外层语句用 _hoist() 插在正确位置。
             py_args = []
             for index, arg in enumerate(node.args):
                 param = info.params[index] if index < len(info.params) else None
-                if param is None or not param.byref:
+                if param is None or not param.byref or canon(param.name) not in info.ref_params:
                     py_args.append(self.transform(arg))
                     continue
 
