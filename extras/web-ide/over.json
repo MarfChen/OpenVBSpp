@@ -1,0 +1,7 @@
+{
+  "name": "web-ide",
+  "version": "1.0.0",
+  "entry": "main.vbs",
+  "description": "OpenVBS++ 简易网页 IDE：浏览器里写、跑、看结果",
+  "dependencies": {}
+}

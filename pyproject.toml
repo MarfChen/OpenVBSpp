@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openvbspp"
+version = "0.9.14"
+description = "OpenVBS++: a VBScript-flavoured language that compiles to Python AST"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Marf Chen (MarfChen)" }]
+keywords = ["vbscript", "vbs", "compiler", "transpiler", "education", "interpreter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Interpreters",
+    "Topic :: Education",
+    "Natural Language :: Chinese (Simplified)",
+]
+
+[project.urls]
+Homepage = "https://github.com/MarfChen/OpenVBSpp"
+Repository = "https://github.com/MarfChen/OpenVBSpp"
+Documentation = "https://github.com/MarfChen/OpenVBSpp/blob/main/README.md"
+Issues = "https://github.com/MarfChen/OpenVBSpp/issues"
+Changelog = "https://github.com/MarfChen/OpenVBSpp/blob/main/doc/RELEASE.md"
+
+# 运行期没有任何必需第三方依赖；以下都是可选的开发/打包/平台依赖。
+[project.optional-dependencies]
+# -v 时打印 AST 结构
+dev = ["astpretty>=3.0"]
+# 构建 sdist / wheel 并上传 PyPI
+release = ["build>=1.0", "twine>=5.0"]
+# 打包成单文件 exe
+exe = ["pyinstaller>=6.0"]
+# Windows 上让 CreateObject 真连 COM（com-support 的 Python 依赖；也可由 over 自动安装）
+com = ["pywin32>=306; sys_platform == 'win32'"]
+# 本地开发全量依赖
+all = ["astpretty>=3.0", "build>=1.0", "twine>=5.0", "pyinstaller>=6.0"]
+
+[project.scripts]
+openvbs = "OpenVBSPP.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+packages = [
+    "OpenVBSPP",
+    "OpenVBSPP.ast_nodes",
+    "OpenVBSPP.ovpprt",
+    "OpenVBSPP.plugins",
+    "OpenVBSPP.ide",
+]
+
+[tool.setuptools.package-data]
+OpenVBSPP = [
+    "py.typed",
+    "ide/static/*.html",
+    "vendor/com-support/*.py",
+    "vendor/com-support/*.json",
+    "vendor/com-support/*.md",
+]

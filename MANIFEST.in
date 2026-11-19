@@ -1,0 +1,21 @@
+include README.md
+include LICENSE
+include NOTICE
+include CONTRIBUTING.md
+include AGENTS.md
+include pyproject.toml
+
+recursive-include OpenVBSPP *.py py.typed
+recursive-include OpenVBSPP/vendor *.py *.json *.md
+recursive-include extras *.py *.json *.md *.vbs
+recursive-include examples *.vbs
+recursive-include tests *.py
+recursive-include doc *.md
+
+exclude doc/*.docx
+exclude doc/*.pdf
+exclude doc/~$*
+exclude doc/微软官方vbscript参考手册*
+prune venv
+prune .vs
+prune __pycache__

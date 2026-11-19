@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OpenVBS++ Studio</title>
+<style>
+  :root {
+    --bg: #0b0f17; --panel: rgba(22,30,46,0.72); --line: rgba(120,150,200,0.16);
+    --text: #e6edf7; --muted: #8b9ab3; --accent: #5b8cff; --accent-2: #46e0c0;
+    --danger: #ff6b81; --ok: #3ddc97;
+    --mono: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 12% -10%, rgba(91,140,255,0.18), transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, rgba(70,224,192,0.12), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; gap: 10px; padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent);
+    backdrop-filter: blur(8px); flex-wrap: wrap;
+  }
+  .logo {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-weight: 800; color: #0b0f17;
+    box-shadow: 0 6px 18px rgba(91,140,255,0.35);
+  }
+  h1 { font-size: 16px; margin: 0; letter-spacing: .2px; }
+  .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .spacer { flex: 1; }
+  .pill {
+    font: 12px/1 var(--mono); padding: 6px 10px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); background: rgba(255,255,255,0.03);
+  }
+  .pill.ok { color: var(--ok); border-color: rgba(61,220,151,.4); }
+  .pill.fail { color: var(--danger); border-color: rgba(255,107,129,.45); }
+  button, select {
+    font: inherit; color: var(--text); cursor: pointer;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 14px; transition: .15s ease;
+  }
+  button:hover, select:hover { background: rgba(255,255,255,0.11); transform: translateY(-1px); }
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), #7a6bff); border: none;
+    color: white; font-weight: 600; box-shadow: 0 8px 22px rgba(91,140,255,0.35);
+  }
+  main { flex: 1; display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; padding: 14px; min-height: 0; }
+  .panel {
+    display: flex; flex-direction: column; min-height: 0; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35); backdrop-filter: blur(10px);
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .editor-wrap { position: relative; flex: 1; display: flex; min-height: 0; }
+  .gutter {
+    font: 13px/1.65 var(--mono); color: #4a5871; text-align: right;
+    padding: 14px 10px; user-select: none; overflow: hidden;
+    background: rgba(0,0,0,0.22); border-right: 1px solid var(--line);
+    min-width: 52px; white-space: pre;
+  }
+  textarea {
+    flex: 1; border: 0; outline: 0; resize: none; padding: 14px 16px;
+    background: transparent; color: var(--text); font: 13px/1.65 var(--mono);
+    tab-size: 4; white-space: pre; overflow: auto;
+  }
+  .tabs { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .tab { padding: 6px 12px; border-radius: 8px; font-size: 12px; color: var(--muted); border: 1px solid transparent; }
+  .tab.active { color: var(--text); background: rgba(91,140,255,0.16); border-color: rgba(91,140,255,0.35); }
+  .view { flex: 1; overflow: auto; padding: 14px 16px; font: 13px/1.6 var(--mono); }
+  .line { white-space: pre-wrap; word-break: break-word; }
+  .line.err { color: var(--danger); }
+  .line.meta { color: var(--muted); }
+  .diag { border-left: 3px solid var(--danger); padding: 8px 12px; margin-bottom: 10px;
+          background: rgba(255,107,129,0.08); border-radius: 0 10px 10px 0; }
+  .diag .msg { color: var(--danger); font-weight: 600; }
+  .diag .src { color: var(--muted); margin-top: 4px; white-space: pre-wrap; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .card { padding: 12px; border: 1px solid var(--line); border-radius: 12px;
+          background: rgba(255,255,255,0.03); }
+  .card b { display: block; margin-bottom: 4px; }
+  .card span { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 13px; }
+  footer { padding: 8px 20px; border-top: 1px solid var(--line); color: var(--muted);
+           font-size: 12px; display: flex; gap: 16px; }
+  kbd { font: 11px var(--mono); padding: 1px 6px; border-radius: 5px;
+        border: 1px solid var(--line); background: rgba(255,255,255,0.05); }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">V</div>
+  <div>
+    <h1>OpenVBS++ Studio</h1>
+    <div class="sub">VBScript-flavoured · 编译到 Python AST · 超集语言</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="status">就绪</span>
+  <select id="examples" title="插入示例"></select>
+  <button id="loadBtn" title="浏览… 打开脚本">打开…</button>
+  <button id="saveBtn" title="保存 (Ctrl+S)；第一次会弹出另存为">保存</button>
+  <button id="saveAsBtn" title="另存为 (Ctrl+Shift+S)">另存为…</button>
+  <button id="checkBtn" title="只编译，不运行">检查</button>
+  <button class="primary" id="runBtn" title="运行 (Ctrl+Enter)">▶ 运行</button>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="panel-head">
+      <span class="dot"></span><span id="fileName">untitled.vbs</span>
+      <span class="spacer"></span><span id="dirty"></span>
+    </div>
+    <div class="editor-wrap">
+      <div class="gutter" id="gutter">1</div>
+      <textarea id="editor" spellcheck="false" wrap="off"></textarea>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs">
+      <div class="tab active" data-view="out">输出</div>
+      <div class="tab" data-view="diag">诊断</div>
+      <div class="tab" data-view="pkg">扩展</div>
+    </div>
+    <div class="view" id="view"></div>
+  </section>
+</main>
+
+<footer>
+  <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> 运行</span>
+  <span><kbd>Ctrl</kbd>+<kbd>S</kbd> 保存</span>
+  <span><kbd>Tab</kbd> 缩进</span>
+  <span class="spacer"></span>
+  <span id="capabilities"></span>
+</footer>
+
+<script>
+var $ = function (id) { return document.getElementById(id); };
+var editor = $("editor");
+var view = "out";
+var currentName = "untitled";
+var currentPath = null;
+var lastRun = null;
+var nativeDialogs = false;
+
+function setStatus(text, kind) {
+  var el = $("status");
+  el.textContent = text;
+  el.className = "pill" + (kind ? " " + kind : "");
+}
+
+function syncGutter() {
+  var count = editor.value.split("\n").length;
+  var rows = [];
+  for (var i = 1; i <= count; i++) rows.push(i);
+  $("gutter").textContent = rows.join("\n");
+  $("gutter").scrollTop = editor.scrollTop;
+}
+
+function markDirty() { $("dirty").textContent = "● 未保存"; }
+
+function escapeHtml(text) {
+  return String(text == null ? "" : text)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderOutput(result) {
+  var parts = [];
+  if (result.output) {
+    result.output.replace(/\n$/, "").split("\n").forEach(function (line) {
+      parts.push('<div class="line">' + escapeHtml(line) + "</div>");
+    });
+  }
+  if (result.error) {
+    var e = result.error;
+    parts.push('<div class="line err">✕ ' + escapeHtml(e.kind) + ": " +
+               escapeHtml(e.message) + "</div>");
+    if (e.line) {
+      parts.push('<div class="line meta">  第 ' + e.line + " 行 " +
+                 escapeHtml(e.source_line || "") + "</div>");
+    }
+  }
+  if (!parts.length) parts.push('<div class="empty">没有输出。按 Ctrl+Enter 运行。</div>');
+  parts.push('<div class="line meta">— ' + result.duration_ms + " ms</div>");
+  $("view").innerHTML = parts.join("");
+}
+
+function renderDiagnostics(list) {
+  if (!list.length) {
+    $("view").innerHTML = '<div class="empty">没有诊断信息，编译通过 ✓</div>';
+    return;
+  }
+  $("view").innerHTML = list.map(function (d) {
+    return '<div class="diag"><div class="msg">' + escapeHtml(d.kind) + ": " +
+      escapeHtml(d.message) + "</div>" +
+      (d.line ? '<div class="src">第 ' + d.line + " 行 " +
+        escapeHtml(d.source_line || "") + "</div>" : "") + "</div>";
+  }).join("");
+}
+
+function renderCapabilities(caps) {
+  var pkg = caps.packages || {};
+  var dlg = caps.dialogs || {};
+  $("view").innerHTML =
+    '<div class="cards">' +
+    '<div class="card"><b>版本</b><span>' + escapeHtml(caps.version) + "</span></div>" +
+    '<div class="card"><b>运行 / 检查</b><span>已启用</span></div>' +
+    '<div class="card"><b>原生对话框</b><span>' +
+      (dlg.native_dialogs ? "已启用" : "不可用（退回浏览器选择）") + "</span></div>" +
+    '<div class="card"><b>包管理器</b><span>' +
+      (pkg.enabled ? "已启用" : "预留中") + "</span></div>" +
+    "</div>" +
+    '<p class="empty" style="margin-top:14px">平台：' + escapeHtml(dlg.platform || "?") +
+    "<br/>换行：读入统一成 LF、写出一律 LF（Windows/Linux 行为一致）<br/>" +
+    "包管理器契约：" + (pkg.operations || []).join(" / ") + "<br/>" +
+    "包的字段：" + (pkg.package_fields || []).join(", ") + "</p>";
+}
+
+document.querySelectorAll(".tab").forEach(function (tab) {
+  tab.onclick = function () {
+    document.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("active"); });
+    tab.classList.add("active");
+    view = tab.dataset.view;
+    if (view === "out") {
+      if (lastRun) renderOutput(lastRun);
+      else $("view").innerHTML = '<div class="empty">还没有运行过。</div>';
+    } else if (view === "diag") {
+      check();
+    } else {
+      fetch("/api/capabilities").then(function (r) { return r.json(); })
+        .then(renderCapabilities);
+    }
+  };
+});
+
+function post(path, body) {
+  return fetch(path, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  }).then(function (r) { return r.json(); });
+}
+
+function run() {
+  setStatus("运行中…");
+  post("/api/run", {source: editor.value, filename: currentName + ".vbs"})
+    .then(function (result) {
+      lastRun = result;
+      setStatus(result.ok ? "完成" : "运行错误", result.ok ? "ok" : "fail");
+      view = "out";
+      document.querySelectorAll(".tab").forEach(function (t) {
+        t.classList.toggle("active", t.dataset.view === "out");
+      });
+      renderOutput(result);
+    })
+    .catch(function (err) {
+      setStatus("请求失败", "fail");
+      $("view").innerHTML = '<div class="line err">' + escapeHtml(err) + "</div>";
+    });
+}
+
+function check() {
+  post("/api/check", {source: editor.value, filename: currentName + ".vbs"})
+    .then(function (result) {
+      setStatus(result.ok ? "编译通过" : "编译错误", result.ok ? "ok" : "fail");
+      renderDiagnostics(result.diagnostics || []);
+      view = "diag";
+    });
+}
+
+/* ---------------- 打开 / 保存（原生对话框优先） ---------------- */
+
+function setDocument(source, path, name) {
+  editor.value = source;
+  currentPath = path || null;
+  var base = name || (path ? path.split(/[\\/]/).pop() : "untitled.vbs");
+  currentName = base.replace(/\.[^.]*$/, "");
+  $("fileName").textContent = base;
+  $("fileName").title = path || "";
+  $("dirty").textContent = "";
+  syncGutter();
+}
+
+function openViaBrowser() {
+  var input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".vbs,.ovbs,.txt";
+  input.onchange = function () {
+    var file = input.files[0];
+    if (!file) return;
+    file.text().then(function (text) {
+      setDocument(text, null, file.name);
+      setStatus("已载入（浏览器选择）", "ok");
+    });
+  };
+  input.click();
+}
+
+function openFile() {
+  if (!nativeDialogs) { openViaBrowser(); return; }
+  post("/api/dialog/open", {}).then(function (result) {
+    if (result.cancelled) return;
+    if (result.ok) {
+      setDocument(result.source, result.path);
+      setStatus("已打开", "ok");
+    } else {
+      openViaBrowser();
+    }
+  }).catch(openViaBrowser);
+}
+
+function saveFile(asNew) {
+  if (currentPath && !asNew) {
+    post("/api/file/save", {path: currentPath, source: editor.value})
+      .then(function (result) {
+        $("dirty").textContent = result.ok ? "已保存" : "";
+        setStatus(result.ok ? "已保存" : "保存失败", result.ok ? "ok" : "fail");
+        if (!result.ok) alert(result.message || "保存失败");
+      });
+    return;
+  }
+
+  if (!nativeDialogs) { saveToWorkspace(); return; }
+
+  post("/api/dialog/save", {name: currentName + ".vbs", source: editor.value})
+    .then(function (result) {
+      if (result.cancelled) return;
+      if (result.ok) {
+        setDocument(editor.value, result.path);
+        $("dirty").textContent = "已保存";
+        setStatus("已保存", "ok");
+      } else {
+        alert(result.message || "保存失败");
+      }
+    });
+}
+
+function saveToWorkspace() {
+  var name = prompt("保存到工作目录，文件名（不含扩展名）：", currentName);
+  if (!name) return;
+  post("/api/save", {name: name, source: editor.value}).then(function (result) {
+    if (result.ok) {
+      currentPath = result.path;
+      $("dirty").textContent = "已保存";
+      setStatus("已保存到工作目录", "ok");
+    }
+  });
+}
+
+/* ---------------- 启动 ---------------- */
+function bootstrap() {
+  fetch("/api/capabilities").then(function (r) { return r.json(); })
+    .then(function (caps) {
+      nativeDialogs = !!(caps.dialogs && caps.dialogs.native_dialogs);
+      $("capabilities").textContent = "v" + caps.version + " · 零第三方依赖 · " +
+        (nativeDialogs ? "原生对话框" : "浏览器文件选择");
+      $("loadBtn").title = nativeDialogs ? "浏览… 打开脚本" : "选择文件…";
+    });
+
+  fetch("/api/examples").then(function (r) { return r.json(); })
+    .then(function (data) {
+      var select = $("examples");
+      var html = '<option value="">示例…</option>';
+      data.examples.forEach(function (e) {
+        html += '<option value="' + e.name + '">' + e.name + "</option>";
+      });
+      select.innerHTML = html;
+      select.onchange = function () {
+        var picked = null;
+        data.examples.forEach(function (e) { if (e.name === select.value) picked = e; });
+        if (picked) {
+          setDocument(picked.source, null, picked.name + ".vbs");
+          markDirty();
+        }
+        select.value = "";
+      };
+    });
+}
+
+$("runBtn").onclick = run;
+$("checkBtn").onclick = check;
+$("saveBtn").onclick = function () { saveFile(false); };
+$("saveAsBtn").onclick = function () { saveFile(true); };
+$("loadBtn").onclick = openFile;
+
+editor.addEventListener("input", function () { syncGutter(); markDirty(); });
+editor.addEventListener("scroll", function () { $("gutter").scrollTop = editor.scrollTop; });
+editor.addEventListener("keydown", function (event) {
+  if (event.key !== "Tab") return;
+  event.preventDefault();
+  var start = editor.selectionStart;
+  var end = editor.selectionEnd;
+  editor.value = editor.value.slice(0, start) + "    " + editor.value.slice(end);
+  editor.selectionStart = editor.selectionEnd = start + 4;
+});
+
+document.addEventListener("keydown", function (event) {
+  if (!event.ctrlKey) return;
+  if (event.key === "Enter") { event.preventDefault(); run(); }
+  else if (event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    saveFile(event.shiftKey);
+  }
+});
+
+editor.value = ["rem OpenVBS++ Studio", "a = 123", 'echo "Hello World"',
+                "echo a", ""].join("\n");
+syncGutter();
+bootstrap();
+</script>
+</body>
+</html>

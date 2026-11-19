@@ -1,0 +1,14 @@
+{
+  "name": "com-support",
+  "version": "1.0.0",
+  "entry": "",
+  "kind": "python",
+  "description": "OpenVBS++ 的 Windows COM/DCOM 支持（封装 pywin32，脚本里无需 import）",
+  "platforms": [
+    "win32"
+  ],
+  "python": {
+    "pywin32": ">=306"
+  },
+  "dependencies": {}
+}

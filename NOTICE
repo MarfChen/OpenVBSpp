@@ -1,0 +1,32 @@
+OpenVBS++
+Copyright 2027 Marf Chen (MarfChen)
+
+This product includes software developed as part of the OpenVBS++ project
+(https://github.com/MarfChen/OpenVBSpp).
+
+--------------------------------------------------------------------------
+中文
+
+本产品包含 OpenVBS++ 项目（https://github.com/MarfChen/OpenVBSpp）
+开发的软件，版权归 Marf Chen (MarfChen) 所有，2027 年。
+
+依据 Apache License 2.0 分发。下游分发本软件或其衍生作品时，
+必须保留本 NOTICE 文件的内容。
+
+--------------------------------------------------------------------------
+第三方组件 / Third-party components
+
+* pywin32 (Python for Windows Extensions) —— Python Software Foundation
+  License 2.0 (PSF-2.0)。
+  - 源码仓库、wheel、sdist **不包含** pywin32；它只是 Windows 上可选的
+    运行期依赖（`pip install "openvbspp[com]"`，或由 `over` 按
+    `com-support` 包声明的 `python: pywin32>=306` 自动安装）。
+  - 发布到 GitHub Releases 的**单文件 exe** 为了开箱即用，会把 pywin32 的
+    模块与 DLL 一并打包，其许可随 exe 分发；如需完全无第三方代码，
+    请改用 wheel + 自行安装 pywin32。
+
+  pywin32 由 Mark Hammond 等人开发，许可全文见
+  https://github.com/mhammond/pywin32/blob/main/LICENSE.txt
+
+* 本仓库不包含 Microsoft 的任何代码或文档。VBScript 是 Microsoft
+  Corporation 的商标；OpenVBS++ 是独立实现，与 Microsoft 无关联。

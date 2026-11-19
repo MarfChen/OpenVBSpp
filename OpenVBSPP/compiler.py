@@ -1,0 +1,298 @@
+'''
+Copyright 2027 Marf Chen(MarfChen)
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+模块编译（v0.9.4）：真正的模块隔离。
+
+模型：
+  * 一个 **模块** = 入口文件 + 它用 `<script src>` 合并进来的所有文件
+    （合并进来的文件与入口共享同一个命名空间，所以同名过程仍然会冲突——这是"合并"的本意）；
+  * `<namespace src alias>` 引入的是**另一个模块**，有自己独立的 globals，
+    只有 `Public` 过程通过别名对象暴露出来；
+  * 模块按依赖图**拓扑执行**（记忆化），所以"库文件自己也用 namespace"没问题，
+    唯一的错误是循环依赖。
+
+每个文件独立编译成 code object（各自的文件名与行号），模块内按声明顺序执行。
+'''
+
+import ast
+import importlib.util
+import marshal
+import struct
+import time
+from pathlib import Path
+
+from OpenVBSPP.ast_nodes import FunctionDef, SubDef
+from OpenVBSPP.exceptions import OVPPSyntaxError
+from OpenVBSPP.lexer import lex
+from OpenVBSPP.parser import Parser
+from OpenVBSPP.plugins.debug_tools import ast2str
+from OpenVBSPP.plugins.modules import extract as extract_modules
+from OpenVBSPP.plugins.python_embed import extract as extract_python_blocks
+from OpenVBSPP.transformer import Transformer
+from OpenVBSPP.typecheck import check as type_check
+
+
+COMPILED_FILENAME = "<OpenVBS++>"
+DEFAULT_SAVE_DIR = "__pycache__"
+
+
+class ModuleUnit:
+    """一个模块：若干 code object + 它依赖的命名空间模块 + 导出表。"""
+
+    def __init__(self, name):
+        self.name = name
+        self.codes = []          # [(filename, code_obj)]
+        self.namespaces = []     # [(alias, ModuleUnit)]
+        self.exports = []        # [(vbs_name, py_name, byref_flags)]
+        self.globals = {}
+        self._done = False
+
+    # ---------------------------------------------------------------- 执行
+    def ensure(self):
+        """按依赖顺序执行本模块（只执行一次）。"""
+        if self._done:
+            return self.globals
+        self._done = True
+
+        from OpenVBSPP.ovpprt.builtins import delegate
+        from OpenVBSPP.ovpprt.collections import Dictionary
+
+        for alias, child in self.namespaces:
+            child.ensure()
+            namespace = Dictionary()
+            for vbs_name, py_name, flags in child.exports:
+                function = child.globals.get(py_name)
+                if function is not None:
+                    namespace.add(vbs_name, delegate(function, vbs_name, flags))
+            self.globals[alias.lower()] = namespace
+
+        for _filename, code_obj in self.codes:
+            exec(code_obj, self.globals)
+        return self.globals
+
+    def __repr__(self):
+        return f"ModuleUnit({self.name}, {len(self.codes)} files)"
+
+
+class ProgramBundle:
+    """整个程序的执行单元：入口模块 + 它的依赖。"""
+
+    def __init__(self, root):
+        self.root = root
+
+    def exec(self, globals_dict):
+        """执行整个程序：先按依赖初始化各模块，再把入口模块的全局合并进外层字典。"""
+        root_globals = self.root.ensure()
+        globals_dict.update(root_globals)
+
+    def __repr__(self):
+        return f"ProgramBundle({self.root.name})"
+
+
+# --------------------------------------------------------------------- 编译
+def _normalize_positions(py_ast):
+    """Python 3.13 起 compile() 会校验位置区间，必须保证 end >= start。"""
+    for node in ast.walk(py_ast):
+        lineno = getattr(node, "lineno", None)
+        if lineno is None:
+            continue
+        end_lineno = getattr(node, "end_lineno", None)
+        if end_lineno is None or end_lineno < lineno:
+            node.end_lineno = lineno
+        col = getattr(node, "col_offset", 0) or 0
+        end_col = getattr(node, "end_col_offset", None)
+        if end_col is None or end_col < col:
+            node.end_col_offset = col
+    return py_ast
+
+
+def _to_code(py_ast, filename):
+    ast.fix_missing_locations(py_ast)
+    _normalize_positions(py_ast)
+    return compile(py_ast, str(filename) if filename else COMPILED_FILENAME, "exec")
+
+
+def _parse(source, filename, verbose=False):
+    tokens = list(lex(source))
+    if verbose:
+        print("TOKENS:", tokens)
+    parser = Parser(tokens, filename=filename, source=source)
+    vbs_ast = parser.parse()
+    if verbose:
+        print("VBS AST:", vbs_ast)
+    type_check(vbs_ast, source=source)
+    return vbs_ast
+
+
+def _resolve(source_path, base_dir):
+    # 先按“包名”解析（over 安装到 ./packages/<name>/）
+    from OpenVBSPP import over
+    packaged = over.resolve_source(str(source_path), base_dir)
+    if packaged is not None and packaged.is_file():
+        return packaged.resolve()
+
+    candidate = Path(source_path)
+    if not candidate.is_absolute():
+        candidate = Path(base_dir) / candidate
+    candidate = candidate.resolve()
+    if not candidate.is_file():
+        raise OVPPSyntaxError(
+            f"Included file not found: {source_path} (looked in {base_dir})")
+    return candidate
+
+
+def _exports(vbs_asts):
+    """模块导出：所有合并文件里的 `Public` 过程。"""
+    entries = []
+    for vbs_ast in vbs_asts:
+        for stmt in vbs_ast.body:
+            if not isinstance(stmt, (SubDef, FunctionDef)):
+                continue
+            if getattr(stmt, "visibility", "public") != "public":
+                continue
+            key = stmt.name.lower()
+            prefix = "_ovpp_sub_" if stmt.kind == "sub" else "_ovpp_fn_"
+            entries.append((stmt.name, prefix + key,
+                            [bool(getattr(p, "byref", False))
+                             for p in stmt.params]))
+    return entries
+
+
+def _merge_source(unit, source, filename, stack, verbose=False):
+    """把 `source`（以及它 <script> 合并的文件）收进 unit。"""
+    cleaned, python_blocks = extract_python_blocks(source)
+    cleaned, directives = extract_modules(cleaned)
+
+    parts = []            # [(filename, ast, blocks)]
+    base_dir = Path(filename).parent if filename else Path.cwd()
+
+    for directive in directives:
+        target = _resolve(directive.src, base_dir)
+        key = str(target)
+        if key in stack:
+            chain = " -> ".join(list(stack) + [key])
+            raise OVPPSyntaxError(
+                f"Circular module dependency: {chain}",
+                line_number=directive.line)
+
+        if directive.kind == "script":
+            child_source = target.read_text(encoding="utf-8-sig")
+            parts.extend(_merge_source(unit, child_source, target,
+                                       stack + [key], verbose))
+        else:
+            alias = (directive.alias or target.stem).strip()
+            if not alias.isidentifier():
+                raise OVPPSyntaxError(
+                    f"Invalid namespace alias: {alias!r}",
+                    line_number=directive.line)
+            child = _build_module(target, stack + [key], verbose)
+            unit.namespaces.append((alias, child))
+
+    vbs_ast = _parse(cleaned, filename, verbose=verbose)
+    parts.append((filename, vbs_ast, python_blocks))
+    return parts
+
+
+_CACHE = {}
+
+
+def _build_module(path, stack, verbose=False):
+    """编译一个模块（路径 -> ModuleUnit），带缓存。"""
+    key = str(path)
+    if key in _CACHE:
+        return _CACHE[key]
+
+    source = Path(path).read_text(encoding="utf-8-sig")
+    unit = ModuleUnit(Path(path).stem)
+    _CACHE[key] = unit            # 先占位，重复引用同一个模块时复用
+
+    parts = _merge_source(unit, source, path, stack + [key], verbose)
+
+    transformer = Transformer()
+    for _filename, vbs_ast, _blocks in parts:
+        transformer.collect(vbs_ast)
+
+    for filename, vbs_ast, blocks in parts:
+        transformer.python_blocks = blocks
+        py_ast = transformer._transform_module(vbs_ast)
+        unit.codes.append((filename, _to_code(py_ast, filename)))
+
+    unit.exports = _exports([item[1] for item in parts])
+    return unit
+
+
+def vbs_compile(code, mode="exec", filename=None, save_dir=None, verbose=False):
+    """编译 OpenVBS++ 源码。
+
+    没有多文件声明时返回单个 code object（保持原有行为）；
+    否则返回 ProgramBundle（由 runtime 依次执行）。
+    """
+    if mode not in ("exec", "save"):
+        raise ValueError(f"Invalid mode: {mode!r} (expected 'exec' or 'save')")
+    if mode == "save" and not filename:
+        raise ValueError("mode='save' requires filename")
+
+    _cleaned, directives = extract_modules(code)
+
+    if not directives:
+        python_cleaned, python_blocks = extract_python_blocks(code)
+        vbs_ast = _parse(python_cleaned, filename, verbose=verbose)
+        transformer = Transformer(python_blocks=python_blocks)
+        py_ast = transformer.transform(vbs_ast)
+        ast.fix_missing_locations(py_ast)
+        if verbose:
+            ast2str(py_ast, print_code=True)
+        code_obj = _to_code(py_ast, filename)
+        if mode == "exec":
+            return code_obj
+        _save(py_ast, code_obj, filename, save_dir, python_cleaned)
+        return code_obj
+
+    # ---------------- 多文件 ----------------
+    _CACHE.clear()
+    entry_key = str(Path(filename).resolve()) if filename else COMPILED_FILENAME
+    unit = ModuleUnit(Path(filename).stem if filename else "main")
+    _CACHE[entry_key] = unit
+
+    parts = _merge_source(unit, code, filename, [entry_key], verbose)
+
+    transformer = Transformer()
+    for _name, vbs_ast, _blocks in parts:
+        transformer.collect(vbs_ast)
+    for name, vbs_ast, blocks in parts:
+        transformer.python_blocks = blocks
+        py_ast = transformer._transform_module(vbs_ast)
+        unit.codes.append((name, _to_code(py_ast, name)))
+    unit.exports = _exports([item[1] for item in parts])
+
+    if verbose:
+        print("MODULE:", unit)
+    return ProgramBundle(unit)
+
+
+def _save(py_ast, code_obj, filename, save_dir, source):
+    stem = Path(filename).stem or "output"
+    out_dir = Path(save_dir) if save_dir else Path(DEFAULT_SAVE_DIR)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    ast2str(py_ast, print_code=False, save_code=True,
+            file_name=out_dir / f"{stem}.ast.txt")
+
+    with open(out_dir / f"{stem}.pyc", "wb") as handle:
+        handle.write(importlib.util.MAGIC_NUMBER)
+        handle.write(struct.pack("<I", 0))
+        handle.write(struct.pack("<I", int(time.time()) & 0xFFFFFFFF))
+        handle.write(struct.pack("<I", len(source.encode("utf-8")) & 0xFFFFFFFF))
+        marshal.dump(code_obj, handle)

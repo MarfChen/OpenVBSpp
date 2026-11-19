@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.ast.txt
+venv/
+.venv/
+.vs/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# 本地/生成物，不进仓库
+backup/
+doc/documentation.pdf
+doc/微软官方*
+*.bak
+*.orig

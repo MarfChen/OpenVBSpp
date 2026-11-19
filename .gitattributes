@@ -1,0 +1,22 @@
+# 统一按 LF 入库，避免 Windows 换行污染 diff
+* text=auto eol=lf
+*.vbs text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# 二进制
+*.docx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.exe binary
+*.whl binary
+*.gz binary
+*.ovppkg binary
