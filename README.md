@@ -61,6 +61,12 @@ The runtime has **no required third-party dependency**. `pywin32` is only needed
 want COM objects, and the shipped `openvbs.exe` already bundles it.
 Release process (TestPyPI → PyPI → exe) lives in [doc/RELEASE.md](doc/RELEASE.md).
 
+**Supported Python: 3.9 – 3.13 (CPython).** The package is pure Python and ships as a
+`py3-none-any` wheel, so there is nothing to compile and no per-version build:
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (485 tests) is run on
+every version in CI and was verified locally on 3.9.13 and 3.13.15. See
+[doc/RELEASE.md](doc/RELEASE.md) §9 for the version policy and what to build for ARM.
+
 ## Quick start
 
 ```bash

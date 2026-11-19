@@ -218,7 +218,9 @@ class TestBridgeResolution(ComTestCase):
                 os.environ[com.ENV_DISABLE] = value
                 self.assertIsNone(com.provider())
         os.environ[com.ENV_DISABLE] = "1"
-        self.assertIsNotNone(com.provider(), "1 不该关闭 COM 支持")
+        # "1" 不是关闭值：只断言它没被当成"关闭"，不要求本机装了 pywin32
+        # （否则没装 pywin32 的解释器上这条会误报失败）。
+        self.assertNotIn("disabled by", com.describe())
 
     def test_non_windows_platform_is_gated(self):
         with mock.patch("OpenVBSPP.ovpprt.com.sys.platform", "linux"):

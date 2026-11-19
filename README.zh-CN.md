@@ -157,6 +157,12 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 项目已预留好：`[project.scripts]` 入口、`MANIFEST.in`、`packaging/openvbs.spec`
 （PyInstaller 配置）、`tools/build.ps1`。
 
+**支持的 Python：3.9 – 3.13（CPython）。** 本项目是纯 Python，发布的是
+`py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
+`pip install openvbspp` 在 x64 与 ARM64 上通用。485 个测试在每个版本上都跑 CI，
+本机另实测过 3.9.13 与 3.13.15 全绿。版本策略与 ARM 相关要做的事见
+[doc/RELEASE.md](doc/RELEASE.md) §9。
+
 ## 已支持的语法
 
 | 类别 | 支持情况 |

@@ -261,3 +261,75 @@ README 首屏有 6 个徽章，分两类：
 
 覆盖率徽章需要先接 Codecov（或 Coveralls）并上传 token，目前**没有**配置覆盖率采集，
 所以不要提前放这个徽章。
+
+---
+
+## 9. Python 版本、产物与 ARM
+
+### 9.1 支持到多老的 Python
+
+| 项 | 现在的状态 |
+|---|---|
+| 声明 | `requires-python = ">=3.9"`，classifiers 列到 3.13 |
+| 静态校验 | `vermin --eval-annotations --target=3.9 --violations OpenVBSPP cli.py tests` → **零违规**，最低需求 3.9（无 `match`、无 `X | Y` 注解、无 `tomllib`、无 `except*`） |
+| 运行时实测 | Windows embeddable **3.9.13** 与开发 venv **3.13.15** 各跑 485 个用例**全绿** |
+| CI | Windows 3.9 / 3.10 / 3.11 / 3.12 / 3.13 硬门禁 |
+
+**策略建议**：3.9 已于 2025-10 结束安全支持。等 3.11 铺开之后可以把下限提到 3.10 或 3.11，
+**代码不用改**（vermin 证明 3.9 就够，往上都兼容），只需要同步三处：
+`pyproject.toml` 的 `requires-python` 与 classifiers、两个 README 的 Python 徽章。
+
+### 9.2 PyPI 上应该传什么
+
+只传两类文件，**都是纯 Python**：
+
+```powershell
+python -m build                        # dist\openvbspp-0.9.15-py3-none-any.whl + dist\openvbspp-0.9.15.tar.gz
+python -m twine check dist/*           # 元数据 + README 渲染检查
+python -m twine upload --repository testpypi dist/*   # 先发 TestPyPI 验证
+python -m twine upload dist/*                          # 再发正式 PyPI
+```
+
+- **不要**为 3.9 / 3.10 / … 分别打包：本项目没有 C 扩展、没有 ABI 绑定，一个
+  universal wheel（`py3-none-any`）就覆盖所有 Python 版本与所有 CPU 架构。
+- **exe 不要传 PyPI**：它是按 OS / 架构区分的自包含可执行文件（约 8 MB），属于
+  GitHub Releases 的产物，不是 PyPI 的包格式。
+- 推荐用 [Trusted Publishing](https://docs.pypi.org/trusted-publishers/)（OIDC）替代 API token；
+  要用 token 就把 `PYPI_API_TOKEN` 放进仓库 secret，不要写进代码或 workflow 明文。
+
+### 9.3 ARM（Windows ARM64 / Linux arm64）
+
+拆成两件事看，结论完全不同：
+
+1. **`pip install` 到 ARM 机器：什么都不用做。** universal wheel 在任何架构上都能装；
+   Windows ARM64 上真正的风险点 `pywin32` 已经有 `win_arm64` 轮子
+   （实测 pywin32 **312** 提供 cp39–cp315 的 `pywin32-312-cpXX-cpXX-win_arm64.whl`），
+   所以 `pip install "openvbspp[com]"` 在 ARM64 Windows 上照常可用。
+2. **单文件 exe：需要一台 ARM 机器来编译。** PyInstaller **不能交叉编译**，产物架构
+   等于构建机架构。两条路：
+   - **GitHub 托管的 ARM 运行器**：公共仓库把 `runs-on` 写成 `windows-11-arm` 即可
+     （2025-04 进入公共预览，2025-08 对公共仓库正式可用；**私有仓库不支持这个标签**，
+     写了会直接失败）。给 `ci.yml` 的 `exe` 任务加一行矩阵：
+     ```yaml
+     exe:
+       strategy:
+         matrix:
+           os: [windows-latest, windows-11-arm]
+       runs-on: ${{ matrix.os }}
+     ```
+     产物名建议带架构，例如
+     `openvbs-${{ matrix.os == 'windows-11-arm' && 'arm64' || 'x64' }}.exe`。
+   - **本机 ARM 设备**（Surface / Snapdragon X / Dev Kit）：直接
+     `python -m PyInstaller packaging/openvbs.spec --noconfirm`，产物就是 arm64。
+   Linux arm64 同理用 `ubuntu-24.04-arm` 运行器；不过 exe 本身只面向 Windows，
+   Linux 分发走 `pip install` 即可。
+
+### 9.4 与版本 / 架构相关的发版自检
+
+```powershell
+python -m unittest discover -s tests                                    # 485 OK
+python -m twine check dist/*
+pip download --only-binary=:all: --no-deps openvbspp==0.9.15 -d tmp    # 必须拿到 py3-none-any.whl
+```
+
+拿到的若是 `py3-none-any.whl`，就说明这个包对 Python 版本和 CPU 架构都没有额外要求。
