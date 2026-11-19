@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞 / Security vulnerability
+    url: https://github.com/MarfChen/OpenVBSpp/security/policy
+    about: 请勿用公开 issue 报告安全问题，先看 SECURITY.md。
+  - name: 文档与语法参考 / Docs
+    url: https://github.com/MarfChen/OpenVBSpp/tree/main/doc
+    about: 语法超集、对象模型、over 包管理器、网页 IDE 的说明都在这里。

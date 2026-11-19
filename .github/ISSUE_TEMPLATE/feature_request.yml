@@ -1,0 +1,51 @@
+name: Feature request / 功能建议
+description: 想要的新语法、新能力、新工具
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这个项目有一条铁律：**必须是 VBScript 的超集**——合法的 VBScript 不能被改语义，
+        新能力只能以新语法/新函数的方式加进去。提需求前请先看一眼
+        [VBS_SUPERSET.md](../blob/main/doc/VBS_SUPERSET.md) 和
+        [README 的「与规范的差距」](../blob/main/README.md)。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的真实问题 / The real problem
+      description: 描述场景，而不是先给方案。比如「从 Excel 导出的 10 万行 CSV 要按列聚合，现在写起来太长」。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望的写法 / Proposed syntax
+      description: 用代码块写出你想要的语法，以及它编译成的效果（如果能想到）。
+      render: vbscript
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 现在怎么绕过 / Workarounds
+      description: 目前用现有语法怎么写，麻烦在哪。
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及范围 / Area
+      options:
+        - 语法（if/for/class/新关键字）
+        - 标准库 / builtins
+        - over 包管理器
+        - COM 互操作
+        - CLI 与网页 IDE
+        - 性能
+        - 文档
+        - 其他 / Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: superset
+    attributes:
+      label: 超集检查 / Superset check
+      options:
+        - label: 这个改动不会改变任何合法 VBScript 程序的现有行为
+          required: true

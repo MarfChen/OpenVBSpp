@@ -5,12 +5,14 @@
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.9%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
+[![CI](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml)
 
 > **English** — OpenVBS++ compiles VBScript-flavoured source into the standard
 > Python AST and runs it on CPython. It is a **superset of VBScript**: every legal
 > VBS program must keep working, and extensions may only add syntax.
 > New here? Read [CONTRIBUTING.md](CONTRIBUTING.md) and pick a
 > [good first issue](doc/good-first-issues.md).
+> Condensed English overview: **[README.en.md](README.en.md)**.
 >
 > **中文** —— OpenVBS++ 把 VBScript 风格源码编译成标准 Python AST 后在 CPython 上运行。
 > 它**必须是 VBScript 的超集**：任何合法 VBS 程序都要继续能跑，扩展只能新增语法。
@@ -383,6 +385,55 @@ Source: echo zzz
 
 其它常用错误：`Sub or Function not defined (35)`、`Type mismatch (13)`、
 `Wrong number of arguments (450)`、`Subscript out of range (9)`、`Division by zero (11)`。
+
+## 性能
+
+先给结论：**作为「老脚本的迁移执行层」，它比原生 `cscript.exe` 快 2–2.6 倍，启动也快约 1.5 倍；
+但函数调用密集和 CPU 密集的循环，比手写 Python 慢数倍。** 适合批处理、胶水、运维自动化，
+不适合把百万次循环塞进 VBS 里做数值计算。
+
+自己复现（不需要任何参数，读取仓库内源码，不含硬编码路径）：
+
+```bash
+python tools/bench.py          # 进程内：编译一次、反复执行
+python tools/bench.py --e2e    # 额外跑端到端（含解释器启动），Windows 上自动对照 cscript.exe
+```
+
+### 端到端（含进程启动，这才是用户感受到的数字）
+
+| 脚本 | OpenVBS++ | cscript.exe | CPython |
+|---|---:|---:|---:|
+| 只 echo 一行 | **118 ms** | 174 ms | 70 ms |
+| 1M 次算术循环 | **170 ms** | 443 ms | 101 ms |
+| fib(24) | **186 ms** | 396 ms | 76 ms |
+
+### 进程内（编译一次、反复执行，纯运行开销；中位数）
+
+| 用例 | OpenVBS++ | 等价 CPython | 倍数 |
+|---|---:|---:|---:|
+| 1M 算术循环（过程内） | 50 ms | 30 ms | 1.7× |
+| 1M 算术循环（模块级） | 144 ms | 72 ms | 2.0× |
+| 20k 字符串拼接 | 7.8 ms | 4.3 ms | 1.8× |
+| 100k 数组读写 | 26 ms | 13 ms | 2.1× |
+| 200k 函数调用 | 118 ms | 20 ms | 6.1× |
+| 50k Dictionary 插入 | 63 ms | 4.5 ms | 14.0× |
+| fib(24) 递归 | 67 ms | 5.6 ms | 12.0× |
+
+### 开销都花在哪
+
+生成的 Python 代码里，每一处都对应一条 VBScript 语义，而不是实现失误：
+
+- **每个实参一个 `Ref` 对象**，调用后还要回写——为了支持 VBS 的 `ByRef` 默认传参语义。
+- **每次过程调用 `enter()/leave()`**——为了支持 `On Error Resume Next` 的错误作用域。
+- **`For` 编译成 `while` + 步长判断**——为了支持 `Step 2`、负数步长、循环体内改计数器。
+- **模块级变量是 Python globals**，所以模块级代码比过程内慢约 2.5 倍（CPython 的 `LOAD_NAME` 比 `LOAD_FAST` 慢）。
+
+已做的优化：`Dictionary` 成员分派从「线性扫全部键」改成「方法名直接判定」（O(n²) → O(1)，
+5 万次插入从 103 秒降到 63 毫秒）；`&` 拼接在两端都是字符串时走原生 `+` 快路径。
+
+还能再快、但会牵动语义的项（未做，欢迎练手）：启动懒加载（省约 28 ms）、
+字面量实参不建 `Ref`、过程体内无 `On Error` 时省略 `enter/leave`、
+`For` 在安全时生成 `range`、`Dim a(n)` 改用原生列表。
 
 ## 项目结构
 

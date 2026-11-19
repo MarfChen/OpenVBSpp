@@ -1,0 +1,71 @@
+name: Bug report / 缺陷报告
+description: 脚本跑不起来、结果不对、报错信息看不懂
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        谢谢反馈。请尽量给出**可复现的最小脚本**——90% 的问题都能靠它直接定位。
+        Thanks for the report. A minimal reproducible script resolves most issues.
+
+        > 安全漏洞请勿在这里公开，走 [SECURITY.md](../blob/main/SECURITY.md)。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么 / What happened
+      description: 期望的结果，和实际的结果。
+      placeholder: |
+        期望：输出 3
+        实际：报错 OVPPTypeError: ...
+    validations:
+      required: true
+  - type: textarea
+    id: script
+    attributes:
+      label: 最小复现脚本 / Minimal script
+      description: 能跑到问题的完整 .vbs 片段（去掉业务敏感内容）。
+      render: vbscript
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: 运行命令 / Command
+      placeholder: openvbs run script.vbs  或  openvbs check script.vbs
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 版本 / Version
+      description: 输出 `openvbs --version` 或 `python -m OpenVBSPP --version` 的结果。
+      placeholder: OpenVBS++ 0.9.14
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python 版本 / Python version
+      description: 输出 `python -V` 的结果（仅当从源码运行或安装 wheel 时需要）。
+      placeholder: Python 3.13.15
+  - type: dropdown
+    id: os
+    attributes:
+      label: 操作系统 / OS
+      options:
+        - Windows 11
+        - Windows 10
+        - Windows Server
+        - Linux
+        - macOS
+        - 其他 / Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 自查 / Pre-flight
+      options:
+        - label: 已用 `openvbs --version` 确认版本，并搜索过已有 issue
+          required: true
+        - label: 脚本在原生 `cscript.exe` 下的行为我也说明了（如果相关）
