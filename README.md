@@ -7,48 +7,65 @@
 ![deps](https://img.shields.io/badge/dependencies-none-success)
 [![CI](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml)
 
-> **English** — OpenVBS++ compiles VBScript-flavoured source into the standard
-> Python AST and runs it on CPython. It is a **superset of VBScript**: every legal
-> VBS program must keep working, and extensions may only add syntax.
-> New here? Read [CONTRIBUTING.md](CONTRIBUTING.md) and pick a
-> [good first issue](doc/good-first-issues.md).
-> Condensed English overview: **[README.en.md](README.en.md)**.
->
-> **中文** —— OpenVBS++ 把 VBScript 风格源码编译成标准 Python AST 后在 CPython 上运行。
-> 它**必须是 VBScript 的超集**：任何合法 VBS 程序都要继续能跑，扩展只能新增语法。
-> 第一次来？看 [CONTRIBUTING.md](CONTRIBUTING.md)，挑一个
-> [新手任务](doc/good-first-issues.md)。
+**Run your existing `.vbs` scripts on a modern compiler — and get classes, try/catch,
+packages and real COM while you are at it.**
 
->
-> **免责声明 / Disclaimer** —— OpenVBS++ 是独立实现，与 Microsoft 无任何关联；
-> VBScript 是 Microsoft Corporation 的商标。本仓库不包含 Microsoft 的任何代码或文档。
-> OpenVBS++ is an independent reimplementation, not affiliated with or endorsed by
-> Microsoft. VBScript is a trademark of Microsoft Corporation.
-> 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
+OpenVBS++ is a source-compatible VBScript engine written in Python. It compiles VBScript
+into standard Python bytecode and executes it with CPython, so existing scripts keep
+running as-is while you can opt into a superset of modern syntax: `Class ... Inherits`,
+`Try / Catch / Finally`, string interpolation, optional chaining, a dependency manager
+(`over`) and real Windows COM automation through `pywin32`.
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.15**）是一个以 **VBScript 语法风格**为基础的编译器。
-它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
+> 中文文档：[README.zh-CN.md](README.zh-CN.md)
 
-```
-.vbs 源码
-  → lexer.py        正则词法分析（注释 / CRLF / 行续接 / : / 行列号）
-  → parser.py       递归下降语法分析 → OpenVBS++ 自己的 AST
-  → transformer.py  AST → 标准库 ast（行号一并带过去）
-  → compiler.py     compile() → code object → exec
-```
+> **Disclaimer.** OpenVBS++ is an independent implementation. It is not affiliated with,
+> endorsed by, or sponsored by Microsoft. VBScript is a trademark of Microsoft
+> Corporation. This repository contains no Microsoft source code or documentation; the
+> language grammar was implemented from publicly documented behaviour. See
+> [doc/LEGAL.md](doc/LEGAL.md) for the full self-audit.
 
-**项目铁律：OpenVBS++ 必须是 VBScript 的超集。** 任何合法 VBS 程序都要能跑，
-扩展只新增语法、不改变已有语义。状态矩阵见 [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md)。
-语言规范见 [doc/OpenVBS spec.docx](doc/OpenVBS%20spec.docx)，设计初衷见 [doc/plan.docx](doc/plan.docx)。
+---
 
-## 快速开始
+## Table of contents
+
+- [Install](#install)
+- [Quick start](#quick-start)
+- [Command line](#command-line)
+- [Web IDE](#web-ide)
+- [Editor and IDE support](#editor-and-ide-support)
+- [What you get beyond plain VBScript](#what-you-get-beyond-plain-vbscript)
+- [Python interop](#python-interop)
+- [Performance](#performance)
+- [Why not X?](#why-not-x)
+- [Project structure](#project-structure)
+- [Tests](#tests)
+- [Status and known limitations](#status-and-known-limitations)
+- [Contributing](#contributing)
+- [Roadmap](#roadmap)
+- [License, third parties, trademarks](#license-third-parties-trademarks)
+- [Security model](#security-model)
+
+---
+
+## Install
+
+| Goal | Command | Result |
+|---|---|---|
+| From PyPI | `pip install openvbspp` | CLI `openvbs` + `python -m OpenVBSPP` |
+| Editable dev install | `pip install -e ".[all]"` | editable install + dev tooling |
+| Windows COM support | `pip install "openvbspp[com]"` | adds `pywin32` |
+| Single-file exe | `.\tools\build.ps1 -Target exe` | `dist\openvbs.exe`, no Python required |
+| Wheel + sdist | `.\tools\build.ps1 -Target wheel` | `dist/*.whl`, `dist/*.tar.gz` |
+
+The runtime has **no required third-party dependency**. `pywin32` is only needed when you
+want COM objects, and the shipped `openvbs.exe` already bundles it.
+Release process (TestPyPI → PyPI → exe) lives in [doc/RELEASE.md](doc/RELEASE.md).
+
+## Quick start
 
 ```bash
-# 仓库自带虚拟环境（Python 3.9+）
-.\venv\Scripts\python.exe cli.py examples\procedures.vbs
-
-# 不带参数跑内置示例
-.\venv\Scripts\python.exe cli.py
+.\venv\Scripts\python.exe cli.py examples\procedures.vbs   # from a source checkout
+openvbs examples\fizzbuzz.vbs                              # after pip install
 ```
 
 ```vb
@@ -63,196 +80,135 @@ Function Fact(n)
 End Function
 
 Dim x, y
-x = 1 : y = 2                 ' 冒号分隔多条语句
+x = 1 : y = 2                 ' colon separates statements
 PrintLine "factorial"
 echo Fact(5)                  ' 120
 ```
 
-在 Python 里调用：
-
-```python
-from OpenVBSPP.runtime import vbs_run
-
-vbs_run('''
-Function Add(a, b)
-    Add = a + b
-End Function
-echo Add(2, 3)
-''', filename="demo.vbs")
-```
-
-只想要 code object：
-
-```python
-from OpenVBSPP.compiler import vbs_compile
-code_obj = vbs_compile("echo 1\n", filename="demo.vbs")
-exec(code_obj, {})
-```
-
-## 命令行
+## Command line
 
 ```
-python cli.py [script.vbs] [-v] [--save] [--save-dir DIR]
+openvbs [script.vbs] [-v] [--save] [--save-dir DIR]
+python -m OpenVBSPP <same arguments>     # equivalent
 ```
 
-| 参数 | 说明 |
+| Argument | Meaning |
 |---|---|
-| `script.vbs` | 要运行的文件；省略则运行内置示例 |
-| `-v, --verbose` | 打印 token 流、AST 与生成的 Python 代码 |
-| `--save` | 额外写出 `.pyc` 与 `.ast.txt` |
-| `--save-dir` | 落盘目录，默认 `./__pycache__`（自动创建） |
-| `check <script>` | 只编译不运行，报诊断；`--json` 输出机器可读结果 |
-| `run <script>` | 运行；`--json` 输出 `{ok, output, error, duration_ms}` |
-| `over <子命令>` | 包管理器：`install` / `list` / `info <name>` / `remove <name> [--python]` / `com` …（见 [doc/OVER.md](doc/OVER.md)） |
-| `ide [--port N]` | 启动网页 IDE（默认 `http://127.0.0.1:7860`） |
+| `script.vbs` | file to run; omitted → built-in demo |
+| `-v, --verbose` | print token stream, AST and generated Python |
+| `--save` | also write `.pyc` and `.ast.txt` |
+| `--save-dir` | output directory, default `./__pycache__` |
+| `check <script>` | compile only; `--json` for machine-readable diagnostics |
+| `run <script>` | run; `--json` returns `{ok, output, error, duration_ms}` |
+| `over <subcommand>` | package manager: `install` / `list` / `info <name>` / `remove <name> [--python]` / `com` … see [doc/OVER.md](doc/OVER.md) |
+| `ide [--port N]` | start the web IDE (default `http://127.0.0.1:7860`) |
 
-安装成包之后可以直接用 `openvbs script.vbs`：
-
-```bash
-pip install -e .            # 本地开发安装
-pip install openvbspp       # 从 PyPI 安装（发布后）
-openvbs examples/fizzbuzz.vbs
-openvbs --version
-python -m OpenVBSPP examples/control1.vbs   # 等价写法
-```
-
-## 网页 IDE / Web IDE
+## Web IDE
 
 ```bash
-openvbs ide                 # http://127.0.0.1:7860
+openvbs ide                                   # http://127.0.0.1:7860
 openvbs ide --port 8000 --workspace ./scripts
 ```
 
-浏览器里写代码、Ctrl+Enter 运行、看输出与诊断、保存/读取脚本。零第三方依赖，
-包管理器已经落地（`over`，见 [doc/OVER.md](doc/OVER.md)），网页 IDE 里的包管理接口仍是预留。
-编辑器集成（VSCode/LSP）的方案见 [doc/IDE_LSP_DESIGN.md](doc/IDE_LSP_DESIGN.md)。
+Edit, run (Ctrl+Enter), inspect output and diagnostics, save/load scripts — all in the
+browser, with zero third-party dependencies. The package manager is real (`over`); the
+IDE's own package endpoints are still a stub. See [doc/WEB_IDE.md](doc/WEB_IDE.md).
 
-## 安装与打包
+## Editor and IDE support
 
-| 目标 | 命令 | 产物 |
+| Editor / environment | Today | How |
 |---|---|---|
-| 本地开发 | `pip install -e ".[all]"` | 可编辑安装 + 全部开发依赖 |
-| PyPI 包 | `.\tools\build.ps1 -Target wheel` | `dist/*.whl` + `dist/*.tar.gz` |
-| Windows exe | `.\tools\build.ps1 -Target exe` | `dist\openvbs.exe`（单文件，无需 Python） |
-| Windows COM 支持 | `pip install "openvbspp[com]"` | `pywin32`（也可以让 `over install` 自动装） |
+| Built-in web IDE | ✅ full | `openvbs ide` |
+| Any editor (tasks, plugins, CI) | ✅ full | `openvbs check --json`, `openvbs run --json` |
+| VS Code | ⚠️ syntax + snippets only | [extras/vscode-openvbspp](extras/vscode-openvbspp) (TextMate grammar, comment/bracket config, snippets); no IntelliSense yet |
+| Neovim / Emacs / Sublime / JetBrains | ⚠️ VBScript highlighting + CLI diagnostics | point the editor at `openvbs check --json`; a language server is planned |
+| Language server (LSP) | ❌ not implemented | design + milestone plan in [doc/IDE_LSP_DESIGN.md](doc/IDE_LSP_DESIGN.md) |
+| Debugger (DAP) | ❌ not implemented | `Err.Line`, Try/Catch frames are the groundwork |
 
-发布流程（TestPyPI 验证 → PyPI → 打 exe）见 [doc/RELEASE.md](doc/RELEASE.md)。
-项目已预留好：`[project.scripts]` 入口、`MANIFEST.in`、`packaging/openvbs.spec`
-（PyInstaller 配置）、`tools/build.ps1`。
+Machine-readable contract used by every integration:
 
-## 已支持的语法
+```bash
+openvbs check --json script.vbs   # {"ok": true|false, "diagnostics": [{line, column, message, source_line, ...}]}
+openvbs run --json script.vbs     # {"ok": true|false, "output": "...", "error": "...", "duration_ms": 12.3}
+```
 
-| 类别 | 支持情况 |
+The IDE service also exposes a versioned capabilities document
+([OpenVBSPP/ide/service.py](OpenVBSPP/ide/service.py)), which a future LSP server will reuse.
+
+## What you get beyond plain VBScript
+
+| Area | Support |
 |---|---|
-| 语句分隔 | 换行、`:`、行尾 `_` 续行；`rem` / `'` 注释；CRLF / CR / LF / BOM |
-| 标识符 | 大小写不敏感 |
-| 变量声明 | `Dim a, b(10), c()`；`ReDim [Preserve]`；`Const`；`Option Explicit`；`Let` / `Set` |
-| 数据类型 | 整数、浮点、字符串、布尔、`Empty` / `Null` / `Nothing`、一维 / 多维数组 |
-| 运算符 | `+ - * / \ Mod ^`、`&`、`= <> < > <= >=`（也接受 `==`）、`Is`、`And Or Not Xor Eqv Imp` |
-| 条件 | `If ... Then ... End If`、**单行 `If ... Then ... [Else ...]`**、`ElseIf`、`Select Case`（含 `Is`、`To`、逗号列表） |
-| 循环 | `For ... Next`、`For Each ... Next`、`Do [While\|Until] ... Loop [While\|Until]`、`While ... Wend`、`Exit Do/For` |
-| 过程 | `Sub` / `Function`、`ByRef`（默认）/ `ByVal`、递归、`Exit Sub/Function`、`Call` |
-| 包管理 | over：本地目录 / .ovppkg / git+ 源，锁文件，冲突路径报告；声明的 Python 依赖自动交给 pip 装 |
-| 多文件 | <script src="lib.vbs"> 合并、<namespace src="lib.vbs" alias="u"> 命名空间 |
-| 一等函数 | `f = AddressOf Foo`，过程可以存进变量、当参数传递 |
-| 正则 / JSON | `New RegExp`（`Test`/`Replace`/`Execute`）、`Json.Parse` / `Json.Stringify` |
-| 语法糖 | 字符串插值 $"..."、可选链 ?.、空合并 ??、复合赋值 += &= |
-| 结构化异常 | Try / Catch e [When 条件] / Finally / End Try，与 On Error 共存 |
-| 错误处理 | `On Error Resume Next`、`On Error GoTo 0`、`Err.Number/.Description/.Source`、`Err.Clear`、`Err.Raise` |
-| 对象语法 | `Class ... End Class`、字段、`Sub`/`Function` 方法、`Property Get/Let/Set`、`Me`、`Class_Initialize`/`Class_Terminate`、`New`、`CreateObject`、`Dictionary`、`With ... End With`、`.成员` / `.方法()` |
-| 类型系统 | `Option Typing` + `->` 注解（关闭时完全等同普通 VBS） |
-| 继承 | `Class Child Inherits Parent`（超集扩展：方法覆盖、字段/属性继承） |
-| 网页 IDE | openvbs ide：浏览器里编辑/运行/检查/保存，零第三方依赖 |
-| Python 互操作 | `#python ... #endpython` 代码块、`Option COP` 公共对象池 |
-| 动态执行 | `Execute` / `Eval`（复用编译器，在全局作用域运行） |
-| 其它 | `Erase`、`Option Compare Text`、`FormatNumber` 系列、`vbCrLf` 等预定义常量、约 70 个内置函数 |
+| Statement separators | newline, `:`, trailing `_` continuation; `rem` / `'` comments; CRLF / CR / LF / BOM tolerant |
+| Identifiers | case-insensitive |
+| Declarations | `Dim a, b(10), c()`; `ReDim [Preserve]`; `Const`; `Option Explicit`; `Let` / `Set` |
+| Data types | integers, floats, strings, booleans, `Empty` / `Null` / `Nothing`, 1-D and multi-dimensional arrays |
+| Operators | `+ - * / \ Mod ^`, `&`, `= <> < > <= >=` (also `==`), `Is`, `And Or Not Xor Eqv Imp` |
+| Conditionals | `If ... Then ... End If`, **single-line `If ... Then ... [Else ...]`**, `ElseIf`, `Select Case` (with `Is`, `To`, comma lists) |
+| Loops | `For ... Next`, `For Each ... Next`, `Do [While\|Until] ... Loop [While\|Until]`, `While ... Wend`, `Exit Do/For` |
+| Procedures | `Sub` / `Function`, `ByRef` (default) / `ByVal`, recursion, `Exit Sub/Function`, `Call` |
+| Packages | `over`: local directory / `.ovppkg` / git+ sources, lock file, conflict reporting; declared Python dependencies installed through pip |
+| Multi-file | `<script src="lib.vbs">`, `<namespace src="lib.vbs" alias="u">` |
+| First-class procedures | `f = AddressOf Foo`; procedures become values |
+| Regex / JSON | `New RegExp` (`Test`/`Replace`/`Execute`), `Json.Parse` / `Json.Stringify` |
+| Sugar | interpolation `$"..."`, optional chaining `?.`, null-coalescing `??`, compound assignment `+= &=` |
+| Structured exceptions | `Try / Catch e [When cond] / Finally / End Try`, coexisting with `On Error` |
+| Error handling | `On Error Resume Next`, `On Error GoTo 0`, `Err.Number/.Description/.Source`, `Err.Clear`, `Err.Raise` |
+| Objects | `Class ... End Class`, fields, `Sub`/`Function` methods, `Property Get/Let/Set`, `Me`, `Class_Initialize`/`Class_Terminate`, `New`, `CreateObject`, `Dictionary`, `With ... End With` |
+| Type system | `Option Typing` + `->` annotations (off by default; zero behaviour change when off) |
+| Inheritance | `Class Child Inherits Parent` (superset extension: overrides, inherited fields/properties) |
+| Python interop | `#python ... #endpython` blocks, `Option COP` shared object pool |
+| Dynamic execution | `Execute` / `Eval` (reuses the compiler, runs in global scope) |
+| Misc | `Erase`, `Option Compare Text`, `FormatNumber` family, `vbCrLf`-style constants, ~70 built-ins |
 
-## 过程：Sub / Function
+### Procedures: `Sub` / `Function`
 
 ```vb
-' 无参数 / 有参数
-Sub Hello()
+Sub Hello()          ' no parameters
     echo "hi"
 End Sub
 
-Sub Show(a, b)
-    echo a & "-" & b
-End Sub
-
-' 三种调用写法都支持
-Hello
-Call Show("x", "y")
-Show "x", "y"
-
-' 函数用"函数名"承载返回值
-Function Add(a, b)
+Function Add(a, b)   ' return value is carried by the function name
     Add = a + b
 End Function
+
+Hello                ' three call forms are accepted
+Call Add(1, 2)
+x = Add(1, 2)
 ```
 
-- **过程可以先用后定义**：编译器先扫描整个脚本登记签名。
-- **函数返回值**：给函数名赋值；一次都没赋值则返回 `Empty`。
-- **`Exit Sub` / `Exit Function`**：提前返回。
-- **参数默认 ByRef**（VBS 约定），会写回调用方；`ByVal` 不写回。
+- Procedures may be called before their definition — signatures are registered in a first pass.
+- Parameters default to `ByRef` and are written back; `ByVal` is not.
+- Since v0.9.15 by-reference boxes are only created for parameters a procedure actually
+  assigns (or passes on to another procedure); read-only `ByRef` parameters cost nothing.
+
+### Syntax sugar
 
 ```vb
-Sub Swap(ByRef a, ByRef b)
-    Dim t
-    t = a : a = b : b = t
-End Sub
-
-Function Bump(ByRef a)
-    a = a + 1
-    Bump = a * 10
-End Function
-
-x = 1 : y = 2
-Swap x, y            ' x=2, y=1
-x = 1
-y = Bump(x)          ' x=2（ByRef 写回），y=20
-x = Bump(x)          ' 先写回 2，再用返回值 20 覆盖 x —— 与 VBS 一致
-```
-
-实现方式：实参包进 `Ref` 盒子（`ovpprt/ref.py`），过程内读写成 `参数.v`，调用后写回；
-调用出现在表达式或 `If` 条件里时，编译器把"建盒子 / 写回"的语句提升到正确位置。
-
-## 语法糖：`:`、单行 If、行续接
-
-```vb
-a = 1 : b = 2 : echo a + b          ' 冒号分隔
-
-If b = 2 Then echo "two"             ' 单行 If
-If b = 2 Then echo "two" Else echo "other"
+a = 1 : b = 2 : echo a + b            ' colon-separated statements
+If b = 2 Then echo "two"              ' single-line If
 If b = 2 Then echo "a" : echo "b" Else echo "c"
-
 total = 1 + _
-        2                            ' 行尾下划线续行
+        2                             ' line continuation
 ```
 
-## 变量、数组与 Option Explicit
+### Variables, arrays, `Option Explicit`
 
 ```vb
-Option Explicit            ' 开启后所有变量必须先声明
-
-Dim total, i               ' 标量，初值是 Empty
-Dim scores(4)              ' 数组：下界 0、上界 4，共 5 个元素
-Dim grid(1, 2)             ' 二维数组，访问 grid(1, 2)
-
-For i = 0 To UBound(scores)
-    scores(i) = (i + 1) * 10
-Next
-
-ReDim Preserve scores(5)   ' 扩容并保留已有值
-Erase scores               ' 元素重置为 Empty
+Option Explicit
+Dim total, i               ' scalars, initial value Empty
+Dim scores(4)              ' array: lower bound 0, upper bound 4 (5 elements)
+Dim grid(1, 2)             ' 2-D array, access as grid(1, 2)
+ReDim Preserve scores(5)   ' grow, keep existing values
+Erase scores               ' reset elements to Empty
 Const NAME = "openvbs"
 ```
 
-- `Empty` 与 VBS 一致：打印为空行；参与算术当 0；参与 `&` 当 `""`。
-- `Null` 会"传染"：`Null + 1`、`Null = 0` 都是 `Null`，用 `IsNull()` 判断。
-- `Dim a()` 是动态数组，之后用 `ReDim a(n)` 定尺寸。
-- `Option Explicit` 在**编译期**检查未声明变量，报错带行号与源码行。
+`Empty` behaves like VBS: prints as an empty line, is `0` in arithmetic and `""` in `&`.
+`Null` propagates (`Null + 1` and `Null = 0` are `Null`) — test with `IsNull()`.
+`Option Explicit` is enforced **at compile time** with line number and source line.
 
-## 类与对象
+### Classes and objects
 
 ```vb
 Class Counter
@@ -273,35 +229,23 @@ c.Bump 5
 echo c.Value            ' 5
 ```
 
-- 支持字段（`Public` / `Private` / `Dim`）、方法（`Sub` / `Function`）、
-  `Property Get/Let/Set`、`Me`、`Class_Initialize` / `Class_Terminate`；
-- `New Foo` 与 `CreateObject("Foo")` 都能创建脚本类；
-- `CreateObject("Scripting.Dictionary")` 提供 `Add/Exists/Item/Remove/RemoveAll/Count/Keys/Items`，
-  并且 `d("k")`、`d("k") = v`、`For Each k In d` 都能直接用；
-- Windows 上 `CreateObject("WScript.Shell")` / `Excel.Application` 这些 COM 对象也能真连：
-  属性、方法、集合、`For Each` 都可用（由 `com-support` 包提供，无需 `import`；
-  见 [extras/com-support](extras/com-support)）；
-- `Set x = Nothing`、`x Is Nothing`、`TypeName(obj)`、`IsObject(obj)` 语义与 VBS 一致；
-- `With obj ... End With` 的表达式只求值一次。
+`New Foo` and `CreateObject("Foo")` both construct script classes.
+`CreateObject("Scripting.Dictionary")` provides `Add/Exists/Item/Remove/RemoveAll/Count/Keys/Items`,
+and `d("k")`, `d("k") = v`, `For Each k In d` all work.
+On Windows, COM objects (`WScript.Shell`, `Excel.Application`, WMI, …) connect for real —
+properties, methods, collections and `For Each` included, with no `import` in your script
+(provided by the `com-support` package; see [extras/com-support](extras/com-support)).
+Details and limits: [doc/OBJECT_MODEL.md](doc/OBJECT_MODEL.md), [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md).
 
-细节与限制见 [doc/OBJECT_MODEL.md](doc/OBJECT_MODEL.md)（设计报告）和
-[doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §3.7（方法参数的 ByRef 差异）。
+### `Option Typing`: compile-time type checking
 
-## Option Typing：编译期类型检查
-
-默认关闭 —— 关闭时行为和普通 VBS 完全一致，类型注解会被忽略。
-打开后，注解（`->`，不是 `:`，避免与语句分隔符冲突）会参与编译期检查：
+Off by default — when off, annotations are ignored and behaviour is plain VBScript.
+When on, `->` annotations (not `:`, which statement separation already uses) are checked:
 
 ```vb
 Option Typing
 
 Dim count -> Integer
-Dim ratio -> Double
-Dim name -> String
-
-count = 10
-name = "openvbs"
-
 Function Twice(n -> Integer) -> Integer
     Twice = n * 2
 End Function
@@ -309,8 +253,9 @@ End Function
 echo Twice(count)
 ```
 
-检查范围：赋值、实参、返回值，以及能静态确定接收者类型时的类字段 / 属性。
-`Variant`、`Empty`、`Null`、`Object` 通配一切，所以不会误伤没写类型的代码：
+Assignment, arguments and return values are checked, plus class fields/properties when the
+receiver type is statically known. `Variant`, `Empty`, `Null` and `Object` match anything,
+so untyped code is never rejected:
 
 ```
 Type mismatch in assignment to 'count': expected Integer, got String
@@ -318,17 +263,7 @@ Location: Line 12
 Source: count = "oops"
 ```
 
-## With
-
-```vb
-With Err
-    .Number = 3
-    .Clear()
-End With
-echo Err.Number
-```
-
-## 错误处理
+### Error handling
 
 ```vb
 On Error Resume Next
@@ -340,36 +275,9 @@ End If
 On Error GoTo 0
 ```
 
-- `On Error Resume Next` 之后的语句被逐条保护，出错时记录到 `Err` 并继续执行；
-- 每个过程一个错误处理帧，子过程里的 `On Error` 不会泄漏给调用方；
-- `Err.Raise number, source, description` 可以由脚本主动抛错；
-- 没有开启保护时，错误照常向上抛，并被翻译成带行号的 `OVPP*` 错误。
-
-## 内置函数
-
-| 分类 | 函数 |
-|---|---|
-| 字符串 | `Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String Asc Chr InStr InStrRev Replace Split Join Filter StrComp Hex Oct` |
-| 转换 | `CStr CInt CLng CDbl CBool CByte` |
-| 数学 | `Abs Int Fix Sgn Sqr Round Rnd Randomize` |
-| 数组 | `Array UBound LBound` |
-| 判断 | `IsNumeric IsEmpty IsNull IsObject IsArray IsDate TypeName` |
-| 日期 | `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff` |
-| 交互 | `MsgBox`（打印到标准输出）、`InputBox`（读标准输入） |
-
-预定义常量：`vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`。
-
-## 数字与布尔语义
-
-- 比较运算返回 **VBS 布尔**：真 = `-1`、假 = `0`，`Echo` 打印成 `True` / `False`。
-- **逻辑运算符是按位的**（与 VBS 一致）：`5 And 3` → `1`、`Not 0` → `-1`、
-  `(1 = 1) And (2 = 2)` → `True`（两边都是布尔时保持布尔）。
-- `Echo` 与 `&` 都按 VBS 习惯格式化数字：`3.0` 打印成 `3`，`7 / 2` 打印成 `3.5`。
-- `\` 与 `Mod` 向零截断：`-7 Mod 2` → `-1`；`^` 左结合：`2 ^ 3 ^ 2` → `64`。
-
-## 错误信息
-
-语法错误与运行期错误都会带**行号 + 源码行**，错误类型见 [OpenVBSPP/exceptions.py](OpenVBSPP/exceptions.py)：
+Each procedure gets its own error frame, so a callee's `On Error` never leaks to its
+caller; `Err.Raise number, source, description` raises from script. Errors are reported
+with line number and source line:
 
 ```
 Syntax error (1002): Missing 'End If': unexpected end of file while reading the If ... End If block
@@ -377,196 +285,237 @@ Location: Line 2, Column 1
 Source: echo 1
 ```
 
+### Built-in functions
+
+| Category | Functions |
+|---|---|
+| Strings | `Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String Asc Chr InStr InStrRev Replace Split Join Filter StrComp Hex Oct` |
+| Conversion | `CStr CInt CLng CDbl CBool CByte` |
+| Math | `Abs Int Fix Sgn Sqr Round Rnd Randomize` |
+| Arrays | `Array UBound LBound` |
+| Predicates | `IsNumeric IsEmpty IsNull IsObject IsArray IsDate TypeName` |
+| Date/time | `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff` |
+| Interaction | `MsgBox` (prints to stdout), `InputBox` (reads stdin) |
+
+Constants: `vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`.
+
+### Numbers and booleans
+
+- Comparisons return **VBS booleans**: true is `-1`, false is `0`; `echo` prints `True` / `False`.
+- Logical operators are **bitwise**, as in VBS: `5 And 3` → `1`, `Not 0` → `-1`,
+  `(1 = 1) And (2 = 2)` → `True` (booleans stay booleans).
+- `echo` and `&` format numbers VBS-style: `3.0` prints as `3`, `7 / 2` prints as `3.5`.
+- `\` and `Mod` truncate toward zero: `-7 Mod 2` → `-1`; `^` is left-associative: `2 ^ 3 ^ 2` → `64`.
+
+## Python interop
+
+```python
+from OpenVBSPP.runtime import vbs_run
+vbs_run('''
+Function Add(a, b)
+    Add = a + b
+End Function
+echo Add(2, 3)
+''', filename="demo.vbs")
+
+from OpenVBSPP.compiler import vbs_compile
+code_obj = vbs_compile("echo 1\n", filename="demo.vbs")
+exec(code_obj, {})
 ```
-Variable is undefined (1001): Variable 'zzz' is not defined
-Description: Python NameError: name 'zzz' is not defined
-Location: Line 3
-Source: echo zzz
-```
 
-其它常用错误：`Sub or Function not defined (35)`、`Type mismatch (13)`、
-`Wrong number of arguments (450)`、`Subscript out of range (9)`、`Division by zero (11)`。
+`vbs_run` returns captured output/errors; `vbs_compile` returns a plain `types.CodeType`.
+Inside a script, `#python ... #endpython` embeds Python and `Option COP` exposes a shared
+object pool. See [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4.
 
-## 性能
+## Performance
 
-先给结论：**作为「老脚本的迁移执行层」，它比原生 `cscript.exe` 快 2.5–3 倍，启动也快约 1.5 倍；
-循环、数组、函数调用的运行时开销已经压到接近手写 Python（1.0–1.4 倍），
-剩下明显偏慢的只有 `Dictionary` 的成员访问和深递归。** 适合批处理、胶水、运维自动化，
-不适合把百万次字典插入或深递归塞进 VBS 里做核心计算。
+Short version: **2.5–3× faster end-to-end than native `cscript.exe`, with ~1.5× faster
+startup; loops, arrays and function calls now run within 1.0–1.4× of hand-written
+CPython; `Dictionary` member access and deep recursion are the remaining weak spots.**
+Good for batch jobs, glue and ops automation; not for million-entry dictionary workloads
+or deep recursion in a hot loop.
 
-自己复现（不需要任何参数，读取仓库内源码，不含硬编码路径）：
+Reproduce (no arguments, no hard-coded paths):
 
 ```bash
-python tools/bench.py          # 进程内：编译一次、反复执行
-python tools/bench.py --e2e    # 额外跑端到端（含解释器启动），Windows 上自动对照 cscript.exe
+python tools/bench.py          # in-process: compile once, run many
+python tools/bench.py --e2e    # adds end-to-end runs, auto-detects cscript.exe on Windows
 ```
 
-### 端到端（含进程启动，这才是用户感受到的数字）
+### End-to-end (includes interpreter startup — what users actually feel)
 
-| 脚本 | OpenVBS++ | cscript.exe | CPython |
+| Script | OpenVBS++ | cscript.exe | CPython |
 |---|---:|---:|---:|
-| 只 echo 一行 | **114 ms** | 169 ms | 70 ms |
-| 1M 次算术循环 | **142 ms** | 438 ms | 101 ms |
-| fib(24) | **150 ms** | 394 ms | 76 ms |
+| `echo` one line | **114 ms** | 169 ms | 70 ms |
+| 1M-iteration arithmetic loop | **142 ms** | 438 ms | 101 ms |
+| `fib(24)` | **150 ms** | 394 ms | 76 ms |
 
-### 进程内（编译一次、反复执行，纯运行开销；中位数）
+### In-process (pure runtime cost, median)
 
-| 用例 | OpenVBS++ | 等价 CPython | 倍数 |
+| Case | OpenVBS++ | CPython | Ratio |
 |---|---:|---:|---:|
-| 1M 算术循环（过程内） | 29.7 ms | 30.1 ms | **0.99×** |
-| 1M 算术循环（模块级） | 69.7 ms | 67.0 ms | **1.04×** |
-| 100k 数组读写 | 12.8 ms | 12.7 ms | **1.00×** |
-| 200k 函数调用 | 23.1 ms | 17.1 ms | 1.35× |
-| 20k 字符串拼接 | 6.3 ms | 4.5 ms | 1.39× |
-| fib(24) 递归 | 37.9 ms | 5.5 ms | 6.85× |
-| 50k Dictionary 插入 | 58.4 ms | 4.5 ms | 13.1× |
+| 1M loop, inside a procedure | 29.7 ms | 30.1 ms | **0.99×** |
+| 1M loop, module level | 69.7 ms | 67.0 ms | 1.04× |
+| 100k array read/write | 12.8 ms | 12.7 ms | 1.00× |
+| 200k function calls | 23.1 ms | 17.1 ms | 1.35× |
+| 20k string concatenations | 6.3 ms | 4.5 ms | 1.39× |
+| `fib(24)` | 37.9 ms | 5.5 ms | 6.85× |
+| 50k `Dictionary` inserts | 58.4 ms | 4.5 ms | 13.1× |
 
-### v0.9.15 做的四项优化
+### What v0.9.15 optimized
 
-这四项的共同前提是「只改生成的代码，不改语言语义」，每一项都由
-`tests/test_perf_semantics.py` 钉住边界：
+| Change | Effect |
+|---|---|
+| Lazy stdlib imports at startup | cold start 27 ms → 13 ms |
+| Read-only `ByRef` parameters no longer boxed | 200k calls 118 ms → 23 ms |
+| No error frame for procedures without `On Error` | `fib(24)` 67 ms → 38 ms |
+| `For` compiles to `range` when provably safe | 1M loop 50 ms → 29.7 ms |
 
-| 优化 | 做法 | 效果 |
-|---|---|---|
-| 启动懒加载 | `regexp`/`jsonobj`/`object`/`builtins` 里的 `re`、`json`、`datetime`、`math`、`random` 改成首次使用时才导入；`cli.py` 只在真正执行脚本时才导入 `runtime` | 冷启动开销 27 ms → 13 ms，`openvbs --version` 82 ms |
-| 只读 `ByRef` 参数不再装箱 | 编译器静态判断形参是否真的被写（赋值、`ReDim`、`For`、或继续传给下层），只读的按值传，被调方内联拆包 `if type(n) is Ref: n = n.v` | 200k 次函数调用 118 ms → 23 ms（13.7× → 1.35×） |
-| 无 `On Error` 的过程不再建错误帧 | 过程体里没有 `On Error ...`/`Resume`/`Err` 就不生成 `enter()/try/finally/leave()`，模块加载时已有一个基帧兜底 | 递归 fib(24) 67 ms → 38 ms（12.0× → 6.85×） |
-| `For` 安全时编译成 `range` | 步长是常量、循环体不给计数器赋值时，生成 `for i in for_seq(...)` + `else: i = i + step`，复现「正常结束后计数器 = 末值 + 步长、`Exit For` 不加、空区间保留起点」 | 1M 循环 50 → 29.7 ms（1.65× → 0.99×），模块级 144 → 69.7 ms（4.19× → 1.04×） |
+Remaining, deliberately deferred: `Dictionary` dispatch, call inlining, native lists for `Dim a(n)`.
 
-早先还做过两项：`Dictionary` 成员分派从「线性扫全部键」改成「方法名直接判定」
-（O(n²) → O(1)，5 万次插入从 103 秒降到 58 ms）；`&` 拼接在两端都是字符串时走原生 `+` 快路径。
+## Why not X?
 
-### 还能再快、但收益与代价要再权衡的项
+Honest answers — this tool is not the right choice for everything.
 
-- `Dictionary` 每次成员访问仍要过一遍运行时函数调用（13×），要彻底解决得让编译器识别 `d.Add` 这种模式。
-- 递归慢在「每次调用都是一次 Python 函数调用 + 参数绑定」，要更快需要内联或尾调用优化，会牵动 `On Error` 语义。
-- `Dim a(n)` 仍是运行时数组对象，改成原生 `list` 能再省一点，但会破坏 `LBound/UBound` 的可扩展性。
+**Why not plain VBScript / `cscript.exe`?**
+If your scripts are stable, never need speed and you cannot install anything, stay on
+`cscript` — it is preinstalled and is the reference implementation. Choose OpenVBS++ when
+you want classes/try-catch/packages, 2–3× faster batch runs, or better diagnostics and
+JSON output for tooling. Trade-off: an extra dependency (Python or the 8 MB exe) and an
+implementation that is not the vendor runtime.
 
-## 项目结构
+**Why not Python?**
+For new code, Python is usually the better answer: bigger ecosystem, cross-platform,
+better tooling. OpenVBS++ wins when you must keep `.vbs` sources and entry points
+(scheduled tasks, logon scripts, customer installations, old build systems), or when the
+people maintaining the scripts only know VBScript. It is a migration and execution layer,
+not a Python replacement.
+
+**Why not PowerShell?**
+PowerShell is the modern Windows admin shell and has a far larger module ecosystem.
+But many environments still restrict or sign PowerShell, `.ps1` chains break on
+ExecutionPolicy, and enterprises have mountains of working `.vbs`. Rewriting them is risk
+for no business value. If you are writing new automation for machines you control,
+PowerShell may be the better pick; OpenVBS++ exists to run what you already have.
+
+**Why not JavaScript / Node?**
+You would add a runtime and an npm supply chain for a job that needs file, registry and
+COM access — TS/JS gives little there. Node is the right call when you also need a web UI
+or that ecosystem's libraries.
+
+**Why not C# / .NET?**
+Better for long-lived, typed, compiled applications and real services. It is far heavier
+for glue scripts: project files, build chain, runtime footprint. Use .NET when the script
+is turning into a product.
+
+**Why not AutoHotkey / AutoIt?**
+Those excel at UI automation, hotkeys and window control. OpenVBS++ targets file,
+registry, WMI and COM automation with VBScript syntax and semantics.
+
+**When you should not use OpenVBS++ at all**
+Cross-platform requirements, CPU-bound heavy computation, long-running services, or
+environments where installing anything is forbidden and the vendor runtime must be used.
+Edge cases of VBScript semantics also exist — see [Status and known limitations](#status-and-known-limitations).
+
+## Project structure
 
 ```
 OpenVBSPP/
-├── lexer.py            词法分析（注释 / CRLF / 行续接 / : / 行列号）
-├── parser.py           递归下降语法分析（过程、声明、数组、调用、With、On Error）
-├── transformer.py      OpenVBS++ AST → Python ast（两遍：先登记签名再生成）
-├── compiler.py         编译入口 vbs_compile()，支持 exec / save
-├── runtime.py          vbs_run()：编译 + 执行 + 异常翻译
-├── cli.py              命令行入口（安装后为 openvbs 命令）
-├── exceptions.py       OVPP* 错误类（沿用 VBS 错误号）
-├── ast_nodes/          AST 节点定义（表达式 / 语句 / 控制流 / 过程）
-├── ovpprt/             运行时库
-│   ├── boolean.py      VBool + 按位逻辑运算
-│   ├── string.py       & 字符串连接
-│   ├── format.py       VBS 风格的数字/空值格式化
-│   ├── empty.py        Empty 哨兵
-│   ├── null.py         Null 哨兵（传染语义）
-│   ├── nothing.py      Nothing 哨兵
-│   ├── array.py        数组创建 / ReDim / Erase / UBound
-│   ├── ref.py          ByRef 盒子
-│   ├── err.py          Err 对象 + On Error 状态机
-│   ├── object.py       对象运行时（CreateObject / 成员分派）
-│   ├── com.py          COM 桥（定位 com-support 包并挂进 CreateObject）
-│   ├── collections.py  Scripting.Dictionary
-│   └── builtins.py     内置函数 + Echo
-├── typecheck.py        Option Typing 的编译期类型检查
-├── over.py             over 包管理器（依赖图 / 锁文件 / Python 依赖 / bundled 包）
-├── plugins/debug_tools.py  ast2str()：把生成的 Python AST 反编译成源码
-└── vendor/com-support/ 随包分发的 COM 支持包（Windows 零配置可用）
-examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
-tests/                  回归测试（485 个用例）
-doc/                    语言规范、VBS 超集矩阵、对象模型设计
+  lexer.py parser.py transformer.py compiler.py   # VBScript → Python AST → bytecode
+  typecheck.py                                    # Option Typing checks
+  runtime.py                                       # vbs_run / vbs_compile entry points
+  over.py                                          # package manager (over.json / over.lock)
+  cli.py ide/                                      # CLI and web IDE
+  ovpprt/                                          # runtime library: ref, err, string, array,
+                                                   # dictionary-compatible object model, COM bridge
+  vendor/com-support/                              # Windows COM adapter, shipped with the package
+  ast_nodes/ plugins/
+examples/            # 23 runnable .vbs examples
+tests/               # 485 unittest cases
+tools/               # bench.py, build.ps1
+extras/              # over package examples (web-ide, com-support), VS Code grammar
+doc/                 # language spec, superset notes, object model, LSP design, legal audit
 ```
 
-## 测试
+## Tests
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
+python -m unittest discover -s tests          # 485 tests, ~2.2 s
 ```
 
-- `tests/test_openvbspp.py`：示例输出、运算符、布尔语义、控制流、词法、错误定位、编译器与命令行。
-- `tests/test_procedures.py`：Sub / Function / ByRef / 递归 / Dim / 数组 / Option Explicit / 内置函数 / Empty。
-- `tests/test_objects.py`：Class / Property / Me / Class_Initialize / Dictionary / 私有成员 / 默认成员 / 对象错误。
-- `tests/test_option_typing.py`：`Option Typing` 的类型检查（含数组元素类型、继承链）。
-- `tests/test_interop.py`：`#python` 代码块与 `Option COP` 对象池。
-- `tests/test_vbs_superset.py`：**VBS 超集一致性**——100+ 条合法 VBS 片段必须跑通；
-  v0.5 起已没有 expectedFailure（缺口全部补齐），新增缺口时按老规矩加。
-- `tests/test_over.py` / `tests/test_over_registry.py`：over 的依赖图、锁文件、本地源与 registry。
-- `tests/test_over_python.py`：over 声明 Python 依赖时的合并、钉版本、frozen 还原与卸载。
-- `tests/test_com.py`：COM 桥的定位优先级、开关、错误翻译与适配层行为（不依赖真实 COM）。
+| File | Covers |
+|---|---|
+| `tests/test_openvbspp.py` | example output, operators, boolean semantics, control flow, lexer, error locations, compiler and CLI |
+| `tests/test_procedures.py` | `Sub`/`Function`, `ByRef`, recursion, `Dim`/arrays, `Option Explicit`, built-ins, `Empty` |
+| `tests/test_objects.py` | `Class`, properties, `Me`, `Class_Initialize`, `Dictionary`, private members, default members |
+| `tests/test_option_typing.py` | `Option Typing` checks (including array element types and inheritance chains) |
+| `tests/test_interop.py` | `#python` blocks and the `Option COP` pool |
+| `tests/test_vbs_superset.py` | **superset conformance**: 100+ legal VBScript snippets must run |
+| `tests/test_over.py`, `test_over_registry.py` | `over` dependency graph, lock file, local sources, registry |
+| `tests/test_over_python.py` | Python dependency merging, pinning, frozen restore, uninstall |
+| `tests/test_com.py` | COM bridge lookup order, kill switch, error translation, adapter behaviour (no real COM needed) |
+| `tests/test_perf_semantics.py` | semantics pinned by the v0.9.15 optimizations (`For`→`range`, `ByRef`, error frames, lazy imports) |
 
-## 与规范的差距 / 已知限制
+## Status and known limitations
 
-**尚未实现**（`doc/VBS_SUPERSET.md` §4）：
+Not implemented yet ([doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4):
 
-- `Collection` 内置类（VBScript 本身没有，属于 VBA）
-- `Declare`（声明外部 DLL 函数）
+- the `Collection` built-in class (that is VBA, not VBScript)
+- `Declare` (binding external DLL functions)
 
-COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**：Windows 上由
-`com-support` 包真连，非 Windows 平台、`OPENVBS_COM=0`、或没装 `pywin32` 时会给出明确报错
-（不再按"未实现"处理）。
+COM host objects **are** supported: real connections on Windows through `com-support`;
+on other platforms, with `OPENVBS_COM=0`, or without `pywin32` you get an explicit error.
 
-其它已知限制：
+Other known limits:
 
-- 数组下标不做负值检查（Python 语义下 `a(-1)` 会取最后一个元素）。
-- `Exit For` 若嵌在 `Do` 循环里，只跳出最内层循环（Python 没有具名循环）。
-- `#python` 代码块在全局作用域运行（不能直接改过程的局部变量）。
-- `Class_Terminate` 依赖 Python 的引用计数/GC，时机不保证。
+- array indices are not range-checked (`a(-1)` behaves like Python's last element)
+- `Exit For` inside a `Do` loop only exits the innermost loop
+- `#python` blocks run in global scope and cannot touch procedure locals directly
+- `Class_Terminate` depends on reference counting/GC; timing is not guaranteed
 
-完整的对象模型清单见 [doc/OOP.md](doc/OOP.md)（继承、重载、`Set/Get`，以及"为什么不做 abstract/static"的说明）。
+The full object-model contract is in [doc/OOP.md](doc/OOP.md).
 
-仓库里还有一个**把网页 IDE 打成 over 包**的示例：[extras/web-ide](extras/web-ide)，
-用 over pack / publish / index 就能发布到本地 registry，不依赖任何服务器。
+## Contributing
 
-`extras/com-support` 则是**把 COM 支持做成 over 包**的示例：它声明 `platforms: ["win32"]`
-与 `python: {"pywin32": ">=306"}`，装进项目后 `over install` 会顺手把 pywin32 装好；
-不装也能用 —— OpenVBS++ 自带一份 vendor 副本，Windows 上零配置即可 `CreateObject`。
+The project needs help to survive: superset edge cases, translations, built-ins,
+packaging, performance. Contributions use **DCO** (no CLA) — `git commit -s`.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [doc/good-first-issues.md](doc/good-first-issues.md).
 
-## 参与贡献 / Contributing
+Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
+[doc/ROADMAP.md](doc/ROADMAP.md). Legal self-audit: [doc/LEGAL.md](doc/LEGAL.md).
 
-**EN** — The project needs help to survive: superset edge cases, translations,
-built-ins, packaging, performance. Contributions use **DCO** (no CLA):
-git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
-[doc/good-first-issues.md](doc/good-first-issues.md).
+## Roadmap
 
-**中文** —— 这个项目需要社区帮忙才能走下去：超集边界情况、翻译、内置函数、
-打包、性能。贡献采用 **DCO**（不需要签 CLA），提交时加 -s 即可。详见
-[CONTRIBUTING.md](CONTRIBUTING.md) 与 [doc/good-first-issues.md](doc/good-first-issues.md)。
+- **v0.2.x** — procedures, `Dim`/`ReDim`/`Const`, `Option Explicit`, arrays, built-ins ✅
+- **v0.3.x** — single-line `If`, `:`, `On Error`, `With`, `For Each`, bitwise logic, superset check ✅
+- **v0.4.x** — object model, `Option Typing` static checks ✅
+- **v0.5.x** — `Execute`/`Eval`, `FormatNumber`, `Option Compare Text`, `GetObject`, default members ✅
+- **v0.6.x** — object-method `ByRef`, `Inherits`, `#python`, `Option COP` ✅
+- **v0.7.x–v0.9.x** — `over` package manager (M1/M2), real COM support, web IDE, `--json` diagnostics ✅
+- **v0.9.15** — performance: lazy startup, no boxing for read-only `ByRef`, error frames on demand, `For` → `range` ✅
+- **Next** — method overloading, remaining `Attribute` properties, events, `Collection`
+- **v1.0** — stable language spec, official `ovpprt` runtime library, IDE / LSP support
 
-包管理器用法见 [doc/OVER.md](doc/OVER.md)。完整路线图与推迟项见 [doc/ROADMAP.md](doc/ROADMAP.md)。
-与微软 VBScript 的法律关系自查见 [doc/LEGAL.md](doc/LEGAL.md)。
+## License, third parties, trademarks
 
-## 路线图
+Apache License 2.0 — see [LICENSE](LICENSE); keep [NOTICE](NOTICE) on redistribution.
 
-- **v0.2.x**：函数与 `Sub`、`Dim`/`ReDim`/`Const`、`Option Explicit`、数组、内置函数 —— 已完成
-- **v0.3.x**：单行 `If`、`:`、`On Error`、`With`、`For Each`、按位逻辑与 `\ Mod ^`、VBS 超集检查 —— 已完成
-- **v0.4.x**：对象模型（`Class`/`Property`/`Me`/`CreateObject`/`Dictionary`）、`Option Typing` 静态类型检查 —— 已完成
-- **v0.5.x**：`Execute`/`Eval`、`FormatNumber` 系列、`Option Compare Text`、`GetObject`、
-  默认成员、私有成员可见性、数组元素类型检查 —— 已完成；VBS 超集用例 **0 缺口**
-- **v0.6.x**：对象方法 ByRef（统一 Ref 协议）、类继承 `Inherits`、`#python` 嵌入、
-  `Option COP`、类型检查补强 —— 已完成
-- **v0.7.x–v0.9.x**：over 包管理器 M1/M2（本地源、git 源、锁文件、Python 依赖、bundled 包）、
-  `CreateObject` 回归 VBS 语义、真实 COM 支持（`com-support`）、网页 IDE、`--json` 诊断 —— 已完成
-- **v0.9.15**：性能优化（启动懒加载、只读 `ByRef` 不再装箱、无 `On Error` 的过程不建错误帧、`For` 安全时生成 `range`）
-- 下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
-- **v1.0**：稳定语言规范、官方运行时库 `ovpprt`、IDE / LSP 支持
+- The repository, wheel and sdist contain **no third-party code**. `pywin32` is only an
+  optional Windows runtime dependency (`pip install "openvbspp[com]"`, or installed
+  automatically by `over` from the `com-support` package's `python: pywin32>=306`).
+- The single-file **exe** published in GitHub Releases bundles `pywin32` (PSF-2.0) modules
+  and DLLs so it works out of the box; its license statement is in [NOTICE](NOTICE).
+  Use the wheel plus your own `pywin32` install if you want to avoid third-party code.
+- VBScript is a trademark of Microsoft Corporation. OpenVBS++ is an independent
+  implementation, not affiliated with Microsoft, and distributes neither its code nor its
+  documentation.
 
-## 许可
+## Security model
 
-Apache License 2.0，见 [LICENSE](LICENSE)；再分发时请保留 [NOTICE](NOTICE)。
-
-### 第三方与商标
-
-- 仓库、wheel、sdist **不含**第三方代码。`pywin32` 只是 Windows 上可选的运行期依赖
-  （`pip install "openvbspp[com]"`，或由 `over` 按 `com-support` 包的
-  `python: pywin32>=306` 自动安装）。
-- 发布到 GitHub Releases 的**单文件 exe** 为了开箱即用，会把 `pywin32`（PSF-2.0）
-  的模块与 DLL 一并打包；许可声明见 [NOTICE](NOTICE)。想完全避开第三方代码，
-  用 wheel + 自行安装 `pywin32`。
-- VBScript 是 Microsoft Corporation 的商标。OpenVBS++ 是独立实现，与 Microsoft
-  无关联，也不分发其代码或文档。
-
-### 安全提示
-
-- `<% %>` 内嵌 Python 块（以及 `over` 安装/`pip` 调用）意味着**任意代码执行**能力，
-  与 `cscript.exe` 同级的信任模型：**不要运行来源不明的脚本或包**。
-- 非 Windows 平台没有 COM，`CreateObject` 会明确报错而不是静默降级。
+- `<% %>` embedded Python blocks (and `over` installs / `pip` calls) mean **arbitrary code
+  execution** — the same trust model as `cscript.exe`: never run scripts or packages of
+  unknown origin.
+- On non-Windows platforms there is no COM: `CreateObject` fails explicitly instead of
+  silently degrading.
+- Report vulnerabilities per [SECURITY.md](SECURITY.md).

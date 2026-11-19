@@ -1,0 +1,340 @@
+{
+  "name": "OpenVBS++",
+  "scopeName": "source.openvbs",
+  "fileTypes": [
+    "vbs"
+  ],
+  "firstLineMatch": "(?i).*\\bOpenVBS\\b.*",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#python-blocks"
+    },
+    {
+      "include": "#script-tags"
+    },
+    {
+      "include": "#interpolated-strings"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#builtin-functions"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#type-annotations"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.rem.openvbs",
+          "match": "(?i)\\brem\\b.*$"
+        },
+        {
+          "name": "comment.line.apostrophe.openvbs",
+          "match": "'.*$"
+        }
+      ]
+    },
+    "python-blocks": {
+      "patterns": [
+        {
+          "name": "meta.embedded.block.python.openvbs",
+          "begin": "<%",
+          "end": "%>",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.embedded.begin.openvbs"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.embedded.end.openvbs"
+            }
+          },
+          "contentName": "source.python",
+          "patterns": [
+            {
+              "include": "source.python"
+            }
+          ]
+        },
+        {
+          "name": "meta.embedded.block.python.openvbs",
+          "begin": "^\\s*(#python)\\b",
+          "end": "^\\s*(#endpython)\\b",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.control.directive.python.openvbs"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "keyword.control.directive.python.openvbs"
+            }
+          },
+          "contentName": "source.python",
+          "patterns": [
+            {
+              "include": "source.python"
+            }
+          ]
+        }
+      ]
+    },
+    "script-tags": {
+      "patterns": [
+        {
+          "name": "meta.tag.script.openvbs",
+          "begin": "(<)(script|namespace)\\b",
+          "end": "(>)",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.openvbs"
+            },
+            "2": {
+              "name": "entity.name.tag.openvbs"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.tag.end.openvbs"
+            }
+          },
+          "patterns": [
+            {
+              "name": "entity.other.attribute-name.openvbs",
+              "match": "\\b(src|alias)\\b"
+            },
+            {
+              "include": "#strings"
+            }
+          ]
+        }
+      ]
+    },
+    "interpolated-strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.interpolated.openvbs",
+          "begin": "\\$(\")",
+          "end": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.openvbs"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.openvbs"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.openvbs",
+              "match": "\"\""
+            }
+          ]
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.openvbs",
+          "begin": "\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.openvbs"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.openvbs"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.openvbs",
+              "match": "\"\""
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.openvbs",
+          "match": "\\b\\d+\\.\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.openvbs",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.control.directive.openvbs",
+          "match": "(?i)^\\s*(option\\s+(explicit|typing|compare\\s+text|cop))\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.control.directive.openvbs"
+            }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.conditional.openvbs",
+          "match": "(?i)\\b(if|then|else|elseif|end\\s+if|select\\s+case|case|end\\s+select)\\b"
+        },
+        {
+          "name": "keyword.control.loop.openvbs",
+          "match": "(?i)\\b(for|each|next|to|step|do|loop|while|wend|until|exit\\s+(for|do|sub|function|property))\\b"
+        },
+        {
+          "name": "keyword.declaration.procedure.openvbs",
+          "match": "(?i)\\b(sub|function|call|byref|byval|property\\s+(get|let|set)|end\\s+(sub|function|property)|exit\\s+sub|exit\\s+function)\\b"
+        },
+        {
+          "name": "keyword.declaration.variable.openvbs",
+          "match": "(?i)\\b(dim|redim|preserve|const|let|set|erase)\\b"
+        },
+        {
+          "name": "keyword.control.exception.openvbs",
+          "match": "(?i)\\b(on\\s+error\\s+(resume\\s+next|goto\\s+0)|on\\s+error\\s+goto|resume)\\b"
+        },
+        {
+          "name": "keyword.control.exception.structured.openvbs",
+          "match": "(?i)\\b(try|catch|finally|when|end\\s+try)\\b"
+        },
+        {
+          "name": "keyword.declaration.class.openvbs",
+          "match": "(?i)\\b(class|end\\s+class|inherits|me|new|with|end\\s+with|public|private)\\b"
+        },
+        {
+          "name": "keyword.other.openvbs",
+          "match": "(?i)\\b(goto|execute|eval|erase|imports?)\\b"
+        },
+        {
+          "name": "keyword.operator.word.openvbs",
+          "match": "(?i)\\b(and|or|not|xor|eqv|imp|mod|is)\\b"
+        }
+      ]
+    },
+    "builtin-functions": {
+      "patterns": [
+        {
+          "name": "support.function.io.openvbs",
+          "match": "(?i)\\b(echo|msgbox|inputbox|debug\\s*print|print)\\b"
+        },
+        {
+          "name": "support.function.string.openvbs",
+          "match": "(?i)\\b(len|left|right|mid|ucase|lcase|ltrim|rtrim|trim|strreverse|space|string|asc|ascb|ascw|chr|chrb|chrw|instr|instrrev|replace|split|join|filter|strcomp|hex|oct|formatnumber)\\b"
+        },
+        {
+          "name": "support.function.conversion.openvbs",
+          "match": "(?i)\\b(cstr|cint|clng|cdbl|csng|cbool|cbyte|ccur|cdate)\\b"
+        },
+        {
+          "name": "support.function.math.openvbs",
+          "match": "(?i)\\b(abs|int|fix|sgn|sqr|round|rnd|randomize|exp|log|sin|cos|tan|atn)\\b"
+        },
+        {
+          "name": "support.function.array.openvbs",
+          "match": "(?i)\\b(array|ubound|lbound)\\b"
+        },
+        {
+          "name": "support.function.predicate.openvbs",
+          "match": "(?i)\\b(isnumeric|isempty|isnull|isobject|isarray|isdate|typename|createdobject|createobject|getobject|addressof)\\b"
+        },
+        {
+          "name": "support.function.date.openvbs",
+          "match": "(?i)\\b(now|date|time|timer|year|month|day|hour|minute|second|weekday|dateadd|datediff|dateserial|timeserial)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.openvbs",
+          "match": "(?i)\\b(true|false|nothing|null|empty)\\b"
+        },
+        {
+          "name": "constant.language.vb.openvbs",
+          "match": "(?i)\\bvb(crlf|cr|lf|tab|nullstring|nullchar|back|formfeed|verticaltab|true|false|objecterror|okcancel|yesno)\\b"
+        },
+        {
+          "name": "constant.language.object.openvbs",
+          "match": "(?i)\\b(this|self)\\b"
+        }
+      ]
+    },
+    "type-annotations": {
+      "patterns": [
+        {
+          "name": "storage.type.annotation.openvbs",
+          "match": "(?i)(->)\\s*(integer|long|double|single|string|boolean|byte|variant|object|empty|null|nothing|date|currency)\\b",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.annotation.openvbs"
+            },
+            "2": {
+              "name": "support.type.openvbs"
+            }
+          }
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.compound.openvbs",
+          "match": "(\\+=|-=|\\*=|/=|&=)"
+        },
+        {
+          "name": "keyword.operator.modern.openvbs",
+          "match": "(\\?\\.|\\?\\?)"
+        },
+        {
+          "name": "keyword.operator.comparison.openvbs",
+          "match": "(<=|>=|<>|==|=|<|>)"
+        },
+        {
+          "name": "keyword.operator.arithmetic.openvbs",
+          "match": "(\\^|\\\\|&|\\*|/|\\+|-|\\|)"
+        },
+        {
+          "name": "punctuation.definition.continuation.openvbs",
+          "match": "[ \\t]+_[ \\t]*$"
+        }
+      ]
+    }
+  }
+}

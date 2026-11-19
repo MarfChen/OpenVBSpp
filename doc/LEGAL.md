@@ -12,7 +12,7 @@
 **低风险。** 本仓库是一个从零编写的**独立实现**：不含微软的源代码、不含微软的文档原文、
 也不分发微软的任何二进制；`VBScript` 只作为「兼容目标」被提及（指名性使用）。
 真正需要注意的不是「能不能做」，而是「别把自己说成微软的东西」——这条已经在
-`README.md` / `README.en.md` / `NOTICE` 里写明。
+`README.md` / `README.zh-CN.md` / `NOTICE` 里写明。
 
 ---
 
@@ -31,7 +31,7 @@
 
 ```powershell
 # 期望只命中「免责声明」里的那几句，以及 CSS 字体名 Microsoft YaHei
-Select-String -Path README.md,README.en.md,NOTICE -Pattern "Microsoft"
+Select-String -Path README.md,README.zh-CN.md,NOTICE -Pattern "Microsoft"
 ```
 
 ---

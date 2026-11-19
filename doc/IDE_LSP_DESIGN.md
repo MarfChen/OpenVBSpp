@@ -9,13 +9,31 @@
 
 ---
 
+## 0. 现状（v0.9.15，实际交付了什么）
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| 内置网页 IDE | ✅ 已交付 | `openvbs ide`：编辑 / 运行 / 检查 / 保存，零第三方依赖 |
+| 机器可读诊断 | ✅ 已交付 | `openvbs check --json` → `{ok, diagnostics:[{kind, number, message, line, column, source_line}]}` |
+| 机器可读运行 | ✅ 已交付 | `openvbs run --json` → `{ok, output, error, duration_ms}` |
+| capabilities 文档 | ✅ 已交付 | `OpenVBSPP/ide/service.py` 导出带版本号的能力声明（`"lsp": false` 是显式占位） |
+| VS Code 语法高亮 | ✅ 已交付（语法 / 片段 / 运行 / 诊断） | [extras/vscode-openvbspp](../extras/vscode-openvbspp)：TextMate 语法、注释与缩进规则、snippets、`Ctrl+F5` 运行、保存时诊断；**没有补全/跳转** |
+| 其它编辑器 | ⚠️ 靠 CLI | Neovim / Emacs / Sublime / JetBrains 用各自的 "外部命令" 或 LSP 客户端接 `openvbs check --json`；VBScript 高亮大多内置 |
+| LSP 服务器 | ❌ 未实现 | 就是下面 §4 的 M1 |
+| DAP 调试器 | ❌ 未实现 | M4 |
+
+也就是说：**M0（语法高亮）与"诊断/运行导出"已完成**，剩下的是真正的 LSP 传输层
+（`Content-Length` 头 + JSON-RPC over stdio）和补全/跳转的数据导出。
+
+---
+
 ## 1. 结论先行
 
 | 能力 | 现在 | 差距 | 目标里程碑 |
 |---|---|---|---|
 | 诊断（红波浪线） | ✅ 有行号 + 源码行 | 列号不完整、缺 `span` | **M1** |
 | 运行 / 停止 | ✅ `vbs_run` | 缺机器的可读结果 | **M1** |
-| 语法高亮 | ❌ | 需要 TextMate 语法 | M0（独立于 LSP） |
+| 语法高亮 | ✅ 已有 TextMate 语法（`extras/vscode-openvbspp`） | — | M0 ✅ |
 | 补全 / 悬停 / 跳转 | 底层数据都有 | 未导出为 API | **M2** |
 | 重命名 / 大纲 / 折叠 | 部分 | 缺符号树 | M3 |
 | 格式化 | ❌ | 需要基于 AST 的输出器 | M3 |

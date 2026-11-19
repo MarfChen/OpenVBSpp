@@ -1,0 +1,96 @@
+{
+  "name": "openvbspp",
+  "displayName": "OpenVBS++",
+  "description": "VBScript-superset language support: syntax highlighting, snippets, and run/check integration through the openvbs CLI.",
+  "version": "0.1.0",
+  "publisher": "MarfChen",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "vbscript",
+    "vbs",
+    "openvbs"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:openvbs"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "openvbs",
+        "aliases": [
+          "OpenVBS++",
+          "VBScript"
+        ],
+        "extensions": [
+          ".vbs"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "openvbs",
+        "scopeName": "source.openvbs",
+        "path": "./syntaxes/openvbspp.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "openvbs",
+        "path": "./snippets/openvbspp.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "openvbs.runFile",
+        "title": "OpenVBS++: Run Current File"
+      },
+      {
+        "command": "openvbs.checkFile",
+        "title": "OpenVBS++: Check Current File"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "openvbs.runFile",
+        "key": "ctrl+f5",
+        "mac": "cmd+f5",
+        "when": "editorLangId == openvbs"
+      }
+    ],
+    "configuration": {
+      "title": "OpenVBS++",
+      "properties": {
+        "openvbs.executable": {
+          "type": "string",
+          "default": "openvbs",
+          "description": "Command used to run OpenVBS++. Set this to a Python path and add arguments if the openvbs.exe stub is blocked (see doc/RELEASE.md)."
+        },
+        "openvbs.arguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra arguments inserted before the subcommand, e.g. [\"-m\", \"OpenVBSPP\"] when openvbs.executable is a Python interpreter."
+        },
+        "openvbs.checkOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run 'check --json' on save and publish diagnostics."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "npx --yes @vscode/vsce package"
+  }
+}

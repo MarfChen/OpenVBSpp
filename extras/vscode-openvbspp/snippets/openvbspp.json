@@ -1,0 +1,107 @@
+{
+  "Class": {
+    "prefix": "class",
+    "body": [
+      "Class ${1:Name}",
+      "\tPrivate ${2:value}",
+      "",
+      "\tPublic Property Get ${3:Value}()",
+      "\t\t${3:Value} = ${2:value}",
+      "\tEnd Property",
+      "",
+      "\tPrivate Sub Class_Initialize()",
+      "\t\t${2:value} = 0",
+      "\tEnd Sub",
+      "End Class"
+    ],
+    "description": "OpenVBS++ class with a read-only property and initializer"
+  },
+  "Sub": {
+    "prefix": "sub",
+    "body": [
+      "Sub ${1:Name}(${2})",
+      "\t${0}",
+      "End Sub"
+    ],
+    "description": "Sub procedure"
+  },
+  "Function": {
+    "prefix": "func",
+    "body": [
+      "Function ${1:Name}(${2})",
+      "\t${1:Name} = ${0}",
+      "End Function"
+    ],
+    "description": "Function returning a value through its own name"
+  },
+  "Try": {
+    "prefix": "try",
+    "body": [
+      "Try",
+      "\t${1}",
+      "Catch e",
+      "\techo e.Number & \": \" & e.Description",
+      "Finally",
+      "\t${0}",
+      "End Try"
+    ],
+    "description": "Structured exception handling (superset extension)"
+  },
+  "OnError": {
+    "prefix": "onerror",
+    "body": [
+      "On Error Resume Next",
+      "${1}",
+      "If Err.Number <> 0 Then",
+      "\techo \"failed: \" & Err.Description",
+      "\tErr.Clear",
+      "End If",
+      "On Error GoTo 0"
+    ],
+    "description": "Classic VBS error handling block"
+  },
+  "ForNext": {
+    "prefix": "for",
+    "body": [
+      "For ${1:i} = ${2:0} To ${3:n}",
+      "\t${0}",
+      "Next"
+    ],
+    "description": "Counting loop"
+  },
+  "ForEach": {
+    "prefix": "foreach",
+    "body": [
+      "For Each ${1:item} In ${2:collection}",
+      "\t${0}",
+      "Next"
+    ],
+    "description": "Collection iteration"
+  },
+  "SelectCase": {
+    "prefix": "select",
+    "body": [
+      "Select Case ${1:expr}",
+      "\tCase ${2:value}",
+      "\t\t${3}",
+      "\tCase Else",
+      "\t\t${0}",
+      "End Select"
+    ],
+    "description": "Select Case block"
+  },
+  "Namespace": {
+    "prefix": "namespace",
+    "body": [
+      "<namespace src=\"${1:lib.vbs}\" alias=\"${2:u}\">"
+    ],
+    "description": "Import a module under an alias (replaces 'import')"
+  },
+  "Script": {
+    "prefix": "script",
+    "body": [
+      "<script src=\"${1:lib.vbs}\">"
+    ],
+    "description": "Merge another VBS file's globals"
+  }
+}

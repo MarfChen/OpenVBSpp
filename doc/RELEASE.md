@@ -197,3 +197,67 @@ PyPI / GitHub Release 上贴的正文从这里取，写完记得和 README 的�
   项目里装了就用项目的，`over install --with-com` 可装进项目、`OPENVBS_COM=0` 可关；
   脚本里照旧 `CreateObject("WScript.Shell")`，**不需要 import**。
 - 修掉 `object.py` 三处 `Dictionary` 成员分派里的未定义变量。
+
+---
+
+## 7. CI（GitHub Actions）
+
+工作流只有一个：`.github/workflows/ci.yml`，两个 job。
+
+**`test`（每次 push / PR / 手动触发）**
+
+| 维度 | 值 |
+|---|---|
+| Windows（硬门禁） | Python 3.9 / 3.10 / 3.11 / 3.12 / 3.13 |
+| Linux（实验性） | Python 3.9 / 3.13，`continue-on-error: true` |
+| 步骤 | toolchain → `pip install -e ".[dev]" --no-build-isolation` → 装 pywin32（仅 Windows）→ `python -m unittest discover -s tests` → 入口点自检 → COM 冒烟（仅 Windows）→ `python -m build` → 干净 venv 装 wheel 冒烟（含 `vendor/com-support` 存在性断言）→ 上传 `dist` 产物 |
+
+Windows 之所以是硬门禁：语言支持的 COM、WScript 语义、路径行为都在 Windows 上验证过。
+Linux 先以 `experimental` 收数据 —— **如果你想让 Linux 也变成门禁，把矩阵里
+`ubuntu-latest` 的 `experimental: true` 和 job 上的 `continue-on-error` 删掉即可。**
+
+**`exe`（只在打 tag 或手动触发时跑）**
+
+PyInstaller 构建 `dist/openvbs.exe`，再把它拷到临时目录做冒烟（`--version` + 真实
+`CreateObject("WScript.Shell")`），最后上传为 `openvbs-exe` 产物。
+
+### 完成 CI 还需要你本人做的事
+
+1. **建仓库并 push**（必须有这一步，否则 Actions 无处运行，徽章只会是灰色）：
+   ```bash
+   git remote add origin https://github.com/<你>/OpenVBSpp.git
+   git push -u origin main --tags
+   ```
+2. 仓库 Settings → Actions → General：确认允许 workflow（新仓库默认允许，无需改）。
+3. **不需要任何 secret** 就能跑测试。只有下面两件事需要额外配：
+   - 想在 CI 里发 PyPI：加 `PYPI_API_TOKEN` secret，再加一个 `twine upload` 的 job；
+   - 想要覆盖率徽章：接 Codecov / Coveralls 并加对应 token。
+4. 首次 push 后约 3–5 分钟出结果：7 个矩阵任务（5 Windows + 2 Linux）+ 1 个手动 exe 任务。
+   全绿之后 CI 徽章自动变绿，**不需要改 README**。
+
+---
+
+## 8. 徽章（怎么变绿）
+
+README 首屏有 6 个徽章，分两类：
+
+| 徽章 | 类型 | 变成 / 保持绿色要做什么 |
+|---|---|---|
+| `tests-485 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
+| `version-0.9.15` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
+| `license-Apache--2.0` | 静态 | 常绿 |
+| `python-3.9+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |
+| `dependencies-none` | 静态 | 常绿（`pywin32` 是可选 extra，不算运行期依赖） |
+| **CI** | **动态** | 仓库 push 后，`main` 分支上有一次成功的 workflow 运行即变绿；显示 `no status` 说明默认分支还没有运行记录 |
+
+静态徽章 = 项目自称，动态 CI 徽章 = 机器实测，两者都保留；评审者更看后者。
+
+发布到 PyPI 之后可以再补两个动态徽章（现在加会是红色 "package not found"，所以先不加）：
+
+```markdown
+![pypi](https://img.shields.io/pypi/v/openvbspp)
+![pyversions](https://img.shields.io/pypi/pyversions/openvbspp)
+```
+
+覆盖率徽章需要先接 Codecov（或 Coveralls）并上传 token，目前**没有**配置覆盖率采集，
+所以不要提前放这个徽章。

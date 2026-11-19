@@ -3,29 +3,48 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONIOENCODING: utf-8
+
 jobs:
   test:
-    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    name: test / ${{ matrix.os }} / Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    # Linux 目前标记为实验性：本地只在 Windows 上验证过，先收集数据，
-    # 稳定后把 experimental 删掉即可变成门禁。
+    timeout-minutes: 20
+    # Windows is the supported platform and is a hard gate. Linux is marked
+    # experimental (continue-on-error) until the suite is proven there in CI;
+    # delete `experimental` from the ubuntu entries to promote it to a gate.
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python: ["3.9", "3.13"]
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         include:
           - os: windows-latest
             experimental: false
           - os: ubuntu-latest
             experimental: true
+        exclude:
+          # Keep the Linux lane cheap: oldest and newest interpreter only.
+          - os: ubuntu-latest
+            python: "3.10"
+          - os: ubuntu-latest
+            python: "3.11"
+          - os: ubuntu-latest
+            python: "3.12"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -34,27 +53,99 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
 
-      - name: Install build tooling
-        run: |
-          python -m pip install --upgrade pip "setuptools>=75" wheel build
+      - name: Toolchain
+        run: python -m pip install --upgrade pip "setuptools>=75" wheel build
 
-      # com-support 在 Windows 上才有意义；装上 pywin32 才能覆盖
-      # 「COM 可用」这条分支，其它平台跳过。
+      - name: Install (editable, dev extras)
+        run: python -m pip install -e ".[dev]" --no-build-isolation
+
+      # pywin32 is optional and Windows-only; installing it exercises the "COM is
+      # available" branch of the bridge instead of only the unavailable path.
       - name: Install pywin32 (Windows only)
         if: runner.os == 'Windows'
         run: python -m pip install "pywin32>=306"
 
-      - name: Run unit tests
+      - name: Unit tests
         run: python -m unittest discover -s tests
+
+      - name: Verify entry points
+        run: |
+          python -m OpenVBSPP --version
+          python -c "import OpenVBSPP; print('OpenVBSPP', OpenVBSPP.__version__)"
+
+      - name: COM smoke test (Windows only)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -e
+          printf 'Set sh = CreateObject("WScript.Shell")\necho sh.ExpandEnvironmentStrings("%%OS%%")\n' > com_smoke.vbs
+          python -m OpenVBSPP com_smoke.vbs
 
       - name: Build sdist and wheel
         run: python -m build
 
-      - name: Smoke test the wheel
+      - name: Wheel smoke test (clean venv)
         shell: bash
         run: |
           set -e
-          python -m pip install --force-reinstall dist/*.whl
-          python -c "import OpenVBSPP, sys; print('OpenVBSPP', OpenVBSPP.__version__, sys.version)"
+          python -m venv "$RUNNER_TEMP/smoke"
+          if [ -d "$RUNNER_TEMP/smoke/Scripts" ]; then
+            BIN="$RUNNER_TEMP/smoke/Scripts"
+          else
+            BIN="$RUNNER_TEMP/smoke/bin"
+          fi
+          "$BIN/python" -m pip install --upgrade pip >/dev/null
+          "$BIN/python" -m pip install dist/*.whl
+          "$BIN/python" -m OpenVBSPP --version
           printf 'Option Explicit\nDim i, s\ns = 0\nFor i = 1 To 10\n  s = s + i\nNext\necho s\n' > smoke.vbs
-          python -m OpenVBSPP smoke.vbs
+          "$BIN/python" -m OpenVBSPP smoke.vbs
+          # vendor/com-support must be shipped inside the wheel.
+          "$BIN/python" -c "import OpenVBSPP.ovpprt.com as c; print('com-support:', c.resolve())"
+
+      - name: Upload distributions
+        if: runner.os == 'Windows' && matrix.python == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+          if-no-files-found: error
+
+  exe:
+    name: exe / windows-latest / Python 3.13
+    runs-on: windows-latest
+    timeout-minutes: 25
+    # The single-file build is slow; run it for tags and manual dispatches only.
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Toolchain
+        run: python -m pip install --upgrade pip "setuptools>=75" wheel "pyinstaller>=6.0"
+
+      - name: Install package with COM support
+        run: python -m pip install -e ".[com]" --no-build-isolation
+
+      - name: Build openvbs.exe
+        run: python -m PyInstaller packaging/openvbs.spec --noconfirm --distpath dist --workpath build/pyinstaller
+
+      - name: Smoke test the exe
+        shell: bash
+        run: |
+          set -e
+          cp dist/openvbs.exe "$RUNNER_TEMP/openvbs.exe"
+          "$RUNNER_TEMP/openvbs.exe" --version
+          printf 'Set sh = CreateObject("WScript.Shell")\necho sh.ExpandEnvironmentStrings("%%OS%%")\n' > com_smoke.vbs
+          "$RUNNER_TEMP/openvbs.exe" com_smoke.vbs
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvbs-exe
+          path: dist/openvbs.exe
+          if-no-files-found: error

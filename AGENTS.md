@@ -54,8 +54,11 @@ OpenVBSPP/        编译器与运行时（23 个模块）
   ast_nodes/      扁平 AST 节点
   ovpprt/         运行时库（boolean/string/array/empty/null/nothing/ref/err/builtins/format）
 examples/         示例脚本（每个都会被 tests 跑）
-tests/            回归测试（examples + 过程 + 语法糖 + VBS 超集）
+tests/            回归测试（examples + 过程 + 语法糖 + VBS 超集 + 性能语义）
 doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计、法务自查（LEGAL.md）
+extras/           可分发的示例包：com-support（COM 支持 over 包）、web-ide、
+                  vscode-openvbspp（VS Code 语法/片段/运行诊断扩展）
+.github/          CI（ci.yml：Windows 3.9–3.13 硬门禁 + Linux 实验性）、issue/PR 模板
 ```
 
 ## 关键实现约定（改代码前必读）
@@ -114,6 +117,14 @@ doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计
    `tests/test_perf_semantics.py`；它专门钉这些优化的语义边界，改性能前后都要绿。
 7. 性能数字变了就同步 `README.md` 的「## 性能」小节和 `tools/bench.py` 的说明文字——
    那张表是项目的对外承诺，不能和实测漂移。
+8. **README 是双语的且英文为主**：`README.md`（英文主文档）与 `README.zh-CN.md`（中文全本）
+   是两份文档，改功能、用例数、徽章、性能表时**两边都要改**；数字不一致就是假绿。
+   原来的 `README.en.md` 已删除，不要再引用它。
+9. 改 `extras/vscode-openvbspp/` 后至少要自检：4 个 JSON 都能 `python -m json.tool` 解析、
+   `node --check extension.js` 通过、语法里的 `include` 都能在 `repository` 找到；
+   新增的语法特性要同步 `syntaxes/openvbspp.tmLanguage.json` 与 README 的特性表。
+10. 改 `.github/workflows/ci.yml` 后用 PyYAML `safe_load` 校验一遍，并确认矩阵里
+    Windows 仍是硬门禁、Linux 仍是 `experimental`（要提级就显式删掉这两个标记）。
 
 ## 环境坑
 
@@ -148,6 +159,11 @@ doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计
 - **对象模型**：完整清单与"不适用关键字"的说明在 `doc/OOP.md`，改 OOP 前先读它。
 - **法务口径**：与微软 VBScript 的关系（独立实现、商标指名性使用、不复制其文档）
   写在 `doc/LEGAL.md`；新增文档/示例别整段照抄微软帮助文本，演示代码自己写。
+- **双语与入口**：仓库对外的第一份文档是英文 `README.md`；`README.zh-CN.md` 是完整中文版，
+  任何功能/数字变更都要同时落地。徽章含义与"怎么变绿"写在 `doc/RELEASE.md` §8，
+  CI 矩阵与提级方式写在 §7。
+- **编辑器支持**：语法高亮/片段/运行诊断在 `extras/vscode-openvbspp`；LSP 尚未实现，
+  设计与里程碑在 `doc/IDE_LSP_DESIGN.md`（§0 是已交付现状，别把"计划"写成"已支持"）。
 
 ## 环境坑（续）
 
