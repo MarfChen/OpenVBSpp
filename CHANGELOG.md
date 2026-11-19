@@ -9,7 +9,21 @@ Release-by-release engineering notes (how to cut a release) live in
 
 ## [Unreleased]
 
-Nothing yet.
+### Removed
+
+- `cli_demo.py` — with no arguments `python -m OpenVBSPP` already runs the
+  built-in `DEMO`, so this file duplicated reachable behaviour; runnable
+  samples live in `examples/*.vbs`.
+- `requirements.txt` — it only held comments (the runtime has no third-party
+  dependencies). Dependencies and extras are declared in `pyproject.toml`
+  (`[project.dependencies]` / `[project.optional-dependencies]`).
+
+### Changed
+
+- `MANIFEST.in` narrows the `doc/` packaging rules: the language spec
+  `doc/OpenVBS spec.docx` still ships in the sdist (the README links to it),
+  while the internal planning essay `doc/plan.docx` is explicitly excluded and
+  stays repository-only.
 
 ## [0.9.15] — 2026-11-19
 

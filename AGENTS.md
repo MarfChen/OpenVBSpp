@@ -181,3 +181,12 @@ extras/           可分发的示例包：com-support（COM 支持 over 包）�
   ValueError: line 1, column 1-0 is not a valid range。
   compiler._normalize_positions() 会在 fix_missing_locations() 之后统一夹紧，
   新增 AST 生成代码时不要绕过 _to_code()。
+- **`MANIFEST.in` 的路径不能带空格**：distutils 会按空白切分，`include doc/OpenVBS spec.docx`
+  被读成 `doc/OpenVBS` 和 `spec.docx` 两个不存在的 pattern（build 时只给 warning，产物静默少文件）。
+  所以 `doc/` 一律写成 `recursive-include doc *.md *.docx` + 需要挡掉的用无空格路径
+  `exclude doc/plan.docx`。改完必须验证 sdist 内容，不能只看 "Successfully built"：
+  ```powershell
+  .\venv\Scripts\python.exe -c "import tarfile;print([n for n in tarfile.open('dist/openvbspp-<ver>.tar.gz').getnames() if '/doc/' in n])"
+  ```
+- **`python -m build` 的隔离环境可能装不上 setuptools**（本机离线/代理原因）：
+  用 `python -m build --no-isolation --outdir dist`，之后照常 `twine check dist/*`。

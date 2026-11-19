@@ -371,9 +371,11 @@ pip download --only-binary=:all: --no-deps openvbspp==0.9.15 -d tmp    # 必须�
   wheel 的 `dist-info/licenses/` 现在带 `LICENSE` 与 `NOTICE`，满足 Apache-2.0
   对分发件保留声明的要求。
 - `MANIFEST.in` 去掉 Windows 上会被按 cp936 读坏的中文模式行（相关说明改写在
-  `.gitignore` 与本文档里），并补齐 `packaging/*`、`tools/*.py`、`doc/*.docx`：
-  这样从 sdist 也能重建 exe（`packaging/openvbs.spec`）并跑基准（`tools/bench.py`），
-  README 引用的 `doc/OpenVBS spec.docx` 也在 sdist 内。
+  `.gitignore` 与本文档里），并补齐 `packaging/*`、`tools/*.py`：
+  这样从 sdist 也能重建 exe（`packaging/openvbs.spec`）并跑基准（`tools/bench.py`）。
+  `doc/` 的规则是"只收 `.md` + 显式列出的规范"：README 引用的
+  `doc/OpenVBS spec.docx` 在 sdist 内，内部规划随笔 `doc/plan.docx` 用
+  `exclude` 挡掉，只留在仓库里。
 - `packages` 列表补 `OpenVBSPP.ide.static` 与 `OpenVBSPP.vendor`，消除 setuptools 的
   “absent from the `packages` configuration” 提示。
 

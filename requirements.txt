@@ -1,7 +1,0 @@
-# OpenVBS++ 运行期没有任何第三方依赖。
-#
-# 只有需要用 `-v` 打印 AST 结构时才需要 astpretty：
-#     pip install astpretty
-#
-# 需要开发/打包工具（astpretty 也包含在内）时：
-#     pip install -e ".[dev]"
