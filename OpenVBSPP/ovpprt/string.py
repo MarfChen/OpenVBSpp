@@ -19,7 +19,13 @@ from OpenVBSPP.ovpprt.format import to_text
 
 
 def ovpp_str_concat(a, b):
-    """& 运算符：按 VBS 的文本规则拼接（5.0 拼成 "5"，Empty 拼成 ""）。"""
+    """& 运算符：按 VBS 的文本规则拼接（5.0 拼成 "5"，Empty 拼成 ""）。
+
+    两边都是 str 时直接相加：这是 `s = s & "x"` 这类循环里绝对的主流，
+    可以省掉两次 `to_text` 变体转换。
+    """
+    if type(a) is str and type(b) is str:
+        return a + b
     return to_text(a) + to_text(b)
 
 

@@ -122,9 +122,23 @@ def arity_error(name, count, arities):
         f"'{name}' has no overload taking {count} argument(s) (available: {options})")
 
 
+#: Dictionary 自身的成员名（小写）。真实 VBS 里 `d.Add` 永远解析成方法，
+#: 数据键要用 `d("Add")` 访问；因此这些名字不需要、也不应该去扫描键。
+_DICT_MEMBER_NAMES = frozenset({
+    "add", "comparemode", "count", "exists", "hashval", "item", "items",
+    "key", "keys", "remove", "removeall",
+})
+
+
 def _dict_key(dictionary, name):
-    """大小写不敏感地在 Dictionary 里找键。"""
+    """大小写不敏感地在 Dictionary 里找用户数据键。
+
+    注意：方法名一律返回 None（交给常规成员解析），否则每次 `d.Add(...)`
+    都要线性扫描全部键，字典一大就退化成 O(n²)。
+    """
     lowered = name.lower()
+    if lowered in _DICT_MEMBER_NAMES:
+        return None
     for existing in dictionary.keys():
         if str(existing).lower() == lowered:
             return existing
