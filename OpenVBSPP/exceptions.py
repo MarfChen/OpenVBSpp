@@ -119,6 +119,13 @@ class OVPPInvalidProcedureCallError(OVPPError):
     name = "Invalid procedure call"
 
 
+class OVPPInvalidUseOfNullError(OVPPError):
+    # VBScript raises 94 when a function cannot accept Null (CStr, Asc, Sgn, ...).
+    # 中文：VBScript 在函数无法接受 Null 时抛 94（CStr、Asc、Sgn 等）。
+    number = 94
+    name = "Invalid use of Null"
+
+
 class OVPPAutomationError(OVPPError):
     number = -2147467259  
     name = "Automation error"

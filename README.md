@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-618%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.23-blue)
+![tests](https://img.shields.io/badge/tests-619%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.24-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -66,7 +66,7 @@ Release process (TestPyPI → PyPI → exe) lives in [dev-docs/RELEASE.md](dev-d
 
 **Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (577 tests) runs on
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (619 tests) runs on
 every supported version in CI; the runtime code itself still parses and runs on 3.9
 (`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
 See [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9 for the version policy and what to build for ARM.
@@ -349,11 +349,13 @@ put `<script src="python-embed" />` at the top of the script (since 0.9.20; the 
 
 ## Performance
 
-Short version: **2.5–3× faster end-to-end than native `cscript.exe`, with ~1.5× faster
-startup; loops, arrays and function calls now run within 1.0–1.4× of hand-written
-CPython; `Dictionary` member access and deep recursion are the remaining weak spots.**
-Good for batch jobs, glue and ops automation; not for million-entry dictionary workloads
-or deep recursion in a hot loop.
+Short version: **1.5–2.3× faster end-to-end than native `cscript.exe`, with ~1.5× faster
+startup; arrays, string concatenation and function calls run within 1.4–2.2× of
+hand-written CPython; arithmetic loops cost 2–3× because every `+ - * / ^` converts its
+operands the way VBScript does (`"1" + "2"` is `"12"`, `1 + "2"` is `3`, `Null + 1` is
+`Null`); `Dictionary` member access and deep recursion remain the weak spots.** Good for
+batch jobs, glue and ops automation; not for million-entry dictionary workloads or deep
+recursion in a hot loop.
 
 Reproduce (no arguments, no hard-coded paths):
 
@@ -366,21 +368,27 @@ python tools/bench.py --e2e    # adds end-to-end runs, auto-detects cscript.exe 
 
 | Script | OpenVBS++ | cscript.exe | CPython |
 |---|---:|---:|---:|
-| `echo` one line | **114 ms** | 169 ms | 70 ms |
-| 1M-iteration arithmetic loop | **142 ms** | 438 ms | 101 ms |
-| `fib(24)` | **150 ms** | 394 ms | 76 ms |
+| `echo` one line | **128 ms** | 189 ms | — |
+| 1M-iteration arithmetic loop | **217 ms** | 459 ms | — |
+| `fib(24)` | **182 ms** | 417 ms | — |
 
 ### In-process (pure runtime cost, median)
 
 | Case | OpenVBS++ | CPython | Ratio |
 |---|---:|---:|---:|
-| 1M loop, inside a procedure | 29.7 ms | 30.1 ms | **0.99×** |
-| 1M loop, module level | 69.7 ms | 67.0 ms | 1.04× |
-| 100k array read/write | 12.8 ms | 12.7 ms | 1.00× |
-| 200k function calls | 23.1 ms | 17.1 ms | 1.35× |
-| 20k string concatenations | 6.3 ms | 4.5 ms | 1.39× |
-| `fib(24)` | 37.9 ms | 5.5 ms | 6.85× |
-| 50k `Dictionary` inserts | 58.4 ms | 4.5 ms | 13.1× |
+| 1M loop, inside a procedure | 89.8 ms | 31.1 ms | **2.89×** |
+| 1M loop, module level | 145.8 ms | 67.8 ms | 2.15× |
+| 100k array read/write | 21.6 ms | 14.9 ms | 1.45× |
+| 200k function calls | 36.8 ms | 17.1 ms | 2.15× |
+| 20k string concatenations | 6.1 ms | 4.5 ms | 1.35× |
+| `fib(24)` | 52.8 ms | 5.5 ms | 9.54× |
+| 50k `Dictionary` inserts | 60.1 ms | 5.0 ms | 12.04× |
+
+The arithmetic rows moved when v0.9.24 made `+ - * / ^` follow VBScript's coercion
+rules: an operator is now a runtime call that inspects its operand types (integer and
+float operands take an inlined fast path, and constant expressions are folded at compile
+time, which is why the loops stay near 2× instead of 3×). That cost buys correctness —
+`"2" * 3` used to return `"222"` and `1 + "2"` used to raise error 13.
 
 ### How these numbers were measured
 
@@ -477,7 +485,7 @@ OpenVBSPP/
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
 examples/demo/       # 6-step demo project for the screen recording
-tests/               # 577 unittest cases
+tests/               # 619 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
@@ -488,7 +496,7 @@ dev-docs/            # design, release and roadmap notes for maintainers
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 577 tests, ~2.6 s
+python -m unittest discover -s tests          # 619 tests, ~2.6 s
 ```
 
 | File | Covers |
@@ -564,6 +572,8 @@ Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
   `<script src="python-embed" />` import (`Option COP` removed), `ast2str` dropped, docs are
   English-first with Chinese counterparts, maintainer notes moved to `dev-docs/` ✅
 - **v0.9.15** — performance: lazy startup, no boxing for read-only `ByRef`, error frames on demand, `For` → `range` ✅
+- **v0.9.24** — value fidelity: `+ - * / ^` coerce like VBScript, `Null` propagates through the
+  built-ins, and an undeclared variable reads as `Empty` unless `Option Explicit` is on ✅
 - **Next** — method overloading, remaining `Attribute` properties, events, `Collection`
 - **v1.0** — stable language spec, official `ovpprt` runtime library, IDE / LSP support
 

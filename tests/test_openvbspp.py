@@ -420,11 +420,20 @@ class TestSyntaxErrors(unittest.TestCase):
 
 
 class TestRuntimeErrors(unittest.TestCase):
-    def test_undefined_variable(self):
+    def test_undeclared_variable_reads_as_empty(self):
+        # Without Option Explicit VBScript creates a variable the first time it
+        # is read, and its value is Empty.
+        # 中文：未开 Option Explicit 时，VBS 读到未声明的名字会自动创建 Empty 变量。
+        self.assertEqual(out("a = 1\nb = 2\necho TypeName(zzz)\n"), ["Empty"])
+        self.assertEqual(out('a = 1\nb = 2\necho zzz & "!"\n'), ["!"])
+
+    def test_undeclared_variable_is_an_error_under_option_explicit(self):
+        # With Option Explicit the name is still refused, with its location
+        # 中文：开了 Option Explicit 仍然报错，并且带位置信息。
         with self.assertRaises(OVPPVariableNotDefinedError) as ctx:
-            run("a = 1\nb = 2\necho zzz\n")
+            run("Option Explicit\nDim a\nDim b\na = 1\nb = 2\necho zzz\n")
         err = ctx.exception
-        self.assertEqual(err.line_number, 3)
+        self.assertEqual(err.line_number, 6)
         self.assertEqual(err.source_line, "echo zzz")
         self.assertIn("zzz", err.message)
 
@@ -434,11 +443,11 @@ class TestRuntimeErrors(unittest.TestCase):
         self.assertEqual(ctx.exception.line_number, 1)
 
     def test_error_message_mentions_location(self):
-        with self.assertRaises(OVPPVariableNotDefinedError) as ctx:
-            run("echo nope\n")
+        with self.assertRaises(OVPPDivisionByZeroError) as ctx:
+            run("echo 1 / 0\n")
         text = str(ctx.exception)
         self.assertIn("Line 1", text)
-        self.assertIn("echo nope", text)
+        self.assertIn("echo 1 / 0", text)
 
 
 class TestCompiler(unittest.TestCase):

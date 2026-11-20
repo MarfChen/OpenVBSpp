@@ -40,10 +40,10 @@ class TestService(unittest.TestCase):
         self.assertIsNone(result["error"])
 
     def test_runtime_error_is_structured(self):
-        result = service.run_source("echo missing", "<t>")
+        result = service.run_source("echo 1 / 0", "<t>")
         self.assertFalse(result["ok"])
         self.assertEqual(result["error"]["line"], 1)
-        self.assertIn("missing", result["error"]["message"])
+        self.assertIn("Division", result["error"]["message"])
 
     def test_check_reports_syntax_error_without_running(self):
         result = service.check_source("If True Then\n", "<t>")

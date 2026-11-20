@@ -48,7 +48,7 @@ import time
 from pathlib import Path
 
 from OpenVBSPP.ast_nodes import FunctionDef, SubDef
-from OpenVBSPP.exceptions import OVPPSyntaxError
+from OpenVBSPP.exceptions import OVPPError, OVPPSyntaxError
 from OpenVBSPP.lexer import lex
 from OpenVBSPP.parser import Parser
 from OpenVBSPP.plugins.modules import extract as extract_modules
@@ -319,6 +319,20 @@ def _build_module(path, stack, verbose=False):
     return unit
 
 
+def _with_source_line(exc, source):
+    """Attach the offending source line to a compile-time error.
+
+    中文：给编译期错误补上出错那一行源码（transformer 阶段抛的错误原本只有行号）。
+    """
+    if getattr(exc, "source_line", None) is None:
+        line = getattr(exc, "line_number", None)
+        if line:
+            lines = source.splitlines()
+            if 0 < line <= len(lines):
+                exc.source_line = lines[line - 1].rstrip()
+    return exc
+
+
 def vbs_compile(code, mode="exec", filename=None, save_dir=None, verbose=False):
     """Compile OpenVBS++ source.
 
@@ -341,7 +355,10 @@ def vbs_compile(code, mode="exec", filename=None, save_dir=None, verbose=False):
         _require_python_feature(frozenset(), python_cleaned)
         vbs_ast = _parse(python_cleaned, filename, verbose=verbose)
         transformer = Transformer(python_blocks=python_blocks)
-        py_ast = transformer.transform(vbs_ast)
+        try:
+            py_ast = transformer.transform(vbs_ast)
+        except OVPPError as exc:
+            raise _with_source_line(exc, python_cleaned)
         ast.fix_missing_locations(py_ast)
         if verbose:
             print(ast.unparse(py_ast))

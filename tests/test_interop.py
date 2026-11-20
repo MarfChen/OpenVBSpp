@@ -66,7 +66,7 @@ class TestPythonEmbed(unittest.TestCase):
     def test_line_numbers_stay_correct(self):
         # line numbers after a #python block must still point at the real lines
         # 中文：#python 块之后的行号必须仍然指向真实行
-        code = PY_IMPORT + 'a = 1\n#python\nx = 2\n#endpython\necho missing'
+        code = PY_IMPORT + 'a = 1\n#python\nx = 2\n#endpython\necho 1 / 0'
         with self.assertRaises(Exception) as ctx:
             out(code)
         self.assertEqual(getattr(ctx.exception, "line_number", None), 6)

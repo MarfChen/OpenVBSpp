@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-618%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.23-blue)
+![tests](https://img.shields.io/badge/tests-619%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.24-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -26,7 +26,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.23**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.24**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -167,7 +167,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 
 **支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。577 个测试在每个受支持的版本上都跑 CI；
+`pip install openvbspp` 在 x64 与 ARM64 上通用。619 个测试在每个受支持的版本上都跑 CI；
 运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
 但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
 [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9。
@@ -425,10 +425,12 @@ Source: echo zzz
 
 ## 性能
 
-先给结论：**作为「老脚本的迁移执行层」，它比原生 `cscript.exe` 快 2.5–3 倍，启动也快约 1.5 倍；
-循环、数组、函数调用的运行时开销已经压到接近手写 Python（1.0–1.4 倍），
-剩下明显偏慢的只有 `Dictionary` 的成员访问和深递归。** 适合批处理、胶水、运维自动化，
-不适合把百万次字典插入或深递归塞进 VBS 里做核心计算。
+先给结论：**作为「老脚本的迁移执行层」，它比原生 `cscript.exe` 快 1.5–2.3 倍，启动也快约 1.5 倍；
+数组读写、字符串拼接、函数调用的运行时开销是手写 Python 的 1.4–2.2 倍；
+算术循环是 2–3 倍，因为每个 `+ - * / ^` 都要按 VBScript 规则转换操作数
+（`"1" + "2"` 得 `"12"`、`1 + "2"` 得 `3`、`Null + 1` 得 `Null`）；
+剩下明显偏慢的只有 `Dictionary` 的成员访问和深递归。**
+适合批处理、胶水、运维自动化，不适合把百万次字典插入或深递归塞进 VBS 里做核心计算。
 
 自己复现（不需要任何参数，读取仓库内源码，不含硬编码路径）：
 
@@ -441,21 +443,26 @@ python tools/bench.py --e2e    # 额外跑端到端（含解释器启动），Wi
 
 | 脚本 | OpenVBS++ | cscript.exe | CPython |
 |---|---:|---:|---:|
-| 只 echo 一行 | **114 ms** | 169 ms | 70 ms |
-| 1M 次算术循环 | **142 ms** | 438 ms | 101 ms |
-| fib(24) | **150 ms** | 394 ms | 76 ms |
+| 只 echo 一行 | **128 ms** | 189 ms | — |
+| 1M 次算术循环 | **217 ms** | 459 ms | — |
+| fib(24) | **182 ms** | 417 ms | — |
 
 ### 进程内（编译一次、反复执行，纯运行开销；中位数）
 
 | 用例 | OpenVBS++ | 等价 CPython | 倍数 |
 |---|---:|---:|---:|
-| 1M 算术循环（过程内） | 29.7 ms | 30.1 ms | **0.99×** |
-| 1M 算术循环（模块级） | 69.7 ms | 67.0 ms | **1.04×** |
-| 100k 数组读写 | 12.8 ms | 12.7 ms | **1.00×** |
-| 200k 函数调用 | 23.1 ms | 17.1 ms | 1.35× |
-| 20k 字符串拼接 | 6.3 ms | 4.5 ms | 1.39× |
-| fib(24) 递归 | 37.9 ms | 5.5 ms | 6.85× |
-| 50k Dictionary 插入 | 58.4 ms | 4.5 ms | 13.1× |
+| 1M 算术循环（过程内） | 89.8 ms | 31.1 ms | **2.89×** |
+| 1M 算术循环（模块级） | 145.8 ms | 67.8 ms | 2.15× |
+| 100k 数组读写 | 21.6 ms | 14.9 ms | 1.45× |
+| 200k 函数调用 | 36.8 ms | 17.1 ms | 2.15× |
+| 20k 字符串拼接 | 6.1 ms | 4.5 ms | 1.35× |
+| fib(24) 递归 | 52.8 ms | 5.5 ms | 9.54× |
+| 50k Dictionary 插入 | 60.1 ms | 5.0 ms | 12.04× |
+
+算术那几行是 v0.9.24 让 `+ - * / ^` 遵守 VBScript 强制转换规则之后变动的：
+运算符现在是一次运行期调用，要检查操作数类型（整数/浮点走内联快路径，
+常量表达式在编译期折叠，所以循环停在 2 倍附近而不是 3 倍）。
+这份开销买到的是正确性——`"2" * 3` 以前返回 `"222"`，`1 + "2"` 以前报错误 13。
 
 ### 这些数字是怎么测出来的
 
@@ -568,7 +575,7 @@ OpenVBSPP/
 └── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
 examples/demo/          录屏用六段演示项目（旧脚本 / 类与 Try / Python / COM / 命名空间 / 包管理器）
-tests/                  回归测试（577 个用例）
+tests/                  回归测试（619 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 
@@ -667,6 +674,8 @@ git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
   `<script src="python-embed" />`（`Option COP` 已移除）；删除 `ast2str`；文档改为英文为主 + 中文对照，
   维护者笔记移到 `dev-docs/`
 - **v0.9.15**：性能优化（启动懒加载、只读 `ByRef` 不再装箱、无 `On Error` 的过程不建错误帧、`For` 安全时生成 `range`）
+- **v0.9.24**：取值语义对齐 VBScript —— `+ - * / ^` 按 VBS 规则做强制转换、`Null` 在内置函数里传播、
+  未声明变量读作 `Empty`（`Option Explicit` 下仍然报错）
 - 下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
 - **v1.0**：稳定语言规范、官方运行时库 `ovpprt`、IDE / LSP 支持
 

@@ -86,7 +86,7 @@ class TestScriptInclude(ModuleCase):
             self.run_file(main)
 
     def test_error_line_comes_from_included_file(self):
-        lib = self.write("bad_lib.vbs", 'echo "ok"\necho undefined_thing\n')
+        lib = self.write("bad_lib.vbs", 'echo "ok"\necho 1 / 0\n')
         main = self.write("main.vbs", f'<script src="{lib.name}">\n')
         with self.assertRaises(OVPPError) as ctx:
             self.run_file(main)

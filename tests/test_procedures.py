@@ -274,9 +274,11 @@ class TestScope(unittest.TestCase):
         self.assertEqual(out(code), ["2"])
 
     def test_procedure_local_does_not_leak(self):
-        code = ('Sub P()\n Dim inner\n inner = 1\nEnd Sub\nP\necho inner')
-        with self.assertRaises(OVPPVariableNotDefinedError.__bases__[0]):
-            run(code)
+        # The name only exists inside the procedure, so at script level VBScript
+        # auto-creates a separate Empty variable.
+        # 中文：这个名字只存在于过程内部，脚本级读到的是另一个 Empty 变量。
+        code = ('Sub P()\n Dim inner\n inner = 1\nEnd Sub\nP\necho TypeName(inner)')
+        self.assertEqual(out(code), ["Empty"])
 
     def test_loop_variable_inside_procedure_is_local(self):
         code = ('i = 99\nSub P()\n For i = 1 To 2\n  echo i\n Next\nEnd Sub\nP\necho i')

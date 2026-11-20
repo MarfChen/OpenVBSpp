@@ -20,6 +20,7 @@ VBScript-style errors.
 '''
 
 
+import os
 import re
 
 from OpenVBSPP.compiler import vbs_compile, COMPILED_FILENAME
@@ -30,6 +31,11 @@ from OpenVBSPP.exceptions import (OVPPError, OVPPRuntimeError, OVPPTypeError,
                                   OVPPPermissionDeniedError, OVPPFileNotFoundError,
                                   OVPPOutOfRangeError, OVPPInvalidProcedureCallError)
 from OpenVBSPP.ovpprt.builtins import ScriptEnd
+
+# Frames from inside this directory belong to the runtime, never to user code, so
+# they must not contribute a line number to an error.
+# 中文：来自这个目录的栈帧属于运行时、不是用户代码，不能用来当错误的行号。
+_PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__)) + os.sep
 
 
 # Order matters: subclasses must come before their base classes.
@@ -108,13 +114,20 @@ def _bundle_line(code_obj, exc):
     """Multi-file programs: take the user script line out of the traceback.
 
     中文：多文件程序 —— 从 traceback 里取「用户脚本」那一行。
+
+    Runtime frames (`OpenVBSPP/...`) are skipped: with the arithmetic operators
+    living in `ovpprt`, the innermost frame is often the runtime itself, and the
+    deepest frame that belongs to a user script is the one to report.
+    中文：会跳过运行时自己的栈帧 —— 算术运算在 `ovpprt` 里实现后，最内层
+    往往是运行时代码，必须取最深的「用户脚本」帧。
     """
     line = None
     tb = exc.__traceback__
     while tb is not None:
         filename = tb.tb_frame.f_code.co_filename
         if filename and not filename.startswith("<frozen"):
-            line = tb.tb_lineno
+            if not os.path.abspath(filename).startswith(_PACKAGE_DIR):
+                line = tb.tb_lineno
         tb = tb.tb_next
     return line
 

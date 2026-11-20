@@ -146,6 +146,15 @@ VBS_CONSTANTS = {
 SPECIAL_NAMES = frozenset(VBS_CONSTANTS) | {"err", "vbtrue", "vbfalse", "cop",
                                             "wscript"}
 
+# Names that are always resolved to something other than a user variable. The
+# compiler uses this set when it decides which names to pre-create as Empty.
+# 中文：这些名字永远解析成别的东西（常量/内置函数/宿主对象），
+# 编译器判断"要不要预先建成 Empty 变量"时要把它们排除。
+_NON_VARIABLE_NAMES = SPECIAL_NAMES | {
+    "me", "self", "ide", "json", "nothing", "null", "empty", "true", "false",
+    "createobject", "getobject", "eval", "execute", "executeglobal", "addressof",
+}
+
 _FROM_OVPPRT = (
     ("boolean", BOOL_MODULE),
     ("string", STR_MODULE),
@@ -163,13 +172,25 @@ _FROM_OVPPRT = (
     ("host", HOST_MODULE),
 )
 
-op_map = {
-    "PLUS": ast.Add(),
-    "MINUS": ast.Sub(),
-    "MUL": ast.Mult(),
-    "DIV": ast.Div(),
-    "POW": ast.Pow(),
+# VBScript's + - * / ^ coerce numeric strings and propagate Null, so the runtime
+# owns them. / 中文：VBS 的 + - * / ^ 需要数字字符串强制转换与 Null 传播，交给运行时函数
+op_map = {}
+
+arith_call_map = {
+    "PLUS": "ovpp_add",
+    "MINUS": "ovpp_sub",
+    "MUL": "ovpp_mul",
+    "DIV": "ovpp_div",
+    "POW": "ovpp_pow",
 }
+
+# Imported into the generated module by name (see `_runtime_imports`), so an
+# arithmetic operation costs a name lookup plus a call, not an attribute lookup.
+# 中文：这些函数按名字导入生成的模块（见 `_runtime_imports`），所以一次算术运算
+# 只花一次名字查找加一次调用，不额外做属性查找。
+ARITH_NAMES = ("ovpp_add", "ovpp_sub", "ovpp_mul", "ovpp_div", "ovpp_pow",
+               "ovpp_neg", "ovpp_pos")
+ARITH_ALIASES = {name: "_ovpp_" + name[len("ovpp_"):] for name in ARITH_NAMES}
 
 cmp_map = {
     "EQ": ast.Eq(),
@@ -197,8 +218,8 @@ builtin_call_map = {
 
 unary_call_map = {
     "NOT": "ovpp_not",
-    "UMINUS": ast.USub(),
-    "UPLUS": ast.UAdd(),
+    "UMINUS": "ovpp_neg",
+    "UPLUS": "ovpp_pos",
 }
 
 
@@ -236,6 +257,45 @@ def _var_names_in(node):
         seen.add(id(current))
         if isinstance(current, Var):
             found.add(canon(current.name))
+        stack.extend(values.values())
+    return found
+
+
+def _member_base_names(node):
+    """Collect the root variable name of every `x.member` access in a tree.
+
+    A name used as the base of a member access is almost always an object or a
+    namespace alias, never VBScript's auto-created Empty variable, so the
+    compiler never pre-creates those.
+    中文：收集所有 `x.member` 访问里的根变量名。
+    这种名字几乎总是对象或命名空间别名，不是 VBS 自动创建的 Empty 变量，
+    所以编译器不会预先创建它们。
+    """
+    found = set()
+    stack = [node]
+    seen = set()
+    while stack:
+        current = stack.pop()
+        if current is None or isinstance(current, (str, bytes, int, float, bool)):
+            continue
+        if isinstance(current, (list, tuple)):
+            stack.extend(current)
+            continue
+        if isinstance(current, dict):
+            stack.extend(current.values())
+            continue
+        values = getattr(current, "__dict__", None)
+        if values is None:
+            continue
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, Member):
+            base = current.base
+            while isinstance(base, Member):
+                base = base.base
+            if isinstance(base, Var):
+                found.add(canon(base.name))
         stack.extend(values.values())
     return found
 
@@ -835,6 +895,15 @@ class Transformer:
                 names=[ast.alias(name=name, asname=alias)],
                 level=0,
             ))
+        # The arithmetic operators are called once per operation, so they are
+        # imported by name instead of going through a module attribute lookup.
+        # 中文：算术运算符每次运算都要调用，所以按名字直接导入，省掉一次属性查找。
+        stmts.append(ast.ImportFrom(
+            module="OpenVBSPP.ovpprt.builtins",
+            names=[ast.alias(name=name, asname=ARITH_ALIASES[name])
+                   for name in ARITH_NAMES],
+            level=0,
+        ))
         return stmts
 
     def _transform_module(self, node):
@@ -855,8 +924,94 @@ class Transformer:
                                                OptionCompare))]
         body = self._flush_nodes(statements)
 
-        return ast.Module(body=imports + classes + [registry] + procs + body,
+        prelude = self._empty_prelude(self._auto_empty_names(node))
+        return ast.Module(body=imports + classes + [registry] + prelude + procs + body,
                           type_ignores=[])
+
+    def _empty_assign(self, name):
+        """One `name = Empty` statement. 中文：一条 `名字 = Empty` 语句。"""
+        assign = ast.Assign(
+            targets=[ast.Name(id=name, ctx=ast.Store())],
+            value=ast.Name(id=EMPTY_NAME, ctx=ast.Load()))
+        return self._at_top(assign)
+
+    @staticmethod
+    def _at_top(node):
+        node.lineno = 1
+        node.col_offset = 0
+        node.end_lineno = 1
+        node.end_col_offset = 0
+        return node
+
+    def _empty_prelude(self, names):
+        """`name = Empty` statements that give undeclared names VBScript's default.
+
+        The assignment is guarded by `globals()` because the compiler injects
+        namespace aliases (from `<namespace src alias>`) into the module globals
+        before the body runs; those names must not be reset to Empty.
+        中文：把未声明的名字预先建成 Empty 变量，对齐 VBS 的默认值。
+        因为编译器会在模块代码之前把 `<namespace src alias>` 的别名注入 globals，
+        这里先用 `globals()` 判重，避免把别名覆盖成 Empty。
+        """
+        out = []
+        for name in names:
+            test = ast.Compare(
+                left=ast.Constant(value=name),
+                ops=[ast.NotIn()],
+                comparators=[ast.Call(func=ast.Name(id="globals", ctx=ast.Load()),
+                                      args=[], keywords=[])])
+            stmt = ast.If(test=test, body=[self._empty_assign(name)], orelse=[])
+            out.append(self._at_top(stmt))
+        return out
+
+    def _auto_empty_names(self, node):
+        """Names VBScript would create as Empty because they are only ever read.
+
+        Without `Option Explicit` VBScript creates a variable the first time a
+        name appears on the right-hand side, and its value is Empty. Python
+        raises NameError instead, so the compiler pre-creates those names.
+        Names assigned anywhere in a procedure stay procedure-local and are not
+        created at module level.
+        中文：未开 Option Explicit 时，VBS 只要读到未声明的名字就会自动建一个
+        Empty 变量；Python 会抛 NameError，所以编译器预先创建这些名字。
+        过程内部被赋值的名字属于过程局部，不在模块级创建。
+        """
+        if self.option_explicit:
+            return []
+        known = set(self.procs) | set(self.classes)
+        known |= _NON_VARIABLE_NAMES | set(vb_builtins.REGISTRY)
+        reads = set()
+        objects = set()
+        for stmt in node.body:
+            if isinstance(stmt, ClassDef):
+                continue
+            objects |= _member_base_names(stmt)
+            if isinstance(stmt, (SubDef, FunctionDef)):
+                local = {canon(param.name) for param in stmt.params}
+                local |= self._local_declarations(stmt.body)
+                local |= self._assigned_names(stmt.body)
+                for inner in stmt.body:
+                    reads |= _var_names_in(inner) - local
+            else:
+                reads |= _var_names_in(stmt)
+        return sorted(reads - known - objects)
+
+    def _undeclared_locals(self, node, declared, globals_needed):
+        """Procedure-level names that are read without ever being assigned.
+
+        In VBScript they are Empty; in Python they would raise NameError.
+        中文：过程里只读不赋值的名字 —— VBS 里是 Empty，Python 里会抛 NameError。
+        """
+        known = set(declared) | set(globals_needed)
+        known |= set(self.module_vars) | set(self.module_declared)
+        known |= set(self.procs) | set(self.classes)
+        known |= _NON_VARIABLE_NAMES | set(vb_builtins.REGISTRY)
+        reads = set()
+        objects = set()
+        for inner in node.body:
+            reads |= _var_names_in(inner)
+            objects |= _member_base_names(inner)
+        return sorted(reads - known - objects)
 
     def _classes_registry(self):
         """Emit `_ovpp_classes = {"foo": _ovpp_cls_foo, ...}` for CreateObject.
@@ -926,6 +1081,9 @@ class Transformer:
             prologue = []
             if globals_needed:
                 prologue.append(ast.Global(names=globals_needed))
+            if not as_method:
+                for name in self._undeclared_locals(node, declared, globals_needed):
+                    prologue.append(self._empty_assign(name))
             for param in info.params:
                 if not param.paramarray:
                     continue
@@ -2636,6 +2794,31 @@ class Transformer:
             args=[target, ast.Constant(value=node.name),
                   ast.List(elts=flags, ctx=ast.Load())], keywords=[])
 
+    def _fold_arith(self, func_name, left, right):
+        """Constant folding: `2 * 3` becomes `6` at compile time.
+
+        Only plain literals are folded, and only when the runtime function
+        succeeds — anything that would raise stays a call, so the error still
+        happens at run time, where VBScript raises it.
+        中文：常量折叠 —— 只有字面量才折叠，且只在运行时函数执行成功时折叠；
+        会报错的组合保持函数调用，保证错误仍在运行时抛出。
+        """
+        if not (isinstance(left, ast.Constant) and isinstance(right, ast.Constant)):
+            return None
+        a, b = left.value, right.value
+        if not isinstance(a, (int, float, str)) or not isinstance(b, (int, float, str)):
+            return None
+        if isinstance(a, bool) or isinstance(b, bool):
+            return None
+        func = getattr(vb_builtins, func_name, None)
+        if func is None:
+            return None
+        try:
+            value = func(a, b)
+        except Exception:
+            return None
+        return ast.Constant(value=value)
+
     def _transform_binop(self, node):
         if node.op == "COALESCE":
             return ast.Call(
@@ -2645,6 +2828,15 @@ class Transformer:
                 keywords=[])
         left = self.transform(node.left)
         right = self.transform(node.right)
+
+        if node.op in arith_call_map:
+            folded = self._fold_arith(arith_call_map[node.op], left, right)
+            if folded is not None:
+                return folded
+            return ast.Call(
+                func=ast.Name(id=ARITH_ALIASES[arith_call_map[node.op]],
+                              ctx=ast.Load()),
+                args=[left, right], keywords=[])
 
         if node.op in op_map:
             return ast.BinOp(left=left, op=op_map[node.op], right=right)
@@ -2670,7 +2862,16 @@ class Transformer:
         operand = self.transform(node.operand)
         if node.op == "NOT":
             return self._call_bool(unary_call_map[node.op], [operand])
-        return ast.UnaryOp(op=unary_call_map[node.op], operand=operand)
+        if node.op in ("UMINUS", "UPLUS"):
+            name = unary_call_map[node.op]
+            if isinstance(operand, ast.Constant) and not isinstance(operand.value, bool):
+                try:
+                    return ast.Constant(value=getattr(vb_builtins, name)(operand.value))
+                except Exception:
+                    pass
+            return ast.Call(func=ast.Name(id=ARITH_ALIASES[name], ctx=ast.Load()),
+                            args=[operand], keywords=[])
+        raise NotImplementedError(f"Unsupported UnaryOp type: {node.op}")
 
     def _transform_compare(self, node):
      # Comparison results become VBScript booleans: true is -1 and false is 0

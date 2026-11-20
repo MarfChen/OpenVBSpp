@@ -167,7 +167,16 @@ def _describe(exc):
     for exc_type, number, label in _PY_MAP:
         if isinstance(exc, exc_type):
             text = str(exc)
-            return number, f"{label}: {text}" if text else label
+            if not text:
+                return number, label
+            # The runtime helpers already raise with the VBScript wording
+            # ("Overflow", "Division by zero", "Type mismatch: ..."), so do not
+            # repeat the label in front of a message that starts with it.
+            # 中文：运行时函数抛出的消息本身就是 VBS 的措辞（"Overflow"、
+            # "Division by zero"、"Type mismatch: ..."），已经以标签开头时就不再重复。
+            if text.lower().startswith(label.lower()):
+                return number, text
+            return number, f"{label}: {text}"
     return 5, f"Runtime error: {exc}"
 
 

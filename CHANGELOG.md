@@ -7,6 +7,33 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [0.9.24] — 2026-11-20
+
+### Fixed
+
+- **Arithmetic follows VBScript coercion again**: `+ - * / ^` used to compile straight onto
+  Python's operators, so `"2" * 3` produced `"222"` and `1 + "2"` raised `Type mismatch`
+  instead of returning `3`. The five operators now go through the runtime: `+` concatenates
+  only when both sides are text, the others convert numeric strings, `/` and `^` always
+  yield a Double (as in VBS), and a non-numeric string raises `13`. Checked against
+  `cscript.exe`.
+- **Null propagates through built-ins**: `Len(Null)` returned `4`, `UCase(Null)` returned
+  `"NULL"` and `TypeName(Null)` returned `"NullType"`. The functions VBScript propagates
+  Null through (`Len`, `Left`, `Mid`, `UCase`, `Abs`, `Int`, the date-part functions, …)
+  now return Null; the conversion and math group (`CStr`, `CInt`, `Sgn`, `Sqr`, …) raises
+  `Invalid use of Null (94)` — a new `OVPPInvalidUseOfNullError` — and the `Format*` group
+  raises `13`. `&` treats Null as empty text, except `Null & Null`, which stays Null.
+- **An undeclared variable reads as `Empty`**: without `Option Explicit`, reading a name
+  that was never declared or assigned raised `Variable is undefined (1001)`, something
+  VBScript only does under `Option Explicit`. The compiler now initialises such names once
+  at the top of the module (and of each procedure), so the read costs nothing at run time.
+  `Err.Line` and the reported source line keep pointing at user code when the failing
+  statement sits inside a runtime helper.
+
+### Added
+
+- 24 conformance cases in `tests/test_vbs_superset.py` covering the three rules above.
+
 ## [0.9.23] — 2026-11-20
 
 ### Added

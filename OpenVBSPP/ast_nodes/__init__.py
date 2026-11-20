@@ -21,7 +21,7 @@ from ._classes import *
 from ._statements import *
 
 
-__version__ = "0.9.23"
+__version__ = "0.9.24"
 __all__ = [
     "AST",
     "Program",

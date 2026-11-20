@@ -324,7 +324,12 @@ def main(argv=None) -> int:
     print_inproc(run_in_process(max(1, args.repeat)))
     if args.e2e:
         print_e2e(run_e2e(max(1, args.repeat)))
-    print("\nNote: For compiles to range when the step is a constant and the body does not"
+    print("\nNote: arithmetic goes through a runtime helper that checks operand types,"
+          " because VBScript coerces at run time (\"1\" + \"2\" is \"12\","
+          " 1 + \"2\" is 3, Null + 1 is Null); integer and float operands take an"
+          " inlined fast path and constant expressions fold at compile time, and that"
+          " is most of what the arithmetic loops pay for."
+          " For compiles to range when the step is a constant and the body does not"
           " touch the counter, so it matches a Python for loop;"
           " what remains comes from & going through a conversion, function calls taking an"
           " extra argument pass,"

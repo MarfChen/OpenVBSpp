@@ -16,6 +16,7 @@ limitations under the License.
 
 
 from OpenVBSPP.ovpprt.format import to_text
+from OpenVBSPP.ovpprt.null import NULL, NullType
 
 
 def ovpp_str_concat(a, b):
@@ -24,15 +25,22 @@ def ovpp_str_concat(a, b):
 
     When both sides are already `str` they are simply added, which is the common
     case in `s = s & "x"` loops and skips two `to_text` conversions.
-
+    VBScript treats a single Null side as an empty string but keeps Null when
+    both sides are Null.
     中文：`&` 运算符按 VBS 的文本规则拼接（5.0 拼成 "5"，Empty 拼成空串）。
-    When both sides are strings it just adds them; `s = s & "x"` in a loop is the common case,
-    中文：两边都是字符串时直接相加——`s = s & "x"` 这类循环里这是主流写法，
-    and skipping both text conversions pays off.
-    中文：可以省掉两次文本转换。
+    两边都是字符串时直接相加——`s = s & "x"` 这类循环里这是主流写法，可省掉两次文本转换。
+    单侧 Null 当空串，两侧都是 Null 时结果仍是 Null。
     """
     if type(a) is str and type(b) is str:
         return a + b
+    left_null = a is NULL or isinstance(a, NullType)
+    right_null = b is NULL or isinstance(b, NullType)
+    if left_null and right_null:
+        return NULL
+    if left_null:
+        return to_text(b)
+    if right_null:
+        return to_text(a)
     return to_text(a) + to_text(b)
 
 

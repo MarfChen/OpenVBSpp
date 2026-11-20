@@ -170,6 +170,42 @@ VBS_FEATURES = [
     ("vbCrLf constant", "echo \"a\" & vbCrLf & \"b\"", ["a", "b"]),
     ("vbTrue constant", "echo vbTrue + 0", ["-1"]),
 
+    # arithmetic coercion (VBS: + concatenates only when both sides are text)
+    # 中文：算术强制转换（VBS 的 + 只在两侧都是文本时拼接）
+    ("string + string concatenates", "echo \"1\" + \"2\"", ["12"]),
+    ("number + numeric string", "echo 1 + \"2\"", ["3"]),
+    ("numeric string + number", "echo \"2\" + 1", ["3"]),
+    ("numeric string subtraction", "echo \"6\" - \"4\"", ["2"]),
+    ("numeric string multiplication", "echo \"2\" * 3", ["6"]),
+    ("numeric string division", "echo \"6\" / \"3\"", ["2"]),
+    ("division always yields a Double", "echo 4 / 2", ["2"]),
+    ("exponent always yields a Double", "echo 2 ^ 10", ["1024"]),
+    ("Empty + Empty is zero", "echo Empty + Empty", ["0"]),
+    ("True + True is -2", "echo True + True", ["-2"]),
+    ("non numeric string is a type mismatch",
+     "On Error Resume Next\nx = \"abc\" + 1\necho Err.Number", ["13"]),
+
+    # Null propagation through built-ins
+    # 中文：Null 在内置函数中的传播
+    ("Null propagates through +", "echo IsNull(Null + 1)", ["True"]),
+    ("Len(Null) is Null", "echo IsNull(Len(Null))", ["True"]),
+    ("UCase(Null) is Null", "echo IsNull(UCase(Null))", ["True"]),
+    ("Trim(Null) is Null", "echo IsNull(Trim(Null))", ["True"]),
+    ("Abs(Null) is Null", "echo IsNull(Abs(Null))", ["True"]),
+    ("TypeName(Null)", "echo TypeName(Null)", ["Null"]),
+    ("& treats Null as empty", "echo \"a\" & Null & \"b\"", ["ab"]),
+    ("Null & Null is Null", "echo IsNull(Null & Null)", ["True"]),
+    ("CStr(Null) raises 94",
+     "On Error Resume Next\nx = CStr(Null)\necho Err.Number", ["94"]),
+
+    # undeclared variables read as Empty (no Option Explicit)
+    # 中文：未声明变量读作 Empty（没有 Option Explicit 时）
+    ("undeclared variable is Empty", "echo TypeName(undeclaredvar)", ["Empty"]),
+    ("undeclared variable concatenates", "echo undeclaredvar & 1", ["1"]),
+    ("undeclared variable adds as zero", "echo undeclaredvar + 1", ["1"]),
+    ("undeclared variable inside a Sub",
+     "Sub P()\n echo TypeName(innerthing)\nEnd Sub\nP", ["Empty"]),
+
     # object model
     # 中文：对象模型
     ("Class + New",

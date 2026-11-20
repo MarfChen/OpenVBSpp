@@ -30,6 +30,7 @@ import sys
 from OpenVBSPP.ovpprt.array import lbound, ubound
 from OpenVBSPP.ovpprt.boolean import VBool, to_bool
 from OpenVBSPP.ovpprt.empty import EMPTY, EmptyType
+from OpenVBSPP.exceptions import OVPPInvalidUseOfNullError
 from OpenVBSPP.ovpprt.format import to_text
 from OpenVBSPP.ovpprt.null import NULL, NullType
 
@@ -101,6 +102,215 @@ def _to_list(value):
     if isinstance(value, list):
         return value
     raise TypeError("Expected an array, got " + type(value).__name__)
+
+
+def _is_null(value):
+    """True when ``value`` is VBScript's Null sentinel.
+
+    中文：判断是否为 VBS 的 Null 哨兵。
+    """
+    return value is NULL or isinstance(value, NullType)
+
+
+def _is_empty(value):
+    return value is EMPTY or isinstance(value, EmptyType)
+
+
+def _number_of(value):
+    """Convert one operand to a number the way VBScript does it.
+
+    中文：按 VBScript 的规则把操作数转成数字。
+
+    Returns ``(number, is_double)``: VBScript only promotes to Double when the
+    value is a fractional number or a string, so the caller can keep Integer
+    arithmetic for plain integer operands.
+    中文：返回 ``(数值, 是否 Double)``；只有小数或字符串才提升为 Double，
+    这样整数与整数之间仍能保持 Integer 语义。
+
+    Empty counts as 0. A string must look numeric (`"  3 "` is fine, `""` is
+    not); anything else is a type mismatch, error 13.
+    中文：Empty 当作 0；字符串必须是数字（`"  3 "` 合法，`""` 不合法）；
+    其余一律算类型不匹配（错误 13）。
+    """
+    if value is EMPTY or isinstance(value, EmptyType):
+        return 0, False
+    kind = type(value)
+    if kind is int:
+        return value, False
+    if kind is float:
+        return value, True
+    if kind is str:
+        if not value.strip():
+            raise TypeError("Type mismatch: an empty string is not a number")
+        try:
+            return int(value), False
+        except ValueError:
+            pass
+        try:
+            return float(value), True
+        except ValueError:
+            raise TypeError(f"Type mismatch: {value!r} is not a number")
+    if isinstance(value, bool):
+        return (-1 if value else 0), False
+    if isinstance(value, VBool):
+        return int(value), False
+    if isinstance(value, (int, float)):
+        return value, isinstance(value, float)
+    raise TypeError(
+        "Type mismatch: " + type(value).__name__ + " cannot be used as a number")
+
+
+def _arith_pair(a, b):
+    """Coerce both operands of ``- * / ^`` to one common numeric type.
+
+    中文：把 `- * / ^` 的两个操作数归一到同一种数值类型。
+    """
+    left, left_double = _number_of(a)
+    right, right_double = _number_of(b)
+    if left_double or right_double:
+        return float(left), float(right)
+    return left, right
+
+
+def _is_text_operand(value):
+    """Operands that make `+` concatenate instead of add.
+
+    中文：会触发 `+` 拼接（而非加法）的操作数。
+    """
+    return type(value) is str or value is EMPTY or isinstance(value, EmptyType)
+
+
+# --------------------------------------------------------------------- Arithmetic / 中文：算术
+# VBScript's `+` concatenates only when *both* sides are strings; every other
+# combination is numeric. `- * / ^` are always numeric, `/` and `^` always
+# produce a Double, and `\` / `Mod` stay integral.
+# 中文：VBS 的 `+` 只在「两侧都是字符串」时拼接，其余一律按数值相加；
+# `- * / ^` 恒为数值，`/` 与 `^` 恒得到 Double，`\` 与 `Mod` 保持整数。
+def _plain_number(value):
+    """True for a Python int/float that needs no VBScript conversion.
+
+    中文：判断是否是不需要做 VBS 转换的普通 int/float。
+
+    `VBool` subclasses `int` but VBScript treats True as -1, so bool-shaped
+    values must not take this fast path; `type(...) is` keeps the check exact.
+    中文：`VBool` 继承自 `int`，但 VBS 里 True 是 -1，所以布尔形状的值不能走这条
+    快路径；用 `type(...) is` 做精确判断。
+
+    The arithmetic operators inline this test instead of calling it: it runs once
+    per operation, so a function call here would double the cost.
+    中文：算术运算符里把这段判断内联展开而不调用本函数 —— 它每次运算都会跑，
+    多一次函数调用等于把开销翻倍。
+    """
+    kind = type(value)
+    return kind is int or kind is float
+
+
+def ovpp_add(a, b):
+    """VBScript `+`: add, or concatenate when both operands are text.
+
+    中文：VBS 的 `+` —— 相加；两侧都是文本时改为拼接。
+    """
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float):
+        return a + b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    if _is_text_operand(a) and _is_text_operand(b):
+        if _is_empty(a) and _is_empty(b):
+            return 0
+        return to_text(a) + to_text(b)
+    left, right = _arith_pair(a, b)
+    return left + right
+
+
+def ovpp_sub(a, b):
+    """VBScript `-`. 中文：VBS 的减法。"""
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float):
+        return a - b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _arith_pair(a, b)
+    return left - right
+
+
+def ovpp_mul(a, b):
+    """VBScript `*`. 中文：VBS 的乘法。"""
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float):
+        return a * b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _arith_pair(a, b)
+    return left * right
+
+
+def ovpp_div(a, b):
+    """VBScript `/`: always a Double, and `0 / 0` is an Overflow (error 6).
+
+    中文：VBS 的 `/` —— 结果恒为 Double，且 `0 / 0` 是溢出（错误 6）。
+    """
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float) and b:
+        return a / b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _arith_pair(a, b)
+    if right == 0:
+        if left == 0:
+            raise OverflowError("Overflow")
+        raise ZeroDivisionError("Division by zero")
+    return float(left) / float(right)
+
+
+def ovpp_pow(a, b):
+    """VBScript `^`: always a Double; a negative base with a fractional
+    exponent is "Invalid procedure call" (error 5).
+
+    中文：VBS 的 `^` —— 结果恒为 Double；负底数配小数指数算非法过程调用（错误 5）。
+    """
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float) and b >= 0:
+        return float(a) ** b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _arith_pair(a, b)
+    if left == 0 and right < 0:
+        raise ValueError("Invalid procedure call or argument")
+    try:
+        result = float(left) ** float(right)
+    except OverflowError:
+        raise OverflowError("Overflow")
+    if isinstance(result, complex):
+        raise ValueError("Invalid procedure call or argument")
+    return result
+
+
+def ovpp_neg(a):
+    """VBScript unary minus. 中文：VBS 的一元负号。"""
+    kind = type(a)
+    if kind is int or kind is float:
+        return -a
+    if _is_null(a):
+        return NULL
+    number, is_double = _number_of(a)
+    return -float(number) if is_double else -number
+
+
+def ovpp_pos(a):
+    """VBScript unary plus. 中文：VBS 的一元正号。"""
+    kind = type(a)
+    if kind is int or kind is float:
+        return a
+    if _is_null(a):
+        return NULL
+    number, is_double = _number_of(a)
+    return float(number) if is_double else number
 
 
 # --------------------------------------------------------------------- Operators / 中文：运算符
@@ -398,6 +608,8 @@ def TypeName(value):
             return "Nothing"
     except Exception:
         pass
+    if _is_null(value):
+        return "Null"
     vbs_name = getattr(value, "_vbs_name", None)
     if vbs_name:
         return vbs_name
@@ -1250,6 +1462,83 @@ def LoadPicture(path):
 
     raise OVPPObjectNotSupportedError(
         "LoadPicture is not available: OpenVBS++ has no GUI picture library")
+
+# --------------------------------------------------------------------- Null rules
+# VBScript splits the built-in functions into three camps when an argument is
+# Null. The lists below were verified against the real VBScript host: each one
+# names the behaviour its group gets.
+# 中文：VBS 的内置函数遇到 Null 时分三类，下面的清单是按真实 VBS 宿主实测出来的。
+_NULL_PROPAGATES = (
+    "Len Left Right Mid LTrim RTrim Trim UCase LCase InStr StrComp Hex Oct "
+    "Abs Int Fix Year Month Day Hour Minute Second Weekday DateAdd DateDiff DatePart"
+).split()
+
+_NULL_REJECTED = (
+    "StrReverse Space String Asc Chr InStrRev Replace Split Join Filter "
+    "Sgn Sqr Round Atn Cos Sin Tan Exp Log "
+    "CStr CInt CLng CDbl CSng CCur CByte CBool CDate MonthName WeekdayName"
+).split()
+
+# These five report a plain type mismatch (13) instead of 94.
+# 中文：这五个报普通的类型不匹配（13），而不是 94。
+_NULL_MISMATCH = (
+    "Format FormatNumber FormatPercent FormatCurrency FormatDateTime"
+).split()
+
+
+def _null_argument(args, kwargs):
+    for value in args:
+        if _is_null(value):
+            return True
+    for value in kwargs.values():
+        if _is_null(value):
+            return True
+    return False
+
+
+def _propagate_null(func):
+    """Return Null as soon as any argument is Null.
+
+    中文：任一参数为 Null 时直接返回 Null。
+    """
+
+    def wrapper(*args, **kwargs):
+        if _null_argument(args, kwargs):
+            return NULL
+        return func(*args, **kwargs)
+
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+    return wrapper
+
+
+def _reject_null(error):
+    """Raise ``error`` (94 or 13) instead of accepting a Null argument.
+
+    中文：参数为 Null 时抛 ``error``（94 或 13），而不是硬算下去。
+    """
+
+    def decorate(func):
+        def wrapper(*args, **kwargs):
+            if _null_argument(args, kwargs):
+                raise error("Invalid use of Null" if error is OVPPInvalidUseOfNullError
+                            else "Type mismatch: Null is not a valid argument")
+            return func(*args, **kwargs)
+
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        return wrapper
+
+    return decorate
+
+
+for _name in _NULL_PROPAGATES:
+    globals()[_name] = _propagate_null(globals()[_name])
+for _name in _NULL_REJECTED:
+    globals()[_name] = _reject_null(OVPPInvalidUseOfNullError)(globals()[_name])
+for _name in _NULL_MISMATCH:
+    globals()[_name] = _reject_null(TypeError)(globals()[_name])
+del _name
 
 _BUILTIN_NAMES = (
     "Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String "

@@ -15,6 +15,7 @@ doc/documentation.pdf
 doc/微软官方*
 *.bak
 *.orig
+*.ovppkg
 
 # 文档站与覆盖率产物
 site/

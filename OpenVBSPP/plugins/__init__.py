@@ -15,5 +15,5 @@ limitations under the License.
 '''
 
 
-__version__ = "0.9.23"
+__version__ = "0.9.24"
 #__all__ = ['']

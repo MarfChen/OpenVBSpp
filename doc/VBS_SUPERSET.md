@@ -48,10 +48,10 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | `Option Explicit` | ✅ | Compile-time check with line numbers |
 | Integers / floats / strings / booleans | ✅ | |
 | `Empty` / `Null` / `Nothing` literals | ✅ | Three sentinels |
-| `+ - * /` | ✅ | `/` is float division (as in VBS) |
+| `+ - * /` | ✅ | VBS coercion: `+` concatenates only when both sides are text, `/` always yields a Double |
 | `\` integer division, `Mod` | ✅ | Truncates toward zero |
-| `^` exponentiation | ✅ | Left-associative (same as VB) |
-| `&` string concatenation | ✅ | Formats numbers with VBS text rules |
+| `^` exponentiation | ✅ | Always a Double; left-associative (same as VB) |
+| `&` string concatenation | ✅ | Null counts as empty text; `Null & Null` stays Null |
 | `= <> < > <= >=` | ✅ | `=` in an expression is equality |
 | `==` as equality | ⚠️ | Our extension; VBS lacks it, and accepting it cannot break VBS code |
 | `Is` object identity | ✅ | `x Is Nothing` |
@@ -225,15 +225,24 @@ VBS defaults to `Option Compare Binary`, where `"A" = "a"` is false — we match
 ### 3.3 Error numbers
 
 Error classes reuse the VBS numbering (11 division by zero, 13 type mismatch, 35 procedure
-undefined, 438 object doesn't support this property or method, 450 wrong number of
-arguments, 1002 syntax error, …), except that "variable not defined" uses 1001 instead of
-VBS's 500. That is a long-standing project convention; changing it would break existing
-scripts that inspect `Err.Number`.
+undefined, 94 invalid use of Null, 438 object doesn't support this property or method, 450
+wrong number of arguments, 1002 syntax error, …), except that "variable not defined" uses
+1001 instead of VBS's 500. That is a long-standing project convention; changing it would
+break existing scripts that inspect `Err.Number`.
+
+That error only happens under `Option Explicit`, exactly as in VBS. Without it, reading a
+name that was never declared or assigned yields `Empty` (`TypeName(z) = "Empty"`,
+`z & "x" = "x"`), and the compiler leaves no runtime check behind — the name is initialised
+once at the top of the module, so a tight loop pays nothing for it.
 
 ### 3.4 Number display
 
 `Echo` and `&` format numbers the VBS way: `3.0` → `3`, `-0.0` → `0`. Python's native `3.0`
 is never printed.
+
+A non-integral Double keeps all of Python's significant digits instead of VBS's fifteen:
+`echo 1 / 3` prints `0.3333333333333333` where VBS prints `0.333333333333333`. The value in
+memory is the same Double; only the trailing digits of the text differ.
 
 ### 3.5 Negative array indices are not checked
 
@@ -395,7 +404,7 @@ Run through this before and after touching the compiler:
 > The full object-model inventory (including keywords that do not apply) is in
 > [OBJECT_MODEL.md](OBJECT_MODEL.md) and [OOP.md](OOP.md).
 
-## 6. Status update (v0.9.5 - v0.9.23)
+## 6. Status update (v0.9.5 - v0.9.24)
 
 Resume / Resume Next are implemented: a procedure containing Resume compiles into a
 "statement index dispatch" state machine, one `_pc` branch per statement; on error the
@@ -411,3 +420,15 @@ host object is provided (§3.13), so the remaining gaps are host details rather 
 syntax: `LoadPicture` reports that there is no GUI picture library, procedures defined at
 run time by `ExecuteGlobal` cannot be called by name (use `GetRef`), and only forward
 `GoTo` is allowed. The section 4 table above is the complete list.
+
+### 6.1 Value semantics closed in v0.9.24
+
+Three value-level differences found by the v0.9.23 audit were fixed against `cscript`
+ground truth, so the arithmetic, Null and undeclared-variable behaviour now matches
+VBScript rather than Python:
+
+| Rule | Before | Now |
+|---|---|---|
+| `+ - * / ^` coercion | Mapped straight onto Python operators, so `"1" + "2"` was `"12"` (VBS: also `"12"`), but `"2" * 3` was `"222"` and `1 + "2"` was a type mismatch | `+` concatenates only when both sides are text; `- * / ^` convert text to numbers; `/` and `^` always yield a Double; a non-numeric string raises 13 |
+| Null through built-ins | `Len(Null)` was 4, `TypeName(Null)` was `"NullType"`, `UCase(Null)` was `"NULL"` | The functions that VBS propagates Null through (`Len`, `UCase`, `Abs`, `Trim`, date parts, …) return Null; the conversion/math group (`CStr`, `CInt`, `Sgn`, `Sqr`, …) raises 94; the `Format*` group raises 13. `&` treats Null as empty text, except `Null & Null`, which stays Null |
+| Undeclared variable read | Raised "variable is undefined (1001)" | Reads as `Empty` unless `Option Explicit` is on (§3.3). The compiler initialises such names once at module top, so nothing is checked at run time |
