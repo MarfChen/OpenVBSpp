@@ -141,7 +141,7 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
     `pip install "mkdocs-material>=9.5"` 或 `pip install -e ".[docs]"`），新文档要进 `nav`，
     构建出的 `site/` 不要提交（已在 `.gitignore`）。
 13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`dev-docs/RELEASE.md` §9.4
-    三处必须一致（当前 **557**），改测试后一起改。
+    三处必须一致（当前 **562**），改测试后一起改。
 14. **`doc/` 的每一篇都是中英成对**：改 `doc/X.md` 就同步 `doc/X.zh-CN.md`（反之亦然），
     两版首行都要保留 `> English | **[中文](X.zh-CN.md)**` 这类切换行。维护者内容
     （发版、路线、设计、新手任务）只放 `dev-docs/`，不要塞进 `doc/`（它会进文档站）。

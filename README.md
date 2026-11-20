@@ -1,6 +1,6 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-557%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-562%20passing-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.21-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
@@ -66,7 +66,7 @@ Release process (TestPyPI → PyPI → exe) lives in [dev-docs/RELEASE.md](dev-d
 
 **Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (557 tests) runs on
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (562 tests) runs on
 every supported version in CI; the runtime code itself still parses and runs on 3.9
 (`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
 See [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9 for the version policy and what to build for ARM.
@@ -476,7 +476,7 @@ OpenVBSPP/
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
 examples/demo/       # 6-step demo project for the screen recording
-tests/               # 557 unittest cases
+tests/               # 562 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
@@ -487,7 +487,7 @@ dev-docs/            # design, release and roadmap notes for maintainers
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 557 tests, ~2.6 s
+python -m unittest discover -s tests          # 562 tests, ~2.6 s
 ```
 
 | File | Covers |

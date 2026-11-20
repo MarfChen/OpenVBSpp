@@ -57,7 +57,7 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | `Is` object identity | ✅ | `x Is Nothing` |
 | `And Or Not Xor Eqv Imp` | ⚠️ | Bitwise semantics (as in VBS), see §3.1 |
 | `True` / `False` | ✅ | True = -1, False = 0 |
-| Predefined constants such as `vbCrLf` | ✅ | `vbCrLf` `vbCr` `vbLf` `vbTab` `vbNullString` `vbTrue` `vbFalse` and more |
+| Predefined constants such as `vbCrLf` | ✅ | String constants (`vbCrLf` `vbCr` `vbLf` `vbTab` `vbNullString`), `FormatDateTime` names, the `MsgBox` button/icon/return constants (`vbOKOnly` … `vbNo`), `vbObjectError` and the `VarType` results (`vbString` `vbLong` `vbArray` …) |
 
 ### 2.3 Control flow
 

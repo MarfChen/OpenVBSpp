@@ -28,7 +28,7 @@
 | 0.9.21 | VBScript 完整性补齐：`&H` / `&O` / `#date#` 字面量、剩下的 19 个内置函数（`Sin` … `GetRef`）、`ExecuteGlobal`、`TimeValue` / `Time()` 日期 bug，以及按实测校正的 `doc/VBS_SUPERSET.md` |
 | 0.9.15 | 性能：启动懒加载、只读 `ByRef` 不再装箱（调用 13.7× → 1.35×）、无 `On Error` 的过程不建错误帧（递归 12× → 6.9×）、`For` 安全时生成 `range`（循环 1.65× → 0.99×） |
 
-**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；557 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
+**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；562 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
 `com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错），
 见 §3 末尾的说明。
 

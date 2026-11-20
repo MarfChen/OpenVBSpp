@@ -55,7 +55,7 @@
 | `Is` 对象身份比较 | ✅ | `x Is Nothing` |
 | `And Or Not Xor Eqv Imp` | ⚠️ | 按位语义（与 VBS 一致），见 §3.1 |
 | `True` / `False` | ✅ | 真 = -1、假 = 0 |
-| `vbCrLf` 等预定义常量 | ✅ | `vbCrLf` `vbCr` `vbLf` `vbTab` `vbNullString` `vbTrue` `vbFalse` 等 |
+| `vbCrLf` 等预定义常量 | ✅ | 字符串常量（`vbCrLf` `vbCr` `vbLf` `vbTab` `vbNullString`）、`FormatDateTime` 命名格式、`MsgBox` 的按钮/图标/返回值常量（`vbOKOnly` … `vbNo`）、`vbObjectError`，以及 `VarType` 的结果常量（`vbString` `vbLong` `vbArray` …） |
 
 ### 2.3 控制流
 

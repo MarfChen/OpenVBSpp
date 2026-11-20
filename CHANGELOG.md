@@ -27,7 +27,11 @@ Release-by-release engineering notes (how to cut a release) live in
   unchanged.
 - **`Stop`** is accepted and does nothing: it is a debugger breakpoint and there is no
   debugger here.
-- `tests/test_vbs_coverage.py`: 43 regression cases pinning every item in this release.
+- **Predefined constants** that were still missing: the `MsgBox` button, icon and return
+  values (`vbOKOnly`, `vbYesNo`, `vbQuestion`, `vbOK`, `vbYes`, `vbNo`, …),
+  `vbObjectError`, and every `VarType` result (`vbEmpty`, `vbString`, `vbLong`,
+  `vbDouble`, `vbBoolean`, `vbArray`, …), so `If VarType(x) = vbString Then` works.
+- `tests/test_vbs_coverage.py`: 48 regression cases pinning every item in this release.
 
 ### Fixed
 

@@ -366,3 +366,36 @@ echo 2"""), ["1", "2"])
             out("""If 1 = 1 Then
 echo 1
 """)
+
+
+class TestPredefinedConstants(unittest.TestCase):
+    """The VBScript constants scripts pass to MsgBox and compare with VarType.
+
+    中文：脚本传给 MsgBox、与 VarType 比较的那些 VBScript 预定义常量。
+    """
+
+    def test_msgbox_return_values(self):
+        self.assertEqual(out("""echo vbOK & "," & vbCancel & "," & vbYes & "," & vbNo"""),
+                         ["1,2,6,7"])
+
+    def test_msgbox_buttons_and_icons(self):
+        # vbYesNo + vbQuestion == 4 + 32: the stand-in accepts and ignores it.
+        # 中文：vbYesNo + vbQuestion == 4 + 32，控制台替身接受并忽略。
+        self.assertEqual(out("""echo vbYesNo + vbQuestion"""), ["36"])
+        self.assertEqual(out('MsgBox "save?", vbYesNo + vbQuestion, "t"'),
+                         ["save?"])
+
+    def test_vartype_constants(self):
+        code = """If VarType("a") = vbString Then
+echo "string"
+End If
+If VarType(1.5) = vbDouble Then
+echo "double"
+End If"""
+        self.assertEqual(out(code), ["string", "double"])
+
+    def test_array_constant(self):
+        self.assertEqual(out("""echo vbArray"""), ["8192"])
+
+    def test_source_constants(self):
+        self.assertEqual(out("""echo vbObjectError"""), ["-2147221504"])
