@@ -47,6 +47,20 @@ Terminal settings that read better in a GIF: a dark theme, 16–18 pt monospace 
 and `chcp 65001` plus `PYTHONIOENCODING=utf-8` so the Chinese captions in section 4
 render correctly.
 
+Optional extra scene — **real dialogs** (a seventh take, recorded separately):
+
+```powershell
+$env:OPENVBS_UI = "gui"
+python -m OpenVBSPP examples\demo\06-dialogs.vbs
+```
+
+`06-dialogs.vbs` opens a `vbYesNoCancel + vbQuestion` `MsgBox` and then an `InputBox`
+that starts with `quarterly-report` pre-filled. Both block until you click/type, which is
+why this take is not part of `run-demo.ps1`: record it on its own, answer the dialog with
+the mouse, and splice 3–4 seconds of it into the final GIF (label it
+"`MsgBox` / `InputBox` → real windows"). Keep the default `auto` mode for the six script
+steps so the recording never waits on a dialog.
+
 Optional extra scenes:
 
 * End with `openvbs ide` and a browser window showing the built-in web IDE
@@ -75,6 +89,18 @@ agg demo.cast docs/demo.gif
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File examples\demo\run-demo.ps1
 ```
+
+如果想把真对话框也录进去，单独拍一段（第 7 段）：
+
+```powershell
+$env:OPENVBS_UI = "gui"
+python -m OpenVBSPP examples\demo\06-dialogs.vbs
+```
+
+`06-dialogs.vbs` 先弹一个 `vbYesNoCancel + vbQuestion` 的 `MsgBox`，再弹一个预填
+`quarterly-report` 的 `InputBox`；两者都会阻塞等你操作，所以没有放进 `run-demo.ps1` ——
+单独录制、用鼠标点按钮，再剪 3–4 秒进最终 GIF（字幕写「`MsgBox` / `InputBox` → 真窗口」）。
+其余六段保持默认 `auto`，录像不会卡在对话框上。
 
 录制建议：先跑一遍预热；用 ScreenToGif 录制约 `1000×700` 区域、15 fps、开启光标捕捉；
 录完删重复帧、裁剪留白，导出 GIF（或 MP4）。成品放 `docs/demo.gif`，在 README 徽章下方引用，

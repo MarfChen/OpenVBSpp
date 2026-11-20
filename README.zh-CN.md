@@ -595,7 +595,7 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 **尚未实现**（`doc/VBS_SUPERSET.md` §4）：
 
 - `Collection` 内置类（VBScript 本身没有，属于 VBA）
-- `Declare`（声明外部 DLL 函数）
+- `Declare`（声明外部 DLL 函数）—— 短期有意不支持：原生调用写错会让进程无法捕获地退出，见 [doc/VBS_SUPERSET.zh-CN.md §3.11](doc/VBS_SUPERSET.zh-CN.md)
 - `LoadPicture` 直接报错而不加载图片
 - `ExecuteGlobal` 在运行期定义的过程无法按名字调用（改用 `GetRef` 绑定），且只支持向前 `GoTo`
 
@@ -608,7 +608,10 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 
 COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**：Windows 上由
 `com-support` 包真连，非 Windows 平台、`OPENVBS_COM=0`、或没装 `pywin32` 时会给出明确报错
-（不再按"未实现"处理）。
+（不再按"未实现"处理）。失败编号与 VBScript 一致：找不到 ProgID 报 429，连接失败报 432，
+`TypeName` 返回组件类名；`GetObject` 支持 moniker（`winmgmts:`）与 `GetObject(, "类名")` 形式。
+`WScript` 宿主对象本身没有提供 —— `WScript.Echo` 等会报 `Variable 'WScript' is undefined`（1001），
+输出请用 `echo`，shell 功能用 `CreateObject("WScript.Shell")`。
 
 Tcl/Tk 的许可与义务见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)：它是 BSD 风格、
 允许任意目的使用，但**不是 OSI 认证**的许可；只接受 OSI 清单的组织可设
@@ -620,6 +623,7 @@ Tcl/Tk 的许可与义务见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)�
 - `Exit For` 若嵌在 `Do` 循环里，只跳出最内层循环（Python 没有具名循环）。
 - `#python` 代码块在全局作用域运行（不能直接改过程的局部变量）。
 - `Class_Terminate` 依赖 Python 的引用计数/GC，时机不保证。
+- 没有 `WScript` 宿主对象（`WScript.Echo`、`.Arguments`、`.Sleep`、`.Quit`）。
 
 完整的对象模型清单见 [doc/OOP.md](doc/OOP.md)（继承、重载、`Set/Get`，以及"为什么不做 abstract/static"的说明）。
 

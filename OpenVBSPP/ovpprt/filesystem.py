@@ -243,6 +243,70 @@ class FileSystemObject:
         return "FileSystemObject()"
 
 
+class _Collection:
+    """A 1-based COM collection: `Count`, `Item` and `For Each` support.
+
+    中文：从 1 开始的 COM 集合：支持 `Count`、`Item` 与 `For Each`。
+    """
+
+    #: `TypeName()` value; subclasses override it.
+    #: 中文：`TypeName()` 的返回值，子类覆盖。
+    _vbs_name = "Collection"
+
+    def __init__(self, items):
+        self._items = list(items)
+
+    def Item(self, index):
+        """The item at a 1-based index (VBScript collections start at 1).
+
+        中文：按 1 起始的下标取元素（VBS 集合从 1 开始）。
+        """
+        position = int(index)
+        if position < 1 or position > len(self._items):
+            raise OVPPRuntimeError(
+                f"Invalid collection index: {position} "
+                f"(the collection holds {len(self._items)} item(s))")
+        return self._items[position - 1]
+
+    @property
+    def Count(self):
+        """How many items the collection holds.
+
+        中文：集合里的元素个数。
+        """
+        return len(self._items)
+
+    def __iter__(self):
+        return iter(self._items)
+
+    def __len__(self):
+        return len(self._items)
+
+    def __getitem__(self, index):
+        return self._items[index]
+
+    def __repr__(self):
+        return f"{type(self).__name__}({len(self._items)} item(s))"
+
+
+class FileCollection(_Collection):
+    """The `Files` collection of a folder.
+
+    中文：文件夹的 `Files` 集合。
+    """
+
+    _vbs_name = "Files"
+
+
+class FolderCollection(_Collection):
+    """The `SubFolders` collection of a folder.
+
+    中文：文件夹的 `SubFolders` 集合。
+    """
+
+    _vbs_name = "Folder"
+
+
 class Folder:
     """The folder object returned by `fso.GetFolder` / `CreateFolder` (minimal).
 
@@ -253,10 +317,20 @@ class Folder:
         self._path = Path(path)
 
     def Files(self):
-        return [File(item) for item in sorted(self._path.glob("*")) if item.is_file()]
+        """The files directly inside the folder.
+
+        中文：文件夹里直接包含的文件。
+        """
+        return FileCollection(
+            File(item) for item in sorted(self._path.glob("*")) if item.is_file())
 
     def SubFolders(self):
-        return [Folder(item) for item in sorted(self._path.glob("*")) if item.is_dir()]
+        """The sub-folders directly inside the folder.
+
+        中文：文件夹里直接包含的子文件夹。
+        """
+        return FolderCollection(
+            Folder(item) for item in sorted(self._path.glob("*")) if item.is_dir())
 
     Name = property(lambda self: self._path.name)
     Path = property(lambda self: str(self._path))

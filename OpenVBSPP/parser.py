@@ -968,10 +968,17 @@ class Parser:
         if self.at_statement_end(nxt):
             return CallStmt(target, []).at(tok[2], tok[3])
 
-        args = [self.expr()]
-        while self.peek()[0] == "COMMA":
-            self.eat("COMMA")
+        args = []
+        if self._argument_present():
             args.append(self.expr())
+        else:
+            args.append(EmptyValue().at(nxt[2], nxt[3]))
+        while self.peek()[0] == "COMMA":
+            comma = self.eat("COMMA")
+            if self._argument_present():
+                args.append(self.expr())
+            else:
+                args.append(EmptyValue().at(comma[2], comma[3]))
         return CallStmt(target, args).at(tok[2], tok[3])
 
     def make_assignment(self, target, expr, tok):
@@ -980,6 +987,17 @@ class Parser:
         if isinstance(target, Member):
             return MemberAssign(target.base, target.name, expr).at(tok[2], tok[3])
         self.error("Invalid assignment target", tok)
+
+    def _argument_present(self):
+        """Whether the next token starts an argument instead of an omitted slot.
+
+        `GetObject(, "WScript.Shell")` leaves the first argument out; VBScript writes
+        that as a bare comma, so an empty slot becomes `EmptyValue`.
+        中文：下一个 token 是实参的开头，还是被省略的实参槽位。
+        `GetObject(, "WScript.Shell")` 省略了第一个实参，VBS 里写作一个逗号，
+        因此空槽位用 `EmptyValue` 表示。
+        """
+        return self.peek()[0] not in ("COMMA", "RPAREN", "NEWLINE", "EOF")
 
     def parse_args(self):
         """Parse a parenthesised argument list.
@@ -993,11 +1011,18 @@ class Parser:
             return args
 
         self.skip_newlines()
-        args.append(self.expr())
-        while self.peek()[0] == "COMMA":
-            self.eat("COMMA")
-            self.skip_newlines()
+        if self._argument_present():
             args.append(self.expr())
+        else:
+            tok = self.peek()
+            args.append(EmptyValue().at(tok[2], tok[3]))
+        while self.peek()[0] == "COMMA":
+            comma = self.eat("COMMA")
+            self.skip_newlines()
+            if self._argument_present():
+                args.append(self.expr())
+            else:
+                args.append(EmptyValue().at(comma[2], comma[3]))
         tail = self.peek()
         if tail[0] != "RPAREN":
             self.error(f"Expected ')' or ',' in the argument list, "
@@ -1008,14 +1033,23 @@ class Parser:
     def parse_bare_args(self):
         """Parse an unparenthesised argument list: Foo 1, 2.
 
-        中文：解析无括号的实参列表：Foo 1, 2
+        An omitted first argument is a leading comma: `GetObject , "WScript.Shell"`.
+        中文：解析无括号的实参列表：Foo 1, 2。省略第一个实参时写作前导逗号。
         """
         if self.at_statement_end():
             return []
-        args = [self.expr()]
-        while self.peek()[0] == "COMMA":
-            self.eat("COMMA")
+        args = []
+        if self._argument_present():
             args.append(self.expr())
+        else:
+            tok = self.peek()
+            args.append(EmptyValue().at(tok[2], tok[3]))
+        while self.peek()[0] == "COMMA":
+            comma = self.eat("COMMA")
+            if self._argument_present():
+                args.append(self.expr())
+            else:
+                args.append(EmptyValue().at(comma[2], comma[3]))
         return args
 
     # ------------------------------------------------------------ If

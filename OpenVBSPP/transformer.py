@@ -2706,6 +2706,9 @@ class Transformer:
             raise OVPPArgumentError("CreateObject expects a ProgID string",
                                     line_number=node.line)
 
+        if factory == "get_object":
+            return self._transform_get_object(node)
+
         if len(node.args) > 2:
             raise OVPPArgumentError(
                 "CreateObject expects at most two arguments: "
@@ -2744,6 +2747,32 @@ class Transformer:
             func=ast.Attribute(value=ast.Name(id=OBJ_MODULE, ctx=ast.Load()),
                                attr=factory, ctx=ast.Load()),
             args=[self.transform(first), ast.Name(id=CLASSES_NAME, ctx=ast.Load())] + rest,
+            keywords=[])
+
+    def _transform_get_object(self, node):
+        """`GetObject([pathname], [class])`: attach to an existing COM object.
+
+        An omitted pathname is passed as Empty, so the runtime can attach to a class
+        by name alone.
+        中文：`GetObject([pathname], [class])` —— 挂接已存在的 COM 对象。省略的
+        pathname 以 Empty 传入，运行时才能只按类名挂接。
+        """
+        if len(node.args) > 2:
+            raise OVPPArgumentError(
+                "GetObject expects at most two arguments: "
+                "GetObject([pathname], [class])",
+                line_number=getattr(node, "line", None))
+
+        first = node.args[0]
+        args = [self.transform(first), ast.Name(id=CLASSES_NAME, ctx=ast.Load())]
+        if len(node.args) > 1:
+            args.append(self.transform(node.args[1]))
+        else:
+            args.append(ast.Constant(value=None))
+        return ast.Call(
+            func=ast.Attribute(value=ast.Name(id=OBJ_MODULE, ctx=ast.Load()),
+                               attr="get_object", ctx=ast.Load()),
+            args=args,
             keywords=[])
 
     def _globals_call(self):

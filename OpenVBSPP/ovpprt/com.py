@@ -201,25 +201,33 @@ class Provider:
         except Exception as exc:
             raise self._translate(progid, exc, "create") from exc
 
-    def get(self, progid, args=()):
-        """`GetObject(progid)`: attach to a running instance.
+    def get(self, pathname="", classname=None):
+        """The implementation behind `GetObject([pathname], [class])`.
 
-        中文：`GetObject(progid)`——拿到已运行的实例。
+        中文：`GetObject([pathname], [class])` 的真实实现。
         """
         getter = getattr(self.module, "get", None)
         if getter is None:
             raise ComBridgeError(
-                f"GetObject('{progid}') is not supported by com-support "
+                f"GetObject('{pathname}') is not supported by com-support "
                 f"{self.version or '(unknown version)'}")
         try:
-            return getter(str(progid), *args)
+            return getter(str(pathname or ""), classname)
         except OVPPObjectNotSupportedError:
             raise
         except Exception as exc:
-            raise self._translate(progid, exc, "get") from exc
+            raise self._translate(pathname or classname, exc, "get") from exc
 
     def _translate(self, progid, exc, action):
         message = str(exc).strip() or exc.__class__.__name__
+        number = getattr(exc, "number", None)
+        vbs_name = getattr(exc, "vbs_name", None)
+        if number:
+            error = OVPPAutomationError(message)
+            error.number = int(number)
+            if vbs_name:
+                error.name = str(vbs_name)
+            return error
         text = f"Cannot {action} COM object '{progid}': {message}"
         if isinstance(exc, getattr(self.module, "ComSupportError", ())):
             return ComBridgeError(text)
@@ -275,6 +283,18 @@ def create(progid, args=()):
     if active is None:
         raise OVPPObjectNotSupportedError(_unavailable_message(progid))
     return active.create(progid, args)
+
+
+def get(pathname="", classname=None):
+    """Called by the object layer for `GetObject([pathname], [class])`.
+
+    中文：对象层调用——实现 `GetObject([pathname], [class])`。
+    """
+    active = provider()
+    if active is None:
+        raise OVPPObjectNotSupportedError(
+            _unavailable_message(pathname or classname or "GetObject"))
+    return active.get(pathname, classname)
 
 
 def _unavailable_message(progid):

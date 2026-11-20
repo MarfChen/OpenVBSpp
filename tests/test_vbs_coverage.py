@@ -399,3 +399,39 @@ End If"""
 
     def test_source_constants(self):
         self.assertEqual(out("""echo vbObjectError"""), ["-2147221504"])
+
+
+class TestOmittedArguments(unittest.TestCase):
+    """VBScript lets a call leave an argument out: `GetObject(, "WScript.Shell")`.
+
+    中文：VBScript 允许调用时省略实参：`GetObject(, "WScript.Shell")`。
+    """
+
+    def test_empty_slot_becomes_empty(self):
+        code = ("Sub Q(a, b)\n"
+                "  echo TypeName(a) & \"|\" & b\n"
+                "End Sub\n"
+                "Q , 5")
+        self.assertEqual(out(code), ["Empty|5"])
+
+    def test_trailing_comma_keeps_two_arguments(self):
+        code = ("Sub R(a, b)\n"
+                "  echo TypeName(a) & \"|\" & TypeName(b)\n"
+                "End Sub\n"
+                "R(1,)")
+        self.assertEqual(out(code), ["Integer|Empty"])
+
+    def test_parenthesised_leading_slot(self):
+        code = ("Sub S(a, b)\n"
+                "  echo TypeName(a) & \"|\" & b\n"
+                "End Sub\n"
+                "S(, \"x\")")
+        self.assertEqual(out(code), ["Empty|x"])
+
+    def test_no_arguments_still_means_none(self):
+        code = ("Sub T(a, b)\n"
+                "  echo a & b\n"
+                "End Sub\n"
+                "T")
+        with self.assertRaises(Exception):
+            out(code)

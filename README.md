@@ -510,7 +510,7 @@ python -m unittest discover -s tests          # 577 tests, ~2.6 s
 Not implemented yet ([doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4):
 
 - the `Collection` built-in class (that is VBA, not VBScript)
-- `Declare` (binding external DLL functions)
+- `Declare` (binding external DLL functions) — deliberately unsupported for now; a mistyped native call can kill the process uncatchably, see [doc/VBS_SUPERSET.md §3.11](doc/VBS_SUPERSET.md)
 - `LoadPicture`, which raises instead of loading a picture
 - procedures created at run time by `ExecuteGlobal` cannot be called by name (bind them
   with `GetRef` instead), and only forward `GoTo` jumps compile
@@ -525,6 +525,7 @@ in embedded `vbs_run()` calls and when Tk is missing they fall back to the conso
 
 COM host objects **are** supported: real connections on Windows through `com-support`;
 on other platforms, with `OPENVBS_COM=0`, or without `pywin32` you get an explicit error.
+Failure codes match VBScript: an unregistered ProgID reports 429, a failed attach reports 432, and `TypeName` reports the coclass name. `GetObject` accepts monikers (`winmgmts:`) and the `GetObject(, "class")` form. The `WScript` host object itself is missing — `WScript.Echo` and friends raise `Variable 'WScript' is undefined` (1001); use `echo` and `CreateObject("WScript.Shell")` instead.
 Tcl/Tk licensing is documented in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md):
 the license is BSD-style and permissive but not OSI-approved, so `OPENVBS_UI=console`
 gives a Tk-free build path.
@@ -535,6 +536,7 @@ Other known limits:
 - `Exit For` inside a `Do` loop only exits the innermost loop
 - `#python` blocks run in global scope and cannot touch procedure locals directly
 - `Class_Terminate` depends on reference counting/GC; timing is not guaranteed
+- the `WScript` host object is not provided (`WScript.Echo`, `.Arguments`, `.Sleep`, `.Quit`)
 
 The full object-model contract is in [doc/OOP.md](doc/OOP.md).
 

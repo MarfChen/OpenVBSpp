@@ -110,8 +110,9 @@
 | `CreateObject("脚本类")` | ✅ | 编译期解析或运行时注册表 |
 | `CreateObject("Scripting.Dictionary")` | ✅ | `ovpprt/collections.py` |
 | `Collection` | ❌ | VBScript 本身没有内建 Collection（属于 VBA） |
-| `GetObject` | ✅ | 脚本类/内置类；Windows 上也能连已运行的 COM 对象（不做对象持久化） |
+| `GetObject` | ✅ | `GetObject(path)`、`GetObject(path, class)`、`GetObject(, class)`；`winmgmts:` 这类 moniker 在 Windows 上由 `com-support` 包解析；连不上时退回创建该类 |
 | `CreateObject` 创建 COM 对象 | ✅ | v0.9.14 起 Windows 上由 `com-support` 包真连（pywin32）；非 Windows 明确报错 |
+| COM 错误号与 `TypeName` | ✅ | 找不到 ProgID 报 429（`ActiveX component can't create object`），连接失败报 432，`TypeName(obj)` 返回组件类名（如 `FileSystemObject`、`SWbemServicesEx`） |
 | 默认成员自动取值 | ✅ | `Attribute X.VB_UserMemId = 0`；`x = obj` 取默认属性，`Set x = obj` 保持引用 |
 | 对象方法的 `ByRef` 写回 | ✅ | 方法参数统一走 `Ref` 协议（见 §3.7） |
 | 方法覆盖（虚方法） | ✅ | 默认即可覆盖，按 MRO 解析 |
@@ -291,7 +292,14 @@ OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两�
 ### 3.11 `Declare` 与原生代码
 
 `Declare Function/Sub` 绑定的是 DLL 入口；OpenVBS++ 跑在 Python 虚拟机上，没有这种绑定，
-因此 `Declare` 会明确报错，而不是悄悄什么都不做。可用的替代路径是：
+因此 `Declare` 会明确报语法错误，而不是悄悄什么都不做。
+
+**短期决定（v0.9.22）：暂不支持。** 已经调研过用 `ctypes` 实现：技术上可行，但它允许脚本
+调用任意原生代码，而签名写错会让进程以访问违例直接退出 —— `On Error Resume Next` 与
+`Try ... Catch` 都接不住。这个代价目前不值得承担，因此 `Declare` 不进语言，也没有开关能打开。
+调研结论记录在 [../dev-docs/ROADMAP.zh-CN.md](../dev-docs/ROADMAP.zh-CN.md) 的 7c 项。
+
+目前可用的原生代码路径是：
 
 - COM：Windows 上用 `com-support` 包执行 `CreateObject("ProgID")`。
 - 原生 Python：写一个 `over` 包，或用 `#python` 代码块（见 §2.9）。
@@ -317,13 +325,14 @@ OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两�
 | 项 | 说明 |
 |---|---|
 | COM 宿主对象（`Excel.Application`、`WScript.Shell` 等） | 自 v0.9.14 起在 Windows 上由 `com-support` 包真连；其它平台抛 `OVPPObjectNotSupportedError`，不模拟 COM |
+| `WScript` 宿主对象 | 不提供：`WScript.Echo`、`.Arguments`、`.Sleep`、`.StdOut`、`.Quit` 报 `Variable 'WScript' is undefined`（1001）。输出用 `echo`，shell 功能用 `CreateObject("WScript.Shell")` |
 | `Collection` 内置类 | VBScript 本身没有（属于 VBA） |
 | `Attribute` 的其它属性（`VB_Name` 等） | 只解析 `VB_UserMemId` |
 | `MsgBox` / `InputBox` | 交互式运行时有 `ui-support` 包就弹真窗口（见 §3.10）；CI、管道与嵌入运行时退回控制台：`MsgBox` 打印文本并返回 1，`InputBox` 从 stdin 读一行 |
 | `LoadPicture` | 函数存在，只为让老脚本得到明确报错：没有图形图像库（`OVPPObjectNotSupportedError`） |
 | `ExecuteGlobal` 在运行期新定义的过程 | 可以修改全局变量，但无法按名字调用 —— 过程名在编译期就绑定了。需要间接调用时用 `GetRef` 引用已有过程，或把代码放进独立模块 |
 | 向后 `GoTo` | 只编译向前跳转；跳到更早的标签会报 `Recursive GoTo ... is not supported` |
-| `Declare`（声明 DLL） | 有意不支持：运行时是 Python，不是 DLL 宿主。连 COM 用 `CreateObject`，要原生代码用 over 包（见 §3.11） |
+| `Declare`（声明 DLL） | 短期内有意不支持：运行时是 Python，不是 DLL 宿主，而且原生调用写错会让进程无法捕获地退出（见 §3.11）。连 COM 用 `CreateObject`，要原生代码用 over 包 |
 
 ## 5. 改动检查清单
 

@@ -114,13 +114,61 @@ def default_value(value):
     return member_get(value, member)
 
 
-def get_object(progid, registry, *args):
-    """`GetObject`: this project does not persist objects, so it behaves like
-    CreateObject (see the documentation).
+def get_object(pathname="", registry=None, classname=None):
+    """`GetObject([pathname], [class])`: attach to an existing COM object.
 
-    中文：`GetObject` —— 本项目不做对象持久化，按 CreateObject 处理（见文档）。
+    VBScript passes either a display-name moniker (`winmgmts:`), a file name that
+    binds to its class, or an empty pathname plus a class name to attach to a
+    running instance.  A plain ProgID keeps the historical fallback: it behaves
+    like `CreateObject`.
+    中文：`GetObject([pathname], [class])` —— 挂接已存在的 COM 对象。VBS 可以传
+    显示名 moniker（`winmgmts:`）、绑定到类别的文件名，或空 pathname + 类名去挂接
+    运行中的实例。普通 ProgID 保持历史行为：按 `CreateObject` 处理。
     """
-    return create_object(progid, registry, *args)
+    from OpenVBSPP.ovpprt.empty import EMPTY
+
+    text = "" if pathname is EMPTY or pathname is None else str(pathname).strip()
+    class_text = ("" if classname is None or classname is EMPTY
+                  else str(classname).strip())
+
+    if not text and not class_text:
+        raise OVPPObjectNotSupportedError(
+            "GetObject needs a pathname, a class name, or both")
+
+    if not text:
+        from OpenVBSPP.ovpprt import com
+        return com.get("", class_text)
+
+    if _looks_like_moniker(text) or _file_exists(text):
+        from OpenVBSPP.ovpprt import com
+        return com.get(text, class_text or None)
+
+    return create_object(pathname, registry)
+
+
+def _looks_like_moniker(text):
+    """A display-name moniker or an absolute path, not a ProgID.
+
+    中文：显示名 moniker 或绝对路径（而不是 ProgID）。
+    """
+    lowered = text.lower()
+    if ":" in text:
+        return True
+    if "\\" in text or "/" in text:
+        return True
+    return lowered.startswith(("new:", "file:", "clsid:", "queue:"))
+
+
+def _file_exists(text):
+    """Whether the text names an existing file (a file moniker target).
+
+    中文：该文本是否指向一个已存在的文件（file moniker 的目标）。
+    """
+    import os
+    try:
+        return os.path.exists(text)
+    except (OSError, ValueError):
+        return False
 
 
 _MISSING = object()

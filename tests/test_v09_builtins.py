@@ -126,6 +126,35 @@ class TestFileSystemObject(unittest.TestCase):
                 f'echo fso.fileexists("nope-does-not-exist.txt")')
         self.assertEqual(out(code), ["False"])
 
+    def test_folder_files_collection_has_count(self):
+        """`folder.Files` is a 1-based collection, not a bare Python list.
+
+        中文：`folder.Files` 是从 1 开始的集合，而不是裸的 Python 列表。
+        """
+        path = Path(self.dir) / "one.txt"
+        path.write_text("x", encoding="utf-8")
+        code = (f'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+                f'Set folder = fso.GetFolder("{self.dir}")\n'
+                f'echo folder.Files.Count\n'
+                f'echo folder.Files.Item(1).Name\n'
+                f'echo TypeName(folder.Files)')
+        self.assertEqual(out(code), ["1", "one.txt", "Files"])
+
+    def test_folder_subfolders_collection(self):
+        """`SubFolders` offers `Count`, `Item` and `For Each`.
+
+        中文：`SubFolders` 提供 `Count`、`Item` 与 `For Each`。
+        """
+        (Path(self.dir) / "nest").mkdir()
+        code = (f'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+                f'Set folder = fso.GetFolder("{self.dir}")\n'
+                f'echo folder.SubFolders.Count\n'
+                f'echo TypeName(folder.SubFolders)\n'
+                f'For Each item In folder.SubFolders\n'
+                f'  echo item.Name\n'
+                f'Next')
+        self.assertEqual(out(code), ["1", "Folder", "nest"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

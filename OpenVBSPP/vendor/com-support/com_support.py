@@ -67,6 +67,28 @@ class ComSupportError(Exception):
     中文：COM 支持相关的错误，例如 ProgID 不存在、pywin32 缺失。"""
 
 
+class ComCreateError(ComSupportError):
+    """`CreateObject` could not create the class (VBScript error 429).
+
+    中文：`CreateObject` 建不出对象，对应 VBScript 错误 429。"""
+
+    #: VBScript error number the interpreter reports for this failure.
+    #: 中文：解释器报告给脚本的 VBScript 错误号。
+    number = 429
+    #: VBScript error name, used in the error text and `Err.Description`.
+    #: 中文：VBScript 错误名，用于错误文本与 `Err.Description`。
+    vbs_name = "ActiveX component can't create object"
+
+
+class ComAttachError(ComSupportError):
+    """`GetObject` could not attach to an existing object (VBScript error 432).
+
+    中文：`GetObject` 挂不上已有对象，对应 VBScript 错误 432。"""
+
+    number = 432
+    vbs_name = "File name or class name not found"
+
+
 def is_available():
     """Whether this interpreter can do COM: true when pywin32 imports.
 
@@ -125,6 +147,64 @@ def _wrap(value, progid=""):
     return value
 
 
+def _com_error_text(exc):
+    """A readable message for a pywin32 `com_error`.
+
+    pywin32 formats it as `(-2147221005, '无效的类字符串', None, None)`; VBScript would
+    only show `无效的类字符串`, so the HRESULT keeps the detail.
+    中文：把 pywin32 的 `com_error` 变成可读消息。pywin32 的格式是
+    `(-2147221005, '无效的类字符串', None, None)`，VBS 只会显示 `无效的类字符串`，
+    这里把 HRESULT 附在后面保留细节。
+    """
+    args = getattr(exc, "args", ())
+    number = text = None
+    if len(args) >= 2 and isinstance(args[1], str):
+        number, text = args[0], args[1]
+    elif args and isinstance(args[0], tuple) and len(args[0]) >= 2:
+        number, text = args[0][0], args[0][1]
+    text = str(text or "").strip()
+    if text:
+        try:
+            code = int(number) & 0xFFFFFFFF
+        except (TypeError, ValueError):
+            return text
+        return f"{text} (0x{code:08X})"
+    return str(exc).strip()
+
+
+def _dispatch_type_name(dispatch):
+    """The COM type name from the type library, e.g. `FileSystemObject`.
+
+    `TypeName(obj)` in VBScript answers with this name, not with `Object`.
+    中文：从类型库取 COM 类型名（如 `FileSystemObject`）。VBS 的 `TypeName(obj)`
+    返回的是它，而不是 `Object`。
+    """
+    try:
+        import pythoncom
+        oleobj = dispatch._oleobj_
+        try:
+            # IProvideClassInfo answers with the coclass name, exactly like
+            # VBScript's TypeName ("FileSystemObject", "SWbemServicesEx").
+            # 中文：IProvideClassInfo 给的是组件类名，和 VBS 的 TypeName 完全一致。
+            info = oleobj.QueryInterface(pythoncom.IID_IProvideClassInfo)
+            name = info.GetClassInfo().GetDocumentation(-1)[0]
+            if name:
+                return str(name).strip()
+        # IProvideClassInfo is optional; most objects expose only the interface.
+        # 中文：IProvideClassInfo 是可选的，多数对象只暴露接口的类型信息。
+        except Exception:   # pragma: no cover - depends on the COM object
+            pass
+        info = oleobj.GetTypeInfo()
+        if info is None:
+            return ""
+        name = info.GetDocumentation(-1)[0]
+        return str(name or "").strip()
+    # Not covered by tests: only a genuine COM object reaches here.
+    # 中文：不纳入覆盖率，只有真实 COM 对象才会走到。
+    except Exception:       # pragma: no cover
+        return ""
+
+
 def _convert_error(exc):
     """Turn a pywin32 com_error into a message a script author can act on.
 
@@ -145,6 +225,10 @@ class COMProxy:
     def __init__(self, dispatch, progid=""):
         object.__setattr__(self, "_com_dispatch", dispatch)
         object.__setattr__(self, "_com_progid", progid)
+        # TypeName(obj) reports the type-library name, not Object.
+        # 中文：TypeName(obj) 用类型库里的名字，而不是 Object。
+        object.__setattr__(self, "_vbs_name",
+                           _dispatch_type_name(dispatch) or VBS_TYPE_NAME)
 
     # -- members -------------------------------------------------------
     # 中文：成员
@@ -232,11 +316,19 @@ class _ComMember:
         except Exception as exc:
             raise _convert_error(exc) from exc
 
-        if not callable(member):
-            if args:
-                raise ComSupportError(
-                    f"'{self._name}' is a property, not a method")
+        # A property whose value is itself a COM object comes back as a dispatch that is
+        # also callable (it has a default member); `obj.Files` must yield the collection
+        # rather than call it. 中文：属性值是 COM 对象时，拿到的 dispatch 也可调用（有默认
+        # 成员）；`obj.Files` 应当返回集合，而不是调用它。
+        if not args and hasattr(member, "_oleobj_"):
             return _wrap(member)
+
+        if not args and not callable(member):
+            return _wrap(member)
+
+        if not callable(member):
+            raise ComSupportError(
+                f"'{self._name}' is a property, not a method")
 
         try:
             return _wrap(member(*[_unwrap(item) for item in args]))
@@ -271,24 +363,67 @@ def create(progid, *args):
     try:
         dispatch = factory(str(progid))
     except Exception as exc:
-        raise _convert_error(exc) from exc
+        detail = _com_error_text(exc)
+        message = f"ActiveX component can't create object: '{progid}'"
+        if detail:
+            message += f" ({detail})"
+        raise ComCreateError(message) from exc
 
     if dispatch is None:
-        raise ComSupportError(f"COM class '{progid}' could not be created")
+        raise ComCreateError(
+            f"ActiveX component can't create object: '{progid}'")
     return COMProxy(dispatch, str(progid))
 
 
-def get(progid, *args):
-    """An approximation of GetObject(progid): attach to a running instance.
+def get(pathname="", classname=None):
+    """The implementation behind `GetObject([pathname], [class])`.
 
-    中文：GetObject(progid) 的近似实现，拿到已运行实例。"""
+    `pathname` may be a display-name moniker such as `winmgmts:`, a file name that
+    binds to its class, or empty to attach to a class already in the running-object
+    table. 中文：`GetObject([pathname], [class])` 的实现。`pathname` 可以是
+    `winmgmts:` 这类显示名 moniker、绑定到类别的文件名，或留空以从运行对象表里按
+    类名挂接。
+
+    Returns a COMProxy. 中文：返回 COMProxy。
+    """
     pythoncom, win32client = _require_pywin32()
     try:
         pythoncom.CoInitialize()
     except Exception:
         pass
+
+    path = str(pathname or "").strip()
+    class_name = str(classname or "").strip()
     try:
-        dispatch = win32client.GetActiveObject(str(progid))
+        if path and class_name:
+            dispatch = win32client.GetObject(path, class_name)
+        elif path:
+            dispatch = win32client.GetObject(path)
+        elif class_name:
+            try:
+                dispatch = win32client.GetActiveObject(class_name)
+            except Exception as exc:
+                # A class with no running instance is 429 in VBScript, not 432.
+                # 中文：类名挂接失败（没有运行实例）在 VBS 里是 429，不是 432。
+                detail = _com_error_text(exc)
+                message = f"ActiveX component can't create object: '{class_name}'"
+                if detail:
+                    message += f" ({detail})"
+                raise ComCreateError(message) from exc
+        else:
+            raise ComAttachError(
+                "GetObject needs a pathname, a class name, or both")
+    except ComSupportError:
+        raise
     except Exception as exc:
-        raise _convert_error(exc) from exc
-    return COMProxy(dispatch, str(progid))
+        detail = _com_error_text(exc)
+        target = path or class_name
+        message = f"File name or class name not found: '{target}'"
+        if detail:
+            message += f" ({detail})"
+        raise ComAttachError(message) from exc
+
+    if dispatch is None:
+        raise ComAttachError(
+            f"File name or class name not found: '{path or class_name}'")
+    return COMProxy(dispatch, class_name or path)

@@ -112,8 +112,9 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | `CreateObject("script class")` | ✅ | Resolved at compile time or via the runtime registry |
 | `CreateObject("Scripting.Dictionary")` | ✅ | `ovpprt/collections.py` |
 | `Collection` | ❌ | VBScript has no built-in Collection (that is VBA) |
-| `GetObject` | ✅ | Script classes / built-in classes; on Windows it can also attach to a running COM object (no object persistence) |
+| `GetObject` | ✅ | `GetObject(path)`, `GetObject(path, class)` and `GetObject(, class)`; monikers such as `winmgmts:` resolve through the `com-support` package on Windows; attaches to a running instance and falls back to creating the class |
 | `CreateObject` for COM objects | ✅ | Since v0.9.14 on Windows this is real COM via the `com-support` package (pywin32); other platforms report a clear error |
+| COM error numbers and `TypeName` | ✅ | A missing ProgID reports 429 (`ActiveX component can't create object`), a failed attach reports 432, and `TypeName(obj)` returns the coclass name (`FileSystemObject`, `SWbemServicesEx`) |
 | Automatic default member | ✅ | `Attribute X.VB_UserMemId = 0`; `x = obj` reads the default property, `Set x = obj` keeps the reference |
 | `ByRef` write-back for object methods | ✅ | Method parameters go through the `Ref` protocol (see §3.7) |
 | Method overriding (virtual methods) | ✅ | Overridable by default, resolved through the MRO |
@@ -308,9 +309,18 @@ window.
 
 ### 3.11 `Declare` and native code
 
-`Declare Function/Sub` binds a DLL entry point. OpenVBS++ runs on the Python VM and has
-no such binding, so `Declare` is rejected with a clear error instead of silently doing
-nothing. The supported routes are:
+`Declare Function/Sub` binds a DLL entry point. OpenVBS++ runs on the Python VM, so the
+statement is rejected with a clear syntax error instead of silently doing nothing.
+
+**Short-term decision (v0.9.22): not supported.** A `ctypes`-backed binding was
+investigated and is technically feasible, but it lets a script call arbitrary native
+code, and a wrong signature kills the process with an access violation that neither
+`On Error Resume Next` nor `Try ... Catch` can intercept. That trade is not worth taking
+yet, so `Declare` stays out of the language and no flag enables it. The
+investigation is recorded as item 7c in
+[../dev-docs/ROADMAP.md](../dev-docs/ROADMAP.md).
+
+The supported routes to native code are:
 
 - COM: `CreateObject("ProgID")`, on Windows, through the `com-support` package.
 - Native Python: an `over` package, or a `#python` block (see section 2.9).
@@ -339,13 +349,14 @@ implementation does not have, and things we deliberately decline.
 | Item | Explanation |
 |---|---|
 | COM host objects (`Excel.Application`, `WScript.Shell`, …) | Supported on Windows since v0.9.14 through the `com-support` package; on other platforms they raise `OVPPObjectNotSupportedError` instead of simulating COM |
+| The `WScript` host object | Not provided: `WScript.Echo`, `.Arguments`, `.Sleep`, `.StdOut` and `.Quit` report `Variable 'WScript' is undefined` (1001). Use `echo`, `CreateObject("WScript.Shell")` for shell features, and the native `Sleep`-free waits |
 | The `Collection` built-in class | VBScript itself has none (it belongs to VBA) |
 | Other `Attribute` properties (`VB_Name` etc.) | Only `VB_UserMemId` is parsed |
 | `MsgBox` / `InputBox` | Real dialogs through the bundled `ui-support` package when the run is interactive (see §3.10); console stand-ins in CI, pipes and embedded runs, where `MsgBox` prints its text and returns 1 and `InputBox` reads one line from stdin |
 | `LoadPicture` | The function exists so old scripts fail with a clear message: there is no GUI picture library (`OVPPObjectNotSupportedError`) |
 | Procedures defined at run time by `ExecuteGlobal` | They can update variables but cannot be called by name, because procedure names bind at compile time. Use `GetRef` on an existing procedure, or put the code in its own module |
 | Backward `GoTo` | Only forward jumps are compiled; a jump to an earlier label raises `Recursive GoTo ... is not supported` |
-| `Declare` (DLL declaration) | Deliberately unsupported: the runtime is Python, not a DLL host. Use `CreateObject` for COM or an over package for native code (see §3.11) |
+| `Declare` (DLL declaration) | Deliberately unsupported for now: the runtime is Python, not a DLL host, and a mistyped native call can terminate the process uncatchably (see §3.11). Use `CreateObject` for COM or an over package for native code |
 
 ## 5. Change checklist
 

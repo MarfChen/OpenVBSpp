@@ -9,6 +9,29 @@ Release-by-release engineering notes (how to cut a release) live in
 
 ## [Unreleased]
 
+### Fixed
+
+- **COM fidelity**: reading a property whose value is another COM object
+  (`folder.Files.Count`, `service.Count`) no longer calls the value's default member and
+  fails with `Type mismatch (13)`. `GetObject` now accepts monikers (`winmgmts:`), a
+  file/class pair, and the `GetObject(, "class")` form that attaches to a running object.
+  Failure codes match VBScript: a missing ProgID reports `429` and a failed attach reports
+  `432`. `TypeName(obj)` reports the coclass name (`FileSystemObject`,
+  `SWbemServicesEx`) instead of `Object`.
+- **Omitted arguments**: `GetObject(, "WScript.Shell")` and statement calls such as
+  `P , 2` produce an `Empty` argument slot instead of failing with
+  `Bad expression token: ','`.
+- `Scripting.FileSystemObject` folder collections (`Files`, `SubFolders`) are real 1-based
+  collections: `Count`, `Item(n)` and `For Each` work, and `TypeName` reports
+  `Files` / `Folder` instead of `Variant()`.
+
+### Changed
+
+- `Declare ... Lib` is documented as **deliberately unsupported for the short term**: a
+  `ctypes` binding is feasible but a mistyped native call terminates the process with an
+  access violation that no `On Error` / `Try Catch` can intercept
+  (`doc/VBS_SUPERSET.md` §3.11, `dev-docs/ROADMAP.md` 7c).
+
 ## [0.9.22] — 2026-11-20
 
 ### Added

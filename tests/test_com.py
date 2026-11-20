@@ -37,7 +37,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from OpenVBSPP import over                                  # noqa: E402
-from OpenVBSPP.exceptions import OVPPObjectNotSupportedError  # noqa: E402
+from OpenVBSPP.exceptions import (OVPPAutomationError,        # noqa: E402
+                                 OVPPObjectNotSupportedError)
 from OpenVBSPP.ovpprt import com                            # noqa: E402
 from OpenVBSPP.runtime import vbs_run                       # noqa: E402
 
@@ -98,6 +99,44 @@ def is_available():
 
 def create(progid, *args):
     raise ComSupportError("the fake class is not registered")
+'''
+
+NAMED_ERROR_SUPPORT = '''\
+VERSION = "0.0.3"
+VBS_TYPE_NAME = "Object"
+
+
+class ComSupportError(Exception):
+    pass
+
+
+class ComCreateError(ComSupportError):
+    number = 429
+    vbs_name = "ActiveX component can't create object"
+
+
+class ComAttachError(ComSupportError):
+    number = 432
+    vbs_name = "File name or class name not found"
+
+
+def is_available():
+    return True
+
+
+class FakeObject:
+    _vbs_name = "Object"
+
+    def __init__(self, progid=""):
+        self.progid = progid
+
+
+def create(progid, *args):
+    raise ComCreateError("ActiveX component can't create object: '%s'" % progid)
+
+
+def get(pathname="", classname=None):
+    return FakeObject(classname or pathname)
 '''
 
 UNOBSERVABLE_SUPPORT = '''\
@@ -292,6 +331,34 @@ class TestCreateObject(ComTestCase):
         self.assertEqual(provider.get("Fake.Thing").progid, "Fake.Thing")
 
 
+class TestErrorNumbers(ComTestCase):
+    """`Err.Number` must match the codes a real VBScript host reports.
+
+    中文：`Err.Number` 必须与真实 VBScript 宿主报的编号一致。
+    """
+
+    def setUp(self):
+        super().setUp()
+        write_package(Path("packages") / "com-support",
+                      source=NAMED_ERROR_SUPPORT, version="0.0.3")
+        self.provider = com.provider()
+
+    def test_create_failure_keeps_429(self):
+        with self.assertRaises(OVPPAutomationError) as ctx:
+            self.provider.create("No.Such.Class.Anyway")
+        self.assertEqual(ctx.exception.number, 429)
+        self.assertEqual(ctx.exception.name,
+                         "ActiveX component can't create object")
+
+    def test_get_passes_pathname_and_class(self):
+        obj = self.provider.get("", "WScript.Shell")
+        self.assertEqual(obj.progid, "WScript.Shell")
+
+    def test_get_passes_pathname_and_classname(self):
+        obj = self.provider.get("winmgmts:", "SWbemLocator")
+        self.assertEqual(obj.progid, "SWbemLocator")
+
+
 class TestAdapter(unittest.TestCase):
     """Load the vendor adapter directly to check proxy behaviour (pywin32 not needed).
 
@@ -322,6 +389,20 @@ class TestAdapter(unittest.TestCase):
             proxy.Name(1)
         self.assertIn("property", str(ctx.exception))
 
+    def test_object_valued_property_is_wrapped_not_called(self):
+        # `folder.Files` returns an object; calling it with no arguments used to
+        # invoke the property's default member and raise a type mismatch.
+        # 中文：`folder.Files` 返回的是对象；过去无参调用会误触默认成员并报类型不匹配。
+        inner = FakeDispatch()
+        inner.values = {"Count": 3}
+        dispatch = FakeDispatch()
+        dispatch.values["Files"] = inner
+        proxy = self.adapter.COMProxy(dispatch, "Fake.Thing")
+        files = proxy.Files()
+        self.assertIsInstance(files, self.adapter.COMProxy)
+        self.assertEqual(files.Count(), 3)
+        self.assertEqual(dispatch.calls, [])
+
     def test_proxy_write_and_collection_behaviour(self):
         dispatch = FakeDispatch()
         proxy = self.adapter.COMProxy(dispatch, "Fake.Thing")
@@ -342,6 +423,46 @@ class TestAdapter(unittest.TestCase):
     def test_create_rejects_remote_activation(self):
         with self.assertRaises(self.adapter.ComSupportError):
             self.adapter.create("Fake.Thing", "server")
+
+
+class RealComTest(unittest.TestCase):
+    """End-to-end checks against the real COM runtime (Windows + pywin32 only).
+
+    中文：对真实 COM 运行时做端到端检查（仅 Windows + pywin32）。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            import pythoncom  # noqa: F401
+            import win32com.client  # noqa: F401
+        except Exception:  # pragma: no cover - platform dependent
+            raise unittest.SkipTest("pywin32 is not installed")
+
+    def test_missing_progid_reports_429(self):
+        self.assertEqual(
+            out('On Error Resume Next\n'
+                'Set o = CreateObject("No.Such.Class.Anyway")\n'
+                'echo Err.Number'),
+            "429\n")
+
+    def test_get_object_class_only_without_instance_reports_429(self):
+        self.assertEqual(
+            out('On Error Resume Next\n'
+                'Set o = GetObject(, "No.Such.Class.Anyway")\n'
+                'echo Err.Number'),
+            "429\n")
+
+    def test_get_object_moniker_returns_services(self):
+        code = ('Set svc = GetObject("winmgmts:")\n'
+                'echo TypeName(svc)')
+        self.assertIn("Services", out(code))
+
+    def test_native_folder_files_count(self):
+        code = ('Set fso = CreateObject("Scripting.FileSystemObject")\n'
+                'Set f = fso.GetFolder(".")\n'
+                'echo f.Files.Count > 0')
+        self.assertEqual(out(code), "True\n")
 
 
 class PackagingSpecTest(unittest.TestCase):
