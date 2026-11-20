@@ -86,6 +86,7 @@ class TestExamples(unittest.TestCase):
         "operations1.vbs": ["3", "2", "-1", "0.5"],
         "operations2.vbs": ["0", "-1", "0"],
         "on_error.vbs": ["err=11", "ok=5", "raised=1001", "inner=13", "after sub err=13"],
+        "option_strict.vbs": ["3", "2.5", "a1", "True", "13", "13"],
         "procedures.vbs": ["-- start", "-- factorial", "120", "2,1",
                            "inside=102", "outside=2"],
         "try_catch.vbs": ["  [finally] 清理", "5", "  [业务错误] 除数不能为 0",

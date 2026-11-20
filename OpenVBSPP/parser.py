@@ -25,7 +25,8 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Pri
                               LabelStmt, GoToStmt, OnErrorGoToLabel, ResumeStmt,
                               ScriptEnd, StopStmt,
                               SelectCase, CaseCond, For,
-                              OptionExplicit, OptionTyping, OptionCompare,
+                              OptionExplicit, OptionTyping, OptionStrict,
+                              OptionCompare,
                               DimDecl, ReDimDecl, ConstDecl,
                               EraseStmt, OnErrorResumeNext, OnErrorGoToZero,
                               Param, SubDef, FunctionDef, CallStmt,
@@ -65,6 +66,9 @@ class Parser:
         # The names of the enclosing classes.
         # 中文：当前所在类名。
         self.class_stack = []
+        # True once a non-Option statement has been parsed: `Option` statements
+        # have to come first. 中文：出现过非 Option 语句后为真 —— Option 必须写在前头。
+        self.seen_code = False
 
     # ------------------------------------------------------------ infrastructure / 中文：基础设施
     def peek(self):
@@ -227,6 +231,20 @@ class Parser:
             self.error(f"Unexpected {self.describe(tok)} at start of statement", tok)
 
         word = tok[1].lower()
+
+        # Option statements describe the whole script, so they have to come
+        # before anything else — VBScript has the same rule for `Option
+        # Explicit`. Without this, a later `Option Strict Off` would silently
+        # rewrite how the code *above* it was compiled.
+        # 中文：Option 语句描述整个脚本，必须写在所有其它语句之前 —— VBS 对
+        # `Option Explicit` 也是这个规则。否则后面一句 `Option Strict Off`
+        # 会悄悄改变它上面代码的编译方式。
+        if word == "option":
+            if self.seen_code:
+                self.error(f"'Option {self._option_name()}' must appear before "
+                           "any other statement", tok)
+        else:
+            self.seen_code = True
 
         if self._is_label():
             return self.label_statement()
@@ -405,6 +423,16 @@ class Parser:
 
         return EraseStmt(names).at(tok[2], tok[3])
 
+    def _option_name(self):
+        """The option word after `Option`, for error messages.
+
+        中文：取 `Option` 后面那个词，用于报错信息。
+        """
+        index = self.pos + 1
+        if index < len(self.tokens) and self.tokens[index][0] == "IDENT":
+            return self.tokens[index][1]
+        return "?"
+
     def option_statement(self):
         tok = self.eat("IDENT")   # Option
         word_tok = self.peek()
@@ -425,6 +453,17 @@ class Parser:
                 self.error("'Option Typing' must appear at script level, "
                            "not inside a procedure", tok)
             return OptionTyping().at(tok[2], tok[3])
+
+        if name == "strict":
+            if self.proc_stack:
+                self.error("'Option Strict' must appear at script level, "
+                           "not inside a procedure", tok)
+            enabled = True
+            mode_tok = self.peek()
+            if mode_tok[0] == "IDENT" and mode_tok[1].lower() in ("on", "off"):
+                self.eat("IDENT")
+                enabled = mode_tok[1].lower() == "on"
+            return OptionStrict(enabled).at(tok[2], tok[3])
 
         if name == "compare":
             mode_tok = self.peek()

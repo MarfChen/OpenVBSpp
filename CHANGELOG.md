@@ -7,6 +7,29 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [0.9.25] — 2026-11-20
+
+### Added
+
+- **`Option Strict`**: arithmetic stops converting text and reports `Type mismatch (13)`
+  instead. `"1" + "2"`, `"2" * 3`, `"6" \ 2`, `"6" Mod 4` and `-"3"` all raise `13`, while
+  `1 + 2`, `Empty + 1` (Empty still counts as the default `0`) and `Null + 1` (Null still
+  propagates) behave as before. `&` is untouched — it is explicit text operation, not a
+  conversion. `Option Typing` implies `Option Strict`.
+- `examples/option_strict.vbs` and `tests/test_option_strict.py` (22 cases).
+
+### Changed
+
+- **`Option` statements must now precede every other statement.** `_collect` scans options
+  before compiling, so a late `Option Strict Off` used to change how the code above it was
+  compiled. Writing one after the first statement is now a syntax error (`1002`), matching
+  what VBScript already requires of `Option Explicit`.
+
+### Docs
+
+- `doc/VBS_SUPERSET.md` §2.7.1 (`Option Strict`), §4.1 (comparisons do not coerce — a
+  registered gap with three `expectedFailure` cases) and §6.2; the Chinese edition follows.
+
 ## [0.9.24] — 2026-11-20
 
 ### Fixed

@@ -288,7 +288,7 @@ The README hero has 7 badges in two categories:
 
 | Badge | Type | What keeps it green |
 |---|---|---|
-| `tests-577 passing` | static (a hand-written shields.io string) | always green; **changing the case count means changing both `README.md` and `README.zh-CN.md`**, otherwise it is fake green |
+| `tests-644 passing` | static (a hand-written shields.io string) | always green; **changing the case count means changing both `README.md` and `README.zh-CN.md`**, otherwise it is fake green |
 | `version-0.9.20` | static | bump together with the five version locations on release (two README files plus two body mentions) |
 | `license-Apache--2.0` | static | always green |
 | `python-3.10+` | static | always green; update when `requires-python` changes |
@@ -406,7 +406,7 @@ decided by `nav`. When adding a document, remember to add it to `nav` in
 ### 9.4 Version / architecture release self-check
 
 ```powershell
-python -m unittest discover -s tests                                    # 577 OK
+python -m unittest discover -s tests                                    # 644 OK
 python -m twine check dist/*
 pip download --only-binary=:all: --no-deps openvbspp==0.9.20 -d tmp    # must yield py3-none-any.whl
 ```

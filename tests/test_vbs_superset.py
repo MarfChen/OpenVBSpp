@@ -305,11 +305,41 @@ class TestVBSSuperset(unittest.TestCase):
 # --------------------------------------------------------------------- known gaps / 中文：已知缺口
 # since v0.5 the gaps listed earlier (Class/Property/CreateObject/Dictionary/Execute/Eval/
 # 中文：v0.5 起，之前列出的缺口（Class/Property/CreateObject/Dictionary/Execute/Eval/
-# formatting functions / Option Compare Text) are in place, so TestKnownGaps is empty.
-# 中文：格式化函数/Option Compare Text）全部补齐，TestKnownGaps 已清空。
-# if a valid VBScript program stops working, add an expectedFailure here and update
-# 中文：若将来又发现合法 VBS 跑不通，在这里加 expectedFailure 用例，并同步
-# doc/VBS_SUPERSET.md §4。
+# formatting functions / Option Compare Text) are in place.
+# 中文：格式化函数/Option Compare Text）全部补齐。
+#
+# what is left: comparisons compare by type instead of coercing. VBScript turns
+# `1 = "1"` into True (numeric comparison), makes `"2" > 10` False and raises 13
+# for `"abc" = 5`; we use Python's rules, which give False, error 13 and False
+# respectively. Closing this means routing every comparison through a runtime
+# helper, which costs ~60 ns per comparison — see doc/VBS_SUPERSET.md §4.
+# 中文：剩下的缺口是比较——我们按类型比较而不做强制转换。VBS 里 `1 = "1"` 为 True
+# （按数值比）、`"2" > 10` 为 False、`"abc" = 5` 报 13；我们用 Python 规则，
+# 分别得到 False、错误 13、False。补齐它需要让每次比较都走运行时函数，
+# 每次约 60 ns——见 doc/VBS_SUPERSET.md §4。
+class TestKnownGaps(unittest.TestCase):
+    """Valid VBScript that OpenVBS++ does not reproduce yet (§4).
+
+    中文：OpenVBS++ 暂时还跑不出同样结果的合法 VBS（见 §4）。"""
+
+    @unittest.expectedFailure
+    def test_number_equals_numeric_text(self):
+        # VBS: 1 = "1" → True (convert the text, compare as numbers)
+        # 中文：VBS 里 1 = "1" 为 True（把文本转成数值再比）
+        self.assertEqual(out('echo 1 = "1"'), ["True"])
+
+    @unittest.expectedFailure
+    def test_numeric_text_is_greater_than_number(self):
+        # VBS: "2" > 10 → False; we raise error 13 instead.
+        # 中文：VBS 里 "2" > 10 为 False；我们报错误 13。
+        self.assertEqual(out('echo "2" > 10'), ["False"])
+
+    @unittest.expectedFailure
+    def test_text_compared_with_number_is_type_mismatch(self):
+        # VBS: "abc" = 5 → error 13; we return False.
+        # 中文：VBS 里 "abc" = 5 报错误 13；我们返回 False。
+        code = 'On Error Resume Next\nx = ("abc" = 5)\necho Err.Number'
+        self.assertEqual(out(code), ["13"])
 
 
 if __name__ == "__main__":

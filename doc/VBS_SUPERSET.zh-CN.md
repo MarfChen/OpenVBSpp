@@ -46,7 +46,7 @@
 | `Option Explicit` | ✅ | 编译期检查，带行号 |
 | 整数 / 浮点 / 字符串 / 布尔 | ✅ | |
 | `Empty` / `Null` / `Nothing` 字面量 | ✅ | 三个哨兵 |
-| `+ - * /` | ✅ | 按 VBS 规则强制转换：`+` 只在两侧都是文本时拼接，`/` 恒为 Double |
+| `+ - * /` | ✅ | 按 VBS 规则强制转换：`+` 只在两侧都是文本时拼接，`/` 恒为 Double；`Option Strict` 可关掉转换（§2.7.1） |
 | `\` 整除、`Mod` | ✅ | 向零截断 |
 | `^` 幂 | ✅ | 恒为 Double；左结合（与 VB 同级左到右一致） |
 | `&` 字符串连接 | ✅ | `Null` 当空文本；`Null & Null` 仍是 `Null` |
@@ -128,6 +128,34 @@
 | 赋值 / 实参 / 返回值类型检查 | ✅ | 保守检查，`Variant` 通配 |
 | 数组元素类型 `Dim a(5) -> Integer` | ✅ | 下标读写都检查元素类型 |
 | 类字段与属性类型 | ✅ | 含继承链上的字段、`Property Let` 的参数类型 |
+
+### 2.7.1 `Option Strict`（OpenVBS++ 扩展）
+
+`Option Strict` 关掉 VBScript 的算术强制转换：文本操作数直接报**错误 13**，而不是被转换。
+`Option Typing` 会隐含打开它 —— 带类型声明的代码同样不该悄悄转换。不写这个 Option 时行为
+完全不变，所以它不可能破坏任何 VBS 代码。
+
+| 写法 | 效果 |
+|---|---|
+| `Option Strict` | 严格算术（等价于 `Option Strict On`） |
+| `Option Strict On` | 显式写法 |
+| `Option Strict Off` | 显式恢复 VBScript 的强制转换 |
+| `Option Typing` | 开启类型检查**并且**开启严格算术 |
+
+| 运算符 | 默认（VBScript） | `Option Strict` |
+|---|---|---|
+| `+` | `"1" + "2"` → `"12"`、`1 + "2"` → `3` | 两者都报 13 |
+| `- * / ^` | `"6" - "4"` → `2`、`"2" * 3` → `6` | 两者都报 13 |
+| `\` `Mod` | `"6" \ 2` → `3`、`"6" Mod 4` → `2` | 两者都报 13 |
+| 一元 `+` `-` | `-"3"` → `-3` | 报 13 |
+| `&` | `"a" & 1` → `"a1"` | 不变（它本来就是文本运算） |
+| 比较运算 | 见 §4 | 不变 |
+| `Empty` | `Empty + 1` → `1` | 不变（Empty 是默认值，不是被转换的值） |
+| `Null` | `Null + 1` → `Null` | 不变（是传播，不是转换） |
+
+`Option` 语句描述整个脚本，所以必须写在所有其它语句之前 —— 否则迟到的
+`Option Strict Off` 会悄悄改变它上面代码的编译方式。VBScript 自己对 `Option Explicit`
+就是这个规则；报错是 1002（`'Option Strict' must appear before any other statement`）。
 
 ### 2.8 结构化异常（OpenVBS++ 扩展）
 
@@ -345,11 +373,28 @@ OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两�
 
 ## 4. 已知缺口
 
-`tests/test_vbs_superset.py` 里已经没有 expectedFailure：`VBS_FEATURES` 里的每一段都能跑。
-之前的缺口（对象模型、`Execute`/`Eval`、格式化函数、`Option Compare Text`、
-`GetObject`、默认成员）已全部补齐。
+`tests/test_vbs_superset.py` 把剩下的缺口登记成 `expectedFailure`，所以补齐时测试会故意变红，
+直到把用例移进 `VBS_FEATURES`。之前的缺口（对象模型、`Execute`/`Eval`、格式化函数、
+`Option Compare Text`、`GetObject`、默认成员、算术强制转换、Null 传播）已全部补齐。
 
-仍然不支持的分两类：需要本实现没有的宿主程序的，和我们主动选择不做的。
+### 4.1 比较运算不做强制转换
+
+VBScript 在数字与"数字文本"比较时会转换。我们按类型比较，也就是 Python 的规则：
+
+| 表达式 | VBScript | OpenVBS++ |
+|---|---|---|
+| `1 = "1"` | `True`（按数值比） | `False` |
+| `2.5 = "2.5"` | `True` | `False` |
+| `"2" > 10` | `False` | 错误 13 |
+| `"abc" = 5` | 错误 13 | `False` |
+| `"abc" < "abd"` | 文本比较 | 文本比较 ✅ |
+| `1 = 1`、`"A" = "a"` | 同 VBScript | ✅ |
+
+为什么还没补：得让每次比较都走运行时函数，约 60 ns/次 —— 100 万次的循环会从约 92 ms
+涨到约 150 ms。补它等于用速度换 VBScript 保真，而这个角落主要出现在"把 `InputBox`
+的字符串和数字比"的脚本里。
+
+### 4.2 不支持或主动不做
 
 | 项 | 说明 |
 |---|---|
@@ -376,7 +421,7 @@ OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两�
 
 > 完整的对象模型清单（含"不适用"的关键字说明）见 [OOP.md](OOP.md)。
 
-## 6. 状态更新（v0.9.5 - v0.9.24）
+## 6. 状态更新（v0.9.5 - v0.9.25）
 
 Resume / Resume Next 已实现：含 Resume 的过程会编译成"语句下标分派"的状态机，
 每条语句一个 _pc 分支，出错时记录失败下标并跳到 On Error GoTo 的处理段；
@@ -399,3 +444,12 @@ v0.9.23 审计发现的、位于"取值层"的三处差异，已按 `cscript` �
 | `+ - * / ^` 强制转换 | 直接映射成 Python 运算符，于是 `"2" * 3` 得到 `"222"`、`1 + "2"` 报类型不匹配 | `+` 只在两侧都是文本时拼接；`- * / ^` 把文本转成数字；`/` 与 `^` 恒为 Double；非数字字符串报 13 |
 | Null 经过内置函数 | `Len(Null)` 为 4、`TypeName(Null)` 为 `"NullType"`、`UCase(Null)` 为 `"NULL"` | VBS 规定传播 Null 的那一组（`Len`、`UCase`、`Abs`、`Trim`、日期分量……）返回 Null；转换与数学组（`CStr`、`CInt`、`Sgn`、`Sqr`……）报 94；`Format*` 组报 13。`&` 把 Null 当空文本，但 `Null & Null` 仍是 Null |
 | 读取未声明变量 | 报"变量未定义（1001）" | 除非开了 `Option Explicit`，否则读作 `Empty`（见 §3.3）。编译器在模块顶部一次性初始化这些名字，运行期没有任何检查 |
+
+### 6.2 v0.9.25 新增 `Option Strict`
+
+VBScript 的算术会把文本转成数字。这对 VBScript 是正确行为，但也让笔误变成静默结果
+（v0.9.24 之前 `"2" * 3` 就是 `"222"`）。`Option Strict` 是可选的答案：默认行为不变，
+但项目可以要求"必须是数字"，于是 `1 + "2"` 报 13 而不是变成 `3`。`Option Typing` 会把它
+一起打开 —— 类型注解与隐式转换本来就互相矛盾。完整的运算符对照表见 §2.7.1。
+
+同一版还登记了一处尚未补齐的保真缺口：比较运算仍然按类型比较、不做强制转换（§4.1）。

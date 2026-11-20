@@ -101,6 +101,27 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
   （行号保持不变），Transformer 把占位编译成 `exec(源码, globals(), globals())`。
 - **`Option Typing`**：`OpenVBSPP/typecheck.py` 在编译前跑一遍，只在出现
   `Option Typing` 时生效；注解语法是 `->`（`:` 已用于语句分隔）。
+- **`Option Strict`**：`+ - * / \ Mod ^` 与一元 `+/-` 要求数值操作数，文本操作数报
+  错误 13 而不是转换；`&`、比较运算、内置函数不受影响，`Empty` 仍当 0、`Null` 仍传播。
+  `Option Typing` 隐含开启它。编译期由 `self.option_strict` 决定走 `ovpp_add` 还是
+  `ovpp_add_strict`（`ARITH_NAMES` 里 18 个名字成对登记，`_runtime_imports` 一次性按名导入）。
+- **`Option` 必须写在所有其它语句之前**：`_collect` 先扫全模块 Option，迟到的
+  `Option Strict Off` 会追溯改变上方代码的编译方式。`parser.statement()` 用
+  `self.seen_code` 门禁，违反时报 `Syntax error (1002): 'Option X' must appear before
+  any other statement`。
+- **算术不再是 Python 运算符**：`op_map` 已清空，`arith_call_map` 把 `PLUS/MINUS/MUL/DIV/POW`
+  映射到 `ovpp_add`/`ovpp_sub`/`ovpp_mul`/`ovpp_div`/`ovpp_pow`（`_transform_binop`），
+  一元走 `ovpp_neg`/`ovpp_pos`（`_transform_unaryop`）。常量情形先经 `_fold_arith()`
+  折叠成 `ast.Constant`，运行时函数开头有 int/float 内联快路径——不要改成
+  `_plain_number(a) and _plain_number(b)`，那会每次运算多两次函数调用（实测更慢）。
+- **内置函数的 Null 规则**：`_NULL_PROPAGATES`（返回 Null）、`_NULL_REJECTED`
+  （抛 `OVPPInvalidUseOfNullError` = 94）、`_NULL_MISMATCH`（抛 13）三张名单在
+  `builtins.py` 里用 `_propagate_null`/`_reject_null` 就地包装，**必须写在
+  `REGISTRY` 构建之前**。名单依据 cscript 实测，改动要重新对拍。
+- **未声明变量的读取**：无 `Option Explicit` 时读未声明的名字得到 `Empty`（VBS 行为）。
+  编译期在模块顶部与过程开头补 `if "<name>" not in globals(): <name> = _ovpp_empty`
+  （`_empty_prelude()`/`_empty_assign()`）；**必须用 `globals()` 判重**，因为编译器会在
+  exec 前把 `<namespace src alias>` 的别名注入模块 globals。`Option Explicit` 下整块跳过。
 - **`For` 快路径**：步长是常量、循环体不给计数器赋值时生成
   `for i in _ovpp_arr.for_seq(start, end, step)` + `else: if seq: i = i + step`
   （`_transform_for_seq()`）；其余情况仍生成 `while`。三条必须保住的语义：正常结束后
@@ -141,7 +162,7 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
     `pip install "mkdocs-material>=9.5"` 或 `pip install -e ".[docs]"`），新文档要进 `nav`，
     构建出的 `site/` 不要提交（已在 `.gitignore`）。
 13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`dev-docs/RELEASE.md` §9.4
-    三处必须一致（当前 **618**），改测试后一起改。
+    三处必须一致（当前 **644**），改测试后一起改。
 14. **`doc/` 的每一篇都是中英成对**：改 `doc/X.md` 就同步 `doc/X.zh-CN.md`（反之亦然），
     两版首行都要保留 `> English | **[中文](X.zh-CN.md)**` 这类切换行。维护者内容
     （发版、路线、设计、新手任务）只放 `dev-docs/`，不要塞进 `doc/`（它会进文档站）。

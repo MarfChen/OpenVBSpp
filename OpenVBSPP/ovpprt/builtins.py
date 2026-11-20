@@ -186,6 +186,14 @@ def _is_text_operand(value):
 # produce a Double, and `\` / `Mod` stay integral.
 # 中文：VBS 的 `+` 只在「两侧都是字符串」时拼接，其余一律按数值相加；
 # `- * / ^` 恒为数值，`/` 与 `^` 恒得到 Double，`\` 与 `Mod` 保持整数。
+#
+# With `Option Strict` every arithmetic operator rejects text instead of
+# converting it: `"1" + "2"`, `1 + "2"` and `"6" / "3"` raise error 13 rather
+# than quietly becoming "12", 3 and 2. Empty is still the default value 0 and
+# Null still propagates — neither is a conversion of an actual value.
+# 中文：打开 `Option Strict` 后，算术运算符拒绝文本而不是转换它：
+# `"1" + "2"`、`1 + "2"`、`"6" / "3"` 都报错误 13，而不是悄悄变成 "12"、3、2。
+# Empty 仍然当作默认值 0、Null 仍然传播 —— 这两者都不是对真实值的转换。
 def _plain_number(value):
     """True for a Python int/float that needs no VBScript conversion.
 
@@ -342,6 +350,162 @@ def ovpp_mod(a, b):
     if right == 0:
         raise ZeroDivisionError("Division by zero")
     return left - right * _trunc_div(int(left), int(right))
+
+
+# --------------------------------------------------------------------- Strict arithmetic
+# The `Option Strict` variants. Same operators, but a text operand is an error
+# 13 instead of being converted. 中文：`Option Strict` 版本 —— 运算符相同，
+# 但文本操作数报错误 13，而不是被转换。
+def _strict_operand(value):
+    """Return a numeric operand, or raise error 13 for text.
+
+    中文：取数值操作数；文本直接报错误 13。
+    """
+    if isinstance(value, (int, float)):
+        return value
+    if _is_empty(value):
+        return 0
+    if _is_null(value):
+        return NULL
+    raise TypeError(
+        "Type mismatch: " +
+        ("String" if isinstance(value, str) else type(value).__name__) +
+        " cannot be used as a number (Option Strict is on)")
+
+
+def _strict_pair(a, b):
+    left = _strict_operand(a)
+    right = _strict_operand(b)
+    if left is NULL or right is NULL:
+        return NULL, NULL
+    return left, right
+
+
+def ovpp_add_strict(a, b):
+    """`+` under Option Strict: text is an error, never a concatenation.
+
+    中文：`Option Strict` 下的 `+` —— 文本报错，绝不拼接。
+    """
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float):
+        return a + b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _strict_pair(a, b)
+    return left + right
+
+
+def ovpp_sub_strict(a, b):
+    """`-` under Option Strict. 中文：`Option Strict` 下的减法。"""
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float):
+        return a - b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _strict_pair(a, b)
+    return left - right
+
+
+def ovpp_mul_strict(a, b):
+    """`*` under Option Strict. 中文：`Option Strict` 下的乘法。"""
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float):
+        return a * b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _strict_pair(a, b)
+    return left * right
+
+
+def ovpp_div_strict(a, b):
+    """`/` under Option Strict: still always a Double.
+
+    中文：`Option Strict` 下的 `/` —— 结果仍恒为 Double。
+    """
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float) and b:
+        return a / b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _strict_pair(a, b)
+    if right == 0:
+        if left == 0:
+            raise OverflowError("Overflow")
+        raise ZeroDivisionError("Division by zero")
+    return float(left) / float(right)
+
+
+def ovpp_pow_strict(a, b):
+    """`^` under Option Strict: still always a Double.
+
+    中文：`Option Strict` 下的 `^` —— 结果仍恒为 Double。
+    """
+    ka = type(a)
+    kb = type(b)
+    if (ka is int or ka is float) and (kb is int or kb is float) and b >= 0:
+        return float(a) ** b
+    if _is_null(a) or _is_null(b):
+        return NULL
+    left, right = _strict_pair(a, b)
+    if left == 0 and right < 0:
+        raise ValueError("Invalid procedure call or argument")
+    try:
+        result = float(left) ** float(right)
+    except OverflowError:
+        raise OverflowError("Overflow")
+    if isinstance(result, complex):
+        raise ValueError("Invalid procedure call or argument")
+    return result
+
+
+def ovpp_neg_strict(a):
+    """Unary minus under Option Strict. 中文：`Option Strict` 下的一元负号。"""
+    kind = type(a)
+    if kind is int or kind is float:
+        return -a
+    if _is_null(a):
+        return NULL
+    number, is_double = _number_of(_strict_operand(a))
+    return -float(number) if is_double else -number
+
+
+def ovpp_pos_strict(a):
+    """Unary plus under Option Strict. 中文：`Option Strict` 下的一元正号。"""
+    kind = type(a)
+    if kind is int or kind is float:
+        return a
+    if _is_null(a):
+        return NULL
+    number, is_double = _number_of(_strict_operand(a))
+    return float(number) if is_double else number
+
+
+def ovpp_intdiv_strict(a, b):
+    """`\\` under Option Strict. 中文：`Option Strict` 下的整除。"""
+    left, right = _strict_pair(a, b)
+    if left is NULL:
+        return NULL
+    left = int(left)
+    right = int(right)
+    if right == 0:
+        raise ZeroDivisionError("Division by zero")
+    return _trunc_div(left, right)
+
+
+def ovpp_mod_strict(a, b):
+    """`Mod` under Option Strict. 中文：`Option Strict` 下的取模。"""
+    left, right = _strict_pair(a, b)
+    if left is NULL:
+        return NULL
+    left = int(left)
+    right = int(right)
+    if right == 0:
+        raise ZeroDivisionError("Division by zero")
+    return left - right * _trunc_div(left, right)
 
 
 # --------------------------------------------------------------------- Strings / 中文：字符串

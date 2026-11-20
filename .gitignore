@@ -15,7 +15,16 @@ doc/documentation.pdf
 doc/微软官方*
 *.bak
 *.orig
+
+# 构建出的二进制产物（PyInstaller / VS Code 扩展 / over 包 / 安装包）
 *.ovppkg
+*.exe
+*.dll
+*.pyd
+*.vsix
+*.zip
+*.whl
+*.tar.gz
 
 # 文档站与覆盖率产物
 site/

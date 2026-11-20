@@ -48,7 +48,7 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | `Option Explicit` | ✅ | Compile-time check with line numbers |
 | Integers / floats / strings / booleans | ✅ | |
 | `Empty` / `Null` / `Nothing` literals | ✅ | Three sentinels |
-| `+ - * /` | ✅ | VBS coercion: `+` concatenates only when both sides are text, `/` always yields a Double |
+| `+ - * /` | ✅ | VBS coercion: `+` concatenates only when both sides are text, `/` always yields a Double; `Option Strict` turns the coercion off (§2.7.1) |
 | `\` integer division, `Mod` | ✅ | Truncates toward zero |
 | `^` exponentiation | ✅ | Always a Double; left-associative (same as VB) |
 | `&` string concatenation | ✅ | Null counts as empty text; `Null & Null` stays Null |
@@ -130,6 +130,35 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | Assignment / argument / return type checks | ✅ | Conservative; `Variant` matches anything |
 | Array element type `Dim a(5) -> Integer` | ✅ | Element type checked on read and write |
 | Class field and property types | ✅ | Includes inherited fields and `Property Let` parameter types |
+
+### 2.7.1 `Option Strict` (OpenVBS++ extension)
+
+`Option Strict` turns off VBScript's arithmetic coercion: a text operand raises **error 13**
+instead of being converted. `Option Typing` implies it, because typed code should not convert
+silently either. Without the option nothing changes, so this can never break VBScript code.
+
+| Form | Effect |
+|---|---|
+| `Option Strict` | Strict arithmetic (same as `Option Strict On`) |
+| `Option Strict On` | Explicit form |
+| `Option Strict Off` | Explicitly back to VBScript coercion |
+| `Option Typing` | Enables type checking **and** strict arithmetic |
+
+| Operator | Default (VBScript) | `Option Strict` |
+|---|---|---|
+| `+` | `"1" + "2"` → `"12"`, `1 + "2"` → `3` | both raise 13 |
+| `- * / ^` | `"6" - "4"` → `2`, `"2" * 3` → `6` | both raise 13 |
+| `\` `Mod` | `"6" \ 2` → `3`, `"6" Mod 4` → `2` | both raise 13 |
+| unary `+` `-` | `-"3"` → `-3` | raises 13 |
+| `&` | `"a" & 1` → `"a1"` | unchanged (it *is* a text operation) |
+| comparisons | see §4 | unchanged |
+| `Empty` | `Empty + 1` → `1` | unchanged (Empty is the default value, not a converted one) |
+| `Null` | `Null + 1` → `Null` | unchanged (propagation, not conversion) |
+
+`Option` statements describe the whole script, so they must come before any other statement —
+a late `Option Strict Off` would otherwise silently change how the code above it compiles.
+`Option Explicit` has the same rule in VBScript itself; the error is 1002
+(`'Option Strict' must appear before any other statement`).
 
 ### 2.8 Structured exceptions (OpenVBS++ extension)
 
@@ -370,12 +399,31 @@ runtime is embedded).
 
 ## 4. Known gaps
 
-`tests/test_vbs_superset.py` carries no `expectedFailure` any more: every fragment in
-`VBS_FEATURES` runs. The earlier gaps (object model, `Execute`/`Eval`, formatting
-functions, `Option Compare Text`, `GetObject`, default members) are closed.
+`tests/test_vbs_superset.py` tracks the remaining gaps as `expectedFailure` cases, so closing
+one turns the suite red on purpose until the case is moved into `VBS_FEATURES`. The earlier
+gaps (object model, `Execute`/`Eval`, formatting functions, `Option Compare Text`,
+`GetObject`, default members, arithmetic coercion, Null propagation) are closed.
 
-What is still unsupported falls into two groups: things that need a host application this
-implementation does not have, and things we deliberately decline.
+### 4.1 Comparisons do not coerce
+
+VBScript converts when it compares a number with numeric text. We compare by type, which
+Python does:
+
+| Expression | VBScript | OpenVBS++ |
+|---|---|---|
+| `1 = "1"` | `True` (numeric comparison) | `False` |
+| `2.5 = "2.5"` | `True` | `False` |
+| `"2" > 10` | `False` | error 13 |
+| `"abc" = 5` | error 13 | `False` |
+| `"abc" < "abd"` | text comparison | text comparison ✅ |
+| `1 = 1`, `"A" = "a"` | as VBScript | ✅ |
+
+Why it is still open: every comparison would have to go through a runtime helper, which costs
+roughly 60 ns per comparison — a 1M-iteration loop would go from about 92 ms to about 150 ms.
+Fixing it is a deliberate trade of speed for VBScript fidelity in a corner that mostly shows up
+in scripts that compare an `InputBox` string with a number.
+
+### 4.2 Unsupported or declined
 
 | Item | Explanation |
 |---|---|
@@ -404,7 +452,7 @@ Run through this before and after touching the compiler:
 > The full object-model inventory (including keywords that do not apply) is in
 > [OBJECT_MODEL.md](OBJECT_MODEL.md) and [OOP.md](OOP.md).
 
-## 6. Status update (v0.9.5 - v0.9.24)
+## 6. Status update (v0.9.5 - v0.9.25)
 
 Resume / Resume Next are implemented: a procedure containing Resume compiles into a
 "statement index dispatch" state machine, one `_pc` branch per statement; on error the
@@ -432,3 +480,14 @@ VBScript rather than Python:
 | `+ - * / ^` coercion | Mapped straight onto Python operators, so `"1" + "2"` was `"12"` (VBS: also `"12"`), but `"2" * 3` was `"222"` and `1 + "2"` was a type mismatch | `+` concatenates only when both sides are text; `- * / ^` convert text to numbers; `/` and `^` always yield a Double; a non-numeric string raises 13 |
 | Null through built-ins | `Len(Null)` was 4, `TypeName(Null)` was `"NullType"`, `UCase(Null)` was `"NULL"` | The functions that VBS propagates Null through (`Len`, `UCase`, `Abs`, `Trim`, date parts, …) return Null; the conversion/math group (`CStr`, `CInt`, `Sgn`, `Sqr`, …) raises 94; the `Format*` group raises 13. `&` treats Null as empty text, except `Null & Null`, which stays Null |
 | Undeclared variable read | Raised "variable is undefined (1001)" | Reads as `Empty` unless `Option Explicit` is on (§3.3). The compiler initialises such names once at module top, so nothing is checked at run time |
+
+### 6.2 `Option Strict` added in v0.9.25
+
+VBScript's arithmetic coerces text to numbers. That is correct for VBScript, but it also turns
+typos into silent results (`"2" * 3` used to be `"222"` before v0.9.24). `Option Strict` is the
+opt-in answer: it keeps VBScript's default behaviour while letting a project demand numbers, so
+`1 + "2"` raises 13 instead of becoming `3`. `Option Typing` switches it on, because type
+annotations and silent coercion contradict each other. See §2.7.1 for the full operator table.
+
+The same release records one open fidelity gap: comparisons still compare by type instead of
+coercing (§4.1).
