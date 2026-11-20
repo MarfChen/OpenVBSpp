@@ -31,7 +31,7 @@
 | 0.9.23 | The `WScript` host object (`Echo`, zero-based `Arguments` with `Named`, `ScriptName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout`, `Quit`) plus script arguments on the command line; COM fidelity fixes (property-valued objects, `GetObject` monikers, 429/432, coclass `TypeName`, omitted arguments, `Files`/`SubFolders` collections); copyright year set to 2026 |
 
 **Current status**: every native VBScript statement form is in place (only `Declare`
-is declined by design); 644 tests green;
+is declined by design); 645 tests green;
 in-process loops, arrays and calls are now on par with hand-written Python
 (0.99×–1.35×). On Windows COM is real through the `com-support` package — and
 on non-Windows platforms, with `OPENVBS_COM=0`, or without `pywin32`, you get an
@@ -57,7 +57,7 @@ console host the way Windows Script Host does. See the note at the end of §3.
 | # | Task | Notes |
 |---|---|---|
 | 5 | Connect `Implements` with `Option Typing` | `Dim s -> IShape` should accept any implementing class (today it reports a type mismatch) |
-| 6 | `Option Strict` (optional) | forbids implicit conversions, a stricter tier for the type system |
+| 6 | `Option Native` (optional) | forbids implicit conversions, a stricter tier for the type system |
 | 7 | `over` M2: Git sources, conflict reporting, `over update` | from "local directory" to "shared by a team" |
 | 7a | Real GUI dialogs for `MsgBox` / `InputBox` through a bundled `ui-support` package | ✅ done in v0.9.22 — Tk dialogs for interactive CLI runs, console stand-ins everywhere else; see [GUI_DIALOGS_DESIGN.md](GUI_DIALOGS_DESIGN.md) |
 | 7b | File pickers (`AskOpenFileName` style) for `ui-support` | next step after 7a; the same package, `tkinter.filedialog` |

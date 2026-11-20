@@ -46,7 +46,7 @@
 | `Option Explicit` | ✅ | 编译期检查，带行号 |
 | 整数 / 浮点 / 字符串 / 布尔 | ✅ | |
 | `Empty` / `Null` / `Nothing` 字面量 | ✅ | 三个哨兵 |
-| `+ - * /` | ✅ | 按 VBS 规则强制转换：`+` 只在两侧都是文本时拼接，`/` 恒为 Double；`Option Strict` 可关掉转换（§2.7.1） |
+| `+ - * /` | ✅ | 按 VBS 规则强制转换：`+` 只在两侧都是文本时拼接，`/` 恒为 Double；`Option Native` 可关掉转换（§2.7.1） |
 | `\` 整除、`Mod` | ✅ | 向零截断 |
 | `^` 幂 | ✅ | 恒为 Double；左结合（与 VB 同级左到右一致） |
 | `&` 字符串连接 | ✅ | `Null` 当空文本；`Null & Null` 仍是 `Null` |
@@ -129,20 +129,20 @@
 | 数组元素类型 `Dim a(5) -> Integer` | ✅ | 下标读写都检查元素类型 |
 | 类字段与属性类型 | ✅ | 含继承链上的字段、`Property Let` 的参数类型 |
 
-### 2.7.1 `Option Strict`（OpenVBS++ 扩展）
+### 2.7.1 `Option Native`（OpenVBS++ 扩展）
 
-`Option Strict` 关掉 VBScript 的算术强制转换：文本操作数直接报**错误 13**，而不是被转换。
+`Option Native` 关掉 VBScript 的算术强制转换：文本操作数直接报**错误 13**，而不是被转换。
 `Option Typing` 会隐含打开它 —— 带类型声明的代码同样不该悄悄转换。不写这个 Option 时行为
 完全不变，所以它不可能破坏任何 VBS 代码。
 
 | 写法 | 效果 |
 |---|---|
-| `Option Strict` | 严格算术（等价于 `Option Strict On`） |
-| `Option Strict On` | 显式写法 |
-| `Option Strict Off` | 显式恢复 VBScript 的强制转换 |
-| `Option Typing` | 开启类型检查**并且**开启严格算术 |
+| `Option Native` | 原生算术：只用原生数值类型（等价于 `Option Native On`） |
+| `Option Native On` | 显式写法 |
+| `Option Native Off` | 显式恢复 VBScript 的强制转换 |
+| `Option Typing` | 开启类型检查**并且**开启原生算术 |
 
-| 运算符 | 默认（VBScript） | `Option Strict` |
+| 运算符 | 默认（VBScript） | `Option Native` |
 |---|---|---|
 | `+` | `"1" + "2"` → `"12"`、`1 + "2"` → `3` | 两者都报 13 |
 | `- * / ^` | `"6" - "4"` → `2`、`"2" * 3` → `6` | 两者都报 13 |
@@ -154,8 +154,30 @@
 | `Null` | `Null + 1` → `Null` | 不变（是传播，不是转换） |
 
 `Option` 语句描述整个脚本，所以必须写在所有其它语句之前 —— 否则迟到的
-`Option Strict Off` 会悄悄改变它上面代码的编译方式。VBScript 自己对 `Option Explicit`
-就是这个规则；报错是 1002（`'Option Strict' must appear before any other statement`）。
+`Option Native Off` 会悄悄改变它上面代码的编译方式。VBScript 自己对 `Option Explicit`
+就是这个规则；报错是 1002（`'Option Native' must appear before any other statement`）。
+
+#### 为什么叫 `Native` 而不是 `Strict`
+
+这个关键字在 v0.9.26 之前叫 `Option Strict`。值得解释一下改名：一个关键字要同时承担三件事
+——说清它约束什么、说清它给你什么、以及不能误导任何人。
+
+- **约束什么。** "Strict" 只说了"更严"，没说严在哪。"Native" 说得准确：参与算术的只能是
+  原生数值类型。
+- **给你什么。** 这个 Option 一半是为了规范，一半是为了性能。VBScript 语义逼着每个
+  `+ - * /` 都进运行时函数检查两个操作数的类型（每次约 60 ns）。打开这个选项等于给出一个
+  承诺 —— "两边都是数字" —— 编译器用**原生**运算回报你。`Native` 把这个交易写在名字里；
+  `Strict` 只宣传了代价，于是大家就懒得打开。
+- **不能误导什么。** 在 VB6 / VBA / VB.NET 里，`Option Strict On` 是**编译期**检查的固定
+  拼法：禁止隐式窄化转换、禁止后期绑定、要求 `Dim x As T`。本项目那件事另有名字
+  （`Option Typing`），这一个管的是运行时的运算符行为。拿熟悉的词去装不同的含义，正是
+  迁移者最容易被坑的地方 —— 从 VB6 过来的人会打开 `Option Strict` 等 `Dim` 行报错，结果在
+  `"1" + "2"` 处撞上错误 13。
+
+这个名字还给这个选项留了扩展余地：万一 §4.1 的比较缺口将来补上，"原生比较"是这个词的
+自然延伸；而叫 `Native Arithmetic` 就把关键字钉死在一个运算符组上了。
+
+`Option Strict` 不作为别名保留：这个选项在发布之前就改名了，世上没有脚本依赖旧拼法。
 
 ### 2.8 结构化异常（OpenVBS++ 扩展）
 
@@ -421,7 +443,7 @@ VBScript 在数字与"数字文本"比较时会转换。我们按类型比较，
 
 > 完整的对象模型清单（含"不适用"的关键字说明）见 [OOP.md](OOP.md)。
 
-## 6. 状态更新（v0.9.5 - v0.9.25）
+## 6. 状态更新（v0.9.5 - v0.9.26）
 
 Resume / Resume Next 已实现：含 Resume 的过程会编译成"语句下标分派"的状态机，
 每条语句一个 _pc 分支，出错时记录失败下标并跳到 On Error GoTo 的处理段；
@@ -445,10 +467,10 @@ v0.9.23 审计发现的、位于"取值层"的三处差异，已按 `cscript` �
 | Null 经过内置函数 | `Len(Null)` 为 4、`TypeName(Null)` 为 `"NullType"`、`UCase(Null)` 为 `"NULL"` | VBS 规定传播 Null 的那一组（`Len`、`UCase`、`Abs`、`Trim`、日期分量……）返回 Null；转换与数学组（`CStr`、`CInt`、`Sgn`、`Sqr`……）报 94；`Format*` 组报 13。`&` 把 Null 当空文本，但 `Null & Null` 仍是 Null |
 | 读取未声明变量 | 报"变量未定义（1001）" | 除非开了 `Option Explicit`，否则读作 `Empty`（见 §3.3）。编译器在模块顶部一次性初始化这些名字，运行期没有任何检查 |
 
-### 6.2 v0.9.25 新增 `Option Strict`
+### 6.2 v0.9.26 新增 `Option Native`
 
 VBScript 的算术会把文本转成数字。这对 VBScript 是正确行为，但也让笔误变成静默结果
-（v0.9.24 之前 `"2" * 3` 就是 `"222"`）。`Option Strict` 是可选的答案：默认行为不变，
+（v0.9.24 之前 `"2" * 3` 就是 `"222"`）。`Option Native` 是可选的答案：默认行为不变，
 但项目可以要求"必须是数字"，于是 `1 + "2"` 报 13 而不是变成 `3`。`Option Typing` 会把它
 一起打开 —— 类型注解与隐式转换本来就互相矛盾。完整的运算符对照表见 §2.7.1。
 

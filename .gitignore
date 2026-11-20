@@ -31,3 +31,4 @@ site/
 .coverage
 coverage.xml
 htmlcov/
+.tmp_*

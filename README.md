@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-644%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.25-blue)
+![tests](https://img.shields.io/badge/tests-645%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.26-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -66,7 +66,7 @@ Release process (TestPyPI → PyPI → exe) lives in [dev-docs/RELEASE.md](dev-d
 
 **Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (644 tests) runs on
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (645 tests) runs on
 every supported version in CI; the runtime code itself still parses and runs on 3.9
 (`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
 See [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9 for the version policy and what to build for ARM.
@@ -170,7 +170,7 @@ The IDE service also exposes a versioned capabilities document
 | Error handling | `On Error Resume Next`, `On Error GoTo 0`, `Err.Number/.Description/.Source`, `Err.Clear`, `Err.Raise` |
 | Objects | `Class ... End Class`, fields, `Sub`/`Function` methods, `Property Get/Let/Set`, `Me`, `Class_Initialize`/`Class_Terminate`, `New`, `CreateObject`, `Dictionary`, `With ... End With` |
 | Type system | `Option Typing` + `->` annotations (off by default; zero behaviour change when off) |
-| Strict arithmetic | `Option Strict` turns off VBScript's text-to-number coercion: `1 + "2"` raises 13 instead of `3`. `Option Typing` implies it |
+| Native arithmetic | `Option Native` turns off VBScript's text-to-number coercion: `1 + "2"` raises 13 instead of `3`. `Option Typing` implies it |
 | Inheritance | `Class Child Inherits Parent` (superset extension: overrides, inherited fields/properties) |
 | Python interop | `#python ... #endpython` blocks and the `COP` object pool, switched on by importing `<script src="python-embed" />` |
 | Dynamic execution | `Execute` / `Eval` (reuses the compiler, runs in global scope) |
@@ -278,15 +278,15 @@ Location: Line 12
 Source: count = "oops"
 ```
 
-### `Option Strict`: no silent coercion
+### `Option Native`: no silent coercion
 
 VBScript converts text to numbers in arithmetic, which is right for VBScript but turns typos
-into results. `Option Strict` keeps the default untouched and lets a project ask for numbers
+into results. `Option Native` keeps the default untouched and lets a project ask for numbers
 instead: a text operand raises **error 13** rather than being converted. `Option Typing`
 implies it.
 
 ```vb
-Option Strict
+Option Native
 
 echo 1 + 2          ' 3
 echo "1" + "2"      ' error 13 (VBScript would say "12")
@@ -297,14 +297,19 @@ echo IsNull(Null + 1)   ' True — Null still propagates
 
 | Form | Meaning |
 |---|---|
-| `Option Strict` / `Option Strict On` | Strict arithmetic |
-| `Option Strict Off` | Back to VBScript coercion |
-| `Option Typing` | Type checking **and** strict arithmetic |
+| `Option Native` / `Option Native On` | Native arithmetic |
+| `Option Native Off` | Back to VBScript coercion |
+| `Option Typing` | Type checking **and** native arithmetic |
 
 `Option` statements must come before any other statement (VBScript requires the same for
-`Option Explicit`) — otherwise a late `Option Strict Off` would silently change how the code
-above it compiles. Comparisons are not affected; see
-[doc/VBS_SUPERSET.md §4.1](doc/VBS_SUPERSET.md).
+`Option Explicit`) — otherwise a late `Option Native Off` would silently change how the code
+above it compiles.
+
+The name is deliberate: it promises *native numbers*, not *stricter rules*, and it does not
+collide with `Option Strict` from VB6/VB.NET (which means narrowing checks and no late
+binding — here that is `Option Typing`). The full reasoning is in
+[doc/VBS_SUPERSET.md §2.7.1](doc/VBS_SUPERSET.md), under "Why `Native` and not `Strict`".
+Comparisons are not affected; see [§4.1](doc/VBS_SUPERSET.md).
 
 ### Error handling
 
@@ -514,7 +519,7 @@ OpenVBSPP/
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
 examples/demo/       # 6-step demo project for the screen recording
-tests/               # 644 unittest cases
+tests/               # 645 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
@@ -525,7 +530,7 @@ dev-docs/            # design, release and roadmap notes for maintainers
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 644 tests, ~2.6 s
+python -m unittest discover -s tests          # 645 tests, ~2.6 s
 ```
 
 | File | Covers |
@@ -606,7 +611,7 @@ Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
 - **v0.9.15** — performance: lazy startup, no boxing for read-only `ByRef`, error frames on demand, `For` → `range` ✅
 - **v0.9.24** — value fidelity: `+ - * / ^` coerce like VBScript, `Null` propagates through the
   built-ins, and an undeclared variable reads as `Empty` unless `Option Explicit` is on ✅
-- **v0.9.25** — `Option Strict` (opt-in strict arithmetic, implied by `Option Typing`), option
+- **v0.9.26** — `Option Native` (opt-in native arithmetic, implied by `Option Typing`), option
   statements pinned to the top of the script, `Option`/comparison limits documented ✅
 - **Next** — method overloading, remaining `Attribute` properties, events, `Collection`,
   VBScript-accurate comparison coercion (see [doc/VBS_SUPERSET.md §4.1](doc/VBS_SUPERSET.md))

@@ -67,13 +67,13 @@ class OptionTyping(AST):
 
     中文：启用类型注解与编译期静态类型检查。"""
     def __repr__(self): return "OptionTyping()"
-class OptionStrict(AST):
-    """Option Strict: arithmetic rejects text operands instead of converting them.
+class OptionNative(AST):
+    """Option Native: arithmetic rejects text operands instead of converting them.
 
     中文：算术语义收紧 —— 文本操作数不再被转换，而是报类型不匹配（错误 13）。"""
     def __init__(self, enabled=True):
         self.enabled = enabled
-    def __repr__(self): return f"OptionStrict({self.enabled})"
+    def __repr__(self): return f"OptionNative({self.enabled})"
 class DimDecl(AST):
     """Dim a, b(10), c(); items is [(name, dims or None), ...].
 

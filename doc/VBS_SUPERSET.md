@@ -48,7 +48,7 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | `Option Explicit` | ✅ | Compile-time check with line numbers |
 | Integers / floats / strings / booleans | ✅ | |
 | `Empty` / `Null` / `Nothing` literals | ✅ | Three sentinels |
-| `+ - * /` | ✅ | VBS coercion: `+` concatenates only when both sides are text, `/` always yields a Double; `Option Strict` turns the coercion off (§2.7.1) |
+| `+ - * /` | ✅ | VBS coercion: `+` concatenates only when both sides are text, `/` always yields a Double; `Option Native` turns the coercion off (§2.7.1) |
 | `\` integer division, `Mod` | ✅ | Truncates toward zero |
 | `^` exponentiation | ✅ | Always a Double; left-associative (same as VB) |
 | `&` string concatenation | ✅ | Null counts as empty text; `Null & Null` stays Null |
@@ -131,20 +131,20 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | Array element type `Dim a(5) -> Integer` | ✅ | Element type checked on read and write |
 | Class field and property types | ✅ | Includes inherited fields and `Property Let` parameter types |
 
-### 2.7.1 `Option Strict` (OpenVBS++ extension)
+### 2.7.1 `Option Native` (OpenVBS++ extension)
 
-`Option Strict` turns off VBScript's arithmetic coercion: a text operand raises **error 13**
+`Option Native` turns off VBScript's arithmetic coercion: a text operand raises **error 13**
 instead of being converted. `Option Typing` implies it, because typed code should not convert
 silently either. Without the option nothing changes, so this can never break VBScript code.
 
 | Form | Effect |
 |---|---|
-| `Option Strict` | Strict arithmetic (same as `Option Strict On`) |
-| `Option Strict On` | Explicit form |
-| `Option Strict Off` | Explicitly back to VBScript coercion |
-| `Option Typing` | Enables type checking **and** strict arithmetic |
+| `Option Native` | Native arithmetic (same as `Option Native On`) |
+| `Option Native On` | Explicit form |
+| `Option Native Off` | Explicitly back to VBScript coercion |
+| `Option Typing` | Enables type checking **and** native arithmetic |
 
-| Operator | Default (VBScript) | `Option Strict` |
+| Operator | Default (VBScript) | `Option Native` |
 |---|---|---|
 | `+` | `"1" + "2"` → `"12"`, `1 + "2"` → `3` | both raise 13 |
 | `- * / ^` | `"6" - "4"` → `2`, `"2" * 3` → `6` | both raise 13 |
@@ -156,9 +156,37 @@ silently either. Without the option nothing changes, so this can never break VBS
 | `Null` | `Null + 1` → `Null` | unchanged (propagation, not conversion) |
 
 `Option` statements describe the whole script, so they must come before any other statement —
-a late `Option Strict Off` would otherwise silently change how the code above it compiles.
+a late `Option Native Off` would otherwise silently change how the code above it compiles.
 `Option Explicit` has the same rule in VBScript itself; the error is 1002
-(`'Option Strict' must appear before any other statement`).
+(`'Option Native' must appear before any other statement`).
+
+#### Why `Native` and not `Strict`
+
+The keyword was called `Option Strict` until v0.9.26. The rename is worth explaining, because
+a keyword has to carry three things at once: what it enforces, what it buys you, and what it
+must not mislead anyone about.
+
+- **What it enforces.** "Strict" says *that* something is strict without saying *what*.
+  "Native" says it precisely: only native numeric types take part in arithmetic.
+- **What it buys you.** This option exists for speed as much as for discipline. VBScript
+  semantics force every `+ - * /` through a runtime function that inspects both operand types
+  (roughly 60 ns each). Turning this option on is a promise — "both operands are numbers" —
+  and the compiler pays you back by emitting **native** operations. The word `Native` states
+  the trade; `Strict` only advertised the cost, so people left it off.
+- **What it must not mislead about.** In VB6 / VBA / VB.NET, `Option Strict On` is the
+  familiar spelling for *compile-time* checks: no implicit narrowing conversions, no late
+  binding, `Dim x As T` required. This project already has that switch under a different
+  name (`Option Typing`); this one is about operator behaviour at run time. Reusing the
+  familiar word with a different meaning is how you mislead a migrating developer — someone
+  arriving from VB6 would enable `Option Strict` expecting an error on the `Dim` line and
+  instead meet error 13 at `"1" + "2"`.
+
+The name also leaves the option room to grow. If the comparison gap in §4.1 is ever closed,
+"native comparisons" is a natural extension of the same word, whereas `Native Arithmetic`
+would have pinned the keyword to one operator group.
+
+`Option Strict` is not accepted as an alias: the option was renamed before it was ever
+released, so no script in the wild can depend on the old spelling.
 
 ### 2.8 Structured exceptions (OpenVBS++ extension)
 
@@ -452,7 +480,7 @@ Run through this before and after touching the compiler:
 > The full object-model inventory (including keywords that do not apply) is in
 > [OBJECT_MODEL.md](OBJECT_MODEL.md) and [OOP.md](OOP.md).
 
-## 6. Status update (v0.9.5 - v0.9.25)
+## 6. Status update (v0.9.5 - v0.9.26)
 
 Resume / Resume Next are implemented: a procedure containing Resume compiles into a
 "statement index dispatch" state machine, one `_pc` branch per statement; on error the
@@ -481,10 +509,10 @@ VBScript rather than Python:
 | Null through built-ins | `Len(Null)` was 4, `TypeName(Null)` was `"NullType"`, `UCase(Null)` was `"NULL"` | The functions that VBS propagates Null through (`Len`, `UCase`, `Abs`, `Trim`, date parts, …) return Null; the conversion/math group (`CStr`, `CInt`, `Sgn`, `Sqr`, …) raises 94; the `Format*` group raises 13. `&` treats Null as empty text, except `Null & Null`, which stays Null |
 | Undeclared variable read | Raised "variable is undefined (1001)" | Reads as `Empty` unless `Option Explicit` is on (§3.3). The compiler initialises such names once at module top, so nothing is checked at run time |
 
-### 6.2 `Option Strict` added in v0.9.25
+### 6.2 `Option Native` added in v0.9.26
 
 VBScript's arithmetic coerces text to numbers. That is correct for VBScript, but it also turns
-typos into silent results (`"2" * 3` used to be `"222"` before v0.9.24). `Option Strict` is the
+typos into silent results (`"2" * 3` used to be `"222"` before v0.9.24). `Option Native` is the
 opt-in answer: it keeps VBScript's default behaviour while letting a project demand numbers, so
 `1 + "2"` raises 13 instead of becoming `3`. `Option Typing` switches it on, because type
 annotations and silent coercion contradict each other. See §2.7.1 for the full operator table.

@@ -15,5 +15,5 @@ limitations under the License.
 '''
 
 
-__version__ = "0.9.25"
+__version__ = "0.9.26"
 __all__ = ['compiler', 'exceptions', 'lexer', 'parser', 'runtime', 'transformer']

@@ -101,12 +101,12 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
   （行号保持不变），Transformer 把占位编译成 `exec(源码, globals(), globals())`。
 - **`Option Typing`**：`OpenVBSPP/typecheck.py` 在编译前跑一遍，只在出现
   `Option Typing` 时生效；注解语法是 `->`（`:` 已用于语句分隔）。
-- **`Option Strict`**：`+ - * / \ Mod ^` 与一元 `+/-` 要求数值操作数，文本操作数报
+- **`Option Native`**：`+ - * / \ Mod ^` 与一元 `+/-` 要求数值操作数，文本操作数报
   错误 13 而不是转换；`&`、比较运算、内置函数不受影响，`Empty` 仍当 0、`Null` 仍传播。
-  `Option Typing` 隐含开启它。编译期由 `self.option_strict` 决定走 `ovpp_add` 还是
-  `ovpp_add_strict`（`ARITH_NAMES` 里 18 个名字成对登记，`_runtime_imports` 一次性按名导入）。
+  `Option Typing` 隐含开启它。编译期由 `self.option_native` 决定走 `ovpp_add` 还是
+  `ovpp_add_native`（`ARITH_NAMES` 里 18 个名字成对登记，`_runtime_imports` 一次性按名导入）。
 - **`Option` 必须写在所有其它语句之前**：`_collect` 先扫全模块 Option，迟到的
-  `Option Strict Off` 会追溯改变上方代码的编译方式。`parser.statement()` 用
+  `Option Native Off` 会追溯改变上方代码的编译方式。`parser.statement()` 用
   `self.seen_code` 门禁，违反时报 `Syntax error (1002): 'Option X' must appear before
   any other statement`。
 - **算术不再是 Python 运算符**：`op_map` 已清空，`arith_call_map` 把 `PLUS/MINUS/MUL/DIV/POW`
@@ -162,7 +162,7 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
     `pip install "mkdocs-material>=9.5"` 或 `pip install -e ".[docs]"`），新文档要进 `nav`，
     构建出的 `site/` 不要提交（已在 `.gitignore`）。
 13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`dev-docs/RELEASE.md` §9.4
-    三处必须一致（当前 **644**），改测试后一起改。
+    三处必须一致（当前 **645**），改测试后一起改。
 14. **`doc/` 的每一篇都是中英成对**：改 `doc/X.md` 就同步 `doc/X.zh-CN.md`（反之亦然），
     两版首行都要保留 `> English | **[中文](X.zh-CN.md)**` 这类切换行。维护者内容
     （发版、路线、设计、新手任务）只放 `dev-docs/`，不要塞进 `doc/`（它会进文档站）。

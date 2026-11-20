@@ -25,7 +25,7 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Pri
                               LabelStmt, GoToStmt, OnErrorGoToLabel, ResumeStmt,
                               ScriptEnd, StopStmt,
                               SelectCase, CaseCond, For,
-                              OptionExplicit, OptionTyping, OptionStrict,
+                              OptionExplicit, OptionTyping, OptionNative,
                               OptionCompare,
                               DimDecl, ReDimDecl, ConstDecl,
                               EraseStmt, OnErrorResumeNext, OnErrorGoToZero,
@@ -234,10 +234,10 @@ class Parser:
 
         # Option statements describe the whole script, so they have to come
         # before anything else — VBScript has the same rule for `Option
-        # Explicit`. Without this, a later `Option Strict Off` would silently
+        # Explicit`. Without this, a later `Option Native Off` would silently
         # rewrite how the code *above* it was compiled.
         # 中文：Option 语句描述整个脚本，必须写在所有其它语句之前 —— VBS 对
-        # `Option Explicit` 也是这个规则。否则后面一句 `Option Strict Off`
+        # `Option Explicit` 也是这个规则。否则后面一句 `Option Native Off`
         # 会悄悄改变它上面代码的编译方式。
         if word == "option":
             if self.seen_code:
@@ -454,16 +454,16 @@ class Parser:
                            "not inside a procedure", tok)
             return OptionTyping().at(tok[2], tok[3])
 
-        if name == "strict":
+        if name == "native":
             if self.proc_stack:
-                self.error("'Option Strict' must appear at script level, "
+                self.error("'Option Native' must appear at script level, "
                            "not inside a procedure", tok)
             enabled = True
             mode_tok = self.peek()
             if mode_tok[0] == "IDENT" and mode_tok[1].lower() in ("on", "off"):
                 self.eat("IDENT")
                 enabled = mode_tok[1].lower() == "on"
-            return OptionStrict(enabled).at(tok[2], tok[3])
+            return OptionNative(enabled).at(tok[2], tok[3])
 
         if name == "compare":
             mode_tok = self.peek()
@@ -476,6 +476,10 @@ class Parser:
         if name == "cop":
             self.error("'Option COP' was removed in 0.9.20; import Python "
                        'interop with <script src="python-embed" />', tok)
+
+        if name == "strict":
+            self.error("'Option Strict' was renamed to 'Option Native' in 0.9.26; "
+                       "write 'Option Native' instead (Option Strict On -> Option Native On)", tok)
 
         if name == "base":
             self.error(f"'Option {word_tok[1]}' is planned but not implemented yet", word_tok)

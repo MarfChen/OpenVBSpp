@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-644%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.25-blue)
+![tests](https://img.shields.io/badge/tests-645%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.26-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -167,7 +167,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 
 **支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。644 个测试在每个受支持的版本上都跑 CI；
+`pip install openvbspp` 在 x64 与 ARM64 上通用。645 个测试在每个受支持的版本上都跑 CI；
 运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
 但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
 [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9。
@@ -193,7 +193,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 | 错误处理 | `On Error Resume Next`、`On Error GoTo 0`、`Err.Number/.Description/.Source`、`Err.Clear`、`Err.Raise` |
 | 对象语法 | `Class ... End Class`、字段、`Sub`/`Function` 方法、`Property Get/Let/Set`、`Me`、`Class_Initialize`/`Class_Terminate`、`New`、`CreateObject`、`Dictionary`、`With ... End With`、`.成员` / `.方法()` |
 | 类型系统 | `Option Typing` + `->` 注解（关闭时完全等同普通 VBS） |
-| 严格算术 | `Option Strict`（`On`/`Off`）：算术不转换文本，直接报错误 13；`Option Typing` 隐含开启 |
+| 原生算术 | `Option Native`（`On`/`Off`）：算术不转换文本，直接用原生数值运算，文本操作数报错误 13；`Option Typing` 隐含开启 |
 | 继承 | `Class Child Inherits Parent`（超集扩展：方法覆盖、字段/属性继承） |
 | 网页 IDE | openvbs ide：浏览器里编辑/运行/检查/保存，零第三方依赖 |
 | Python 互操作 | `#python ... #endpython` 代码块、`COP` 公共对象池；用 `<script src="python-embed" />` 显式导入后可用 |
@@ -351,14 +351,14 @@ Location: Line 12
 Source: count = "oops"
 ```
 
-## Option Strict：不要静默转换
+## Option Native：不要静默转换
 
 VBScript 的算术会把文本转成数字。这对 VBScript 是对的，但也让笔误变成结果。
-`Option Strict` 不动默认行为，只是让项目可以要求"必须是数字"：文本操作数报**错误 13**，
+`Option Native` 不动默认行为，只是让项目可以要求"必须是数字"：文本操作数报**错误 13**，
 而不是被转换。`Option Typing` 会隐含打开它。
 
 ```vb
-Option Strict
+Option Native
 
 echo 1 + 2              ' 3
 echo "1" + "2"          ' 错误 13（VBScript 会说 "12"）
@@ -369,13 +369,17 @@ echo IsNull(Null + 1)   ' True —— Null 仍然传播
 
 | 写法 | 含义 |
 |---|---|
-| `Option Strict` / `Option Strict On` | 严格算术 |
-| `Option Strict Off` | 恢复 VBScript 的强制转换 |
-| `Option Typing` | 类型检查**并且**严格算术 |
+| `Option Native` / `Option Native On` | 原生算术（不转换） |
+| `Option Native Off` | 恢复 VBScript 的强制转换 |
+| `Option Typing` | 类型检查**并且**原生算术 |
 
 `Option` 语句必须写在其它语句之前（VBScript 对 `Option Explicit` 本来就是这规则）——
-否则迟到的 `Option Strict Off` 会悄悄改变它上面代码的编译方式。比较运算不受影响，
-见 [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4.1。
+否则迟到的 `Option Native Off` 会悄悄改变它上面代码的编译方式。
+
+这个名字是刻意的：它承诺的是**原生数值运算**，不是"更严的规则"，也不与 VB6/VB.NET 的
+`Option Strict` 撞名（那个是窄化检查 + 禁后期绑定，在本项目里对应 `Option Typing`）。
+完整理由见 [doc/VBS_SUPERSET.zh-CN.md](doc/VBS_SUPERSET.zh-CN.md) §2.7.1 的
+「为什么叫 Native 而不是 Strict」。比较运算不受影响，见 §4.1。
 
 ## With
 
@@ -602,7 +606,7 @@ OpenVBSPP/
 └── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
 examples/demo/          录屏用六段演示项目（旧脚本 / 类与 Try / Python / COM / 命名空间 / 包管理器）
-tests/                  回归测试（644 个用例）
+tests/                  回归测试（645 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 

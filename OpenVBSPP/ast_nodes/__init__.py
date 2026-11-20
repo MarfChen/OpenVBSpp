@@ -21,7 +21,7 @@ from ._classes import *
 from ._statements import *
 
 
-__version__ = "0.9.25"
+__version__ = "0.9.26"
 __all__ = [
     "AST",
     "Program",
@@ -33,7 +33,7 @@ __all__ = [
     "Print",
     "OptionExplicit",
     "OptionTyping",
-    "OptionStrict",
+    "OptionNative",
     "OptionCompare",
     "DimDecl",
     "ReDimDecl",

@@ -199,7 +199,7 @@
       "patterns": [
         {
           "name": "keyword.control.directive.openvbs",
-          "match": "(?i)^\\s*(option\\s+(explicit|typing|compare\\s+text|cop))\\b",
+          "match": "(?i)^\\s*(option\\s+(explicit|typing|native|compare\\s+text))\\b",
           "captures": {
             "1": {
               "name": "keyword.control.directive.openvbs"

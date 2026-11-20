@@ -28,7 +28,7 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Una
                                  ResumeStmt,
                                  ScriptEnd, StopStmt,
                                  SelectCase, For,
-                                 OptionExplicit, OptionTyping, OptionStrict,
+                                 OptionExplicit, OptionTyping, OptionNative,
                                  OptionCompare,
                                  DimDecl, ReDimDecl, ConstDecl,
                                  EraseStmt, OnErrorResumeNext, OnErrorGoToZero,
@@ -187,18 +187,18 @@ arith_call_map = {
 
 # Imported into the generated module by name (see `_runtime_imports`), so an
 # arithmetic operation costs a name lookup plus a call, not an attribute lookup.
-# The `_strict` variants are the `Option Strict` versions: same operators, but a
+# The `_native` variants are the `Option Native` versions: same operators, but a
 # text operand raises error 13 instead of being converted.
 # 中文：这些函数按名字导入生成的模块（见 `_runtime_imports`），所以一次算术运算
-# 只花一次名字查找加一次调用，不额外做属性查找。`_strict` 变体是
-# `Option Strict` 用的版本：运算符相同，但文本操作数报错误 13，不做转换。
+# 只花一次名字查找加一次调用，不额外做属性查找。`_native` 变体是
+# `Option Native` 用的版本：运算符相同，但文本操作数报错误 13，不做转换。
 ARITH_NAMES = ("ovpp_add", "ovpp_sub", "ovpp_mul", "ovpp_div", "ovpp_pow",
                "ovpp_neg", "ovpp_pos",
-               "ovpp_add_strict", "ovpp_sub_strict", "ovpp_mul_strict",
-               "ovpp_div_strict", "ovpp_pow_strict",
-               "ovpp_neg_strict", "ovpp_pos_strict",
-               "ovpp_intdiv", "ovpp_mod", "ovpp_intdiv_strict",
-               "ovpp_mod_strict")
+               "ovpp_add_native", "ovpp_sub_native", "ovpp_mul_native",
+               "ovpp_div_native", "ovpp_pow_native",
+               "ovpp_neg_native", "ovpp_pos_native",
+               "ovpp_intdiv", "ovpp_mod", "ovpp_intdiv_native",
+               "ovpp_mod_native")
 ARITH_ALIASES = {name: "_ovpp_" + name[len("ovpp_"):] for name in ARITH_NAMES}
 
 cmp_map = {
@@ -536,9 +536,9 @@ class Transformer:
       
         self.classes = {}
         self.option_typing = False
-        # Option Strict: arithmetic rejects text operands instead of converting.
-        # 中文：Option Strict —— 算术拒绝文本操作数，不再转换。
-        self.option_strict = False
+        # Option Native: arithmetic rejects text operands instead of converting.
+        # 中文：Option Native —— 算术拒绝文本操作数，不再转换。
+        self.option_native = False
         self._in_class_method = False
         self._class_fields = frozenset()
         self._class_methods = frozenset()
@@ -737,14 +737,14 @@ class Transformer:
         if isinstance(node, OptionTyping):
             self.option_typing = True
             # Typed code must not silently coerce either: `Option Typing`
-            # implies `Option Strict`.
+            # implies `Option Native`.
             # 中文：带类型声明的代码同样不该隐式转换 —— `Option Typing`
-            # 隐含开启 `Option Strict`。
-            self.option_strict = True
+            # 隐含开启 `Option Native`。
+            self.option_native = True
             return
 
-        if isinstance(node, OptionStrict):
-            self.option_strict = node.enabled
+        if isinstance(node, OptionNative):
+            self.option_native = node.enabled
             return
 
         if isinstance(node, OptionCompare):
@@ -2852,8 +2852,8 @@ class Transformer:
 
         if node.op in arith_call_map:
             name = arith_call_map[node.op]
-            if self.option_strict:
-                name += "_strict"
+            if self.option_native:
+                name += "_native"
             folded = self._fold_arith(name, left, right)
             if folded is not None:
                 return folded
@@ -2878,7 +2878,7 @@ class Transformer:
             return ast.Call(
                 func=ast.Name(
                     id=ARITH_ALIASES[builtin_call_map[node.op] +
-                                     ("_strict" if self.option_strict else "")],
+                                     ("_native" if self.option_native else "")],
                     ctx=ast.Load()),
                 args=[left, right], keywords=[])
 
@@ -2890,8 +2890,8 @@ class Transformer:
             return self._call_bool(unary_call_map[node.op], [operand])
         if node.op in ("UMINUS", "UPLUS"):
             name = unary_call_map[node.op]
-            if self.option_strict:
-                name += "_strict"
+            if self.option_native:
+                name += "_native"
             if isinstance(operand, ast.Constant) and not isinstance(operand.value, bool):
                 try:
                     return ast.Constant(value=getattr(vb_builtins, name)(operand.value))
@@ -3257,7 +3257,7 @@ class Transformer:
         if isinstance(node, OptionTyping):
             return None
 
-        if isinstance(node, OptionStrict):
+        if isinstance(node, OptionNative):
             return None
 
         if isinstance(node, OptionCompare):
