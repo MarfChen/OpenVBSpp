@@ -17,7 +17,7 @@ limitations under the License.
 
 from OpenVBSPP.lexer import lex
 from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Print,
-                              Var, Member, Number, Float, String, Boolean,
+                              Var, Member, Number, Float, DateLit, String, Boolean,
                               EmptyValue, NullValue, NothingValue,
                               Compare, BinOp, UnaryOp, Call, NewExpr, AddressOf,
                               While, If, DoLoop, ExitDo, ExitFor,
@@ -1460,6 +1460,15 @@ class Parser:
         if tok[0] == "FLOAT":
             self.eat("FLOAT")
             return self.postfix(Float(tok[1]).at(tok[2], tok[3]))
+
+        if tok[0] == "DATE_LIT":
+            self.eat("DATE_LIT")
+            return self.postfix(DateLit(tok[1]).at(tok[2], tok[3]))
+
+        if tok[0] in ("HEXNUM", "OCTNUM"):
+            base = 16 if tok[0] == "HEXNUM" else 8
+            self.eat(tok[0])
+            return self.postfix(Number(int(tok[1][2:], base)).at(tok[2], tok[3]))
 
         if tok[0] == "INTERP_STRING":
             self.eat("INTERP_STRING")

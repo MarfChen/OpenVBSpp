@@ -7,23 +7,38 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
-## [Unreleased]
+## [0.9.21] — 2026-11-20
 
-### Removed
+### Added
 
-- `cli_demo.py` — with no arguments `python -m OpenVBSPP` already runs the
-  built-in `DEMO`, so this file duplicated reachable behaviour; runnable
-  samples live in `examples/*.vbs`.
-- `requirements.txt` — it only held comments (the runtime has no third-party
-  dependencies). Dependencies and extras are declared in `pyproject.toml`
-  (`[project.dependencies]` / `[project.optional-dependencies]`).
+- **VBScript literals**: hexadecimal `&H...`, octal `&O...` and date `#...#` literals, so
+  `echo &HFF` (255), `echo &O17` (15) and `echo Year(#2020-05-06#)` (2020) now work. Date
+  literals accept `yyyy-mm-dd`, `mm/dd/yyyy`, `d Month yyyy` and an `h:mm:ss AM/PM` suffix.
+- **19 built-in functions** that VBScript has always had: `Sin Cos Tan Atn Exp Log`,
+  `CCur CSng CDate`, `VarType` (with the `VT_*` constants), `RGB`, `ScriptEngine`,
+  `ScriptEngineMajorVersion`, `ScriptEngineMinorVersion`, `ScriptEngineBuildVersion`,
+  `GetLocale`, `SetLocale`, `IsMissing`, `GetRef`, and `LoadPicture` (which raises
+  `OVPPObjectNotSupportedError`: there is no picture library).
+- **`ExecuteGlobal`**: the statement form runs its code in the global scope; `Execute`
+  accepts the same form.
+- `tests/test_vbs_coverage.py`: 35 regression cases pinning every item in this release.
+
+### Fixed
+
+- `TimeValue("13:45")`, `TimeValue("1:45:00 PM")` and `Hour(Time())` no longer fail with
+  `Cannot convert '...' to a date`. Time-only values use the VBScript serial-date origin
+  (1899-12-30), and `_to_datetime` now accepts `datetime` / `date` / `time` objects as well
+  as numeric serial dates.
+- `GetRef` returns a usable procedure reference: both `f(21)` and `f()` invoke it, and the
+  name lookup is case-insensitive.
 
 ### Changed
 
-- `MANIFEST.in` narrows the `doc/` packaging rules: the language spec
-  `doc/OpenVBS spec.docx` still ships in the sdist (the README links to it),
-  while the internal planning essay `doc/plan.docx` is explicitly excluded and
-  stays repository-only.
+- `doc/VBS_SUPERSET.md` and its Chinese counterpart were corrected: the built-in table, the
+  known-gap list and the "all native syntax is supported" paragraph were stale. The gap list
+  now names the `MsgBox` / `InputBox` console stand-ins, `LoadPicture`, procedures added at
+  run time by `ExecuteGlobal`, backward `GoTo` and `Declare`; the built-in table lists what
+  actually exists.
 
 ## [0.9.20] — 2026-11-20
 

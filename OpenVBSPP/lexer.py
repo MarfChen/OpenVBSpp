@@ -60,6 +60,13 @@ TOK_SPEC = [
     ("BACKSLASH", r"\\"),
     ("CARET",   r"\^"),
 
+    # VBScript literals with their own leading character. DATE_LIT / HEXNUM / OCTNUM
+    # must come before AMP and FLOAT/NUMBER or the leading character wins.
+    # 中文：以特殊字符开头的 VBS 字面量。必须排在 AMP 与 FLOAT/NUMBER 之前，
+    # 否则前导字符会被提前匹配掉。
+    ("DATE_LIT", r"#[^#\n]*#"),
+    ("HEXNUM",  r"&[hH][0-9A-Fa-f]+"),
+    ("OCTNUM",  r"&[oO][0-7]+"),
     ("FLOAT",   r"\d+\.\d+"),
     ("NUMBER",  r"\d+"),
     ("STRING",  r'"(?:[^"\n]|"")*"'),

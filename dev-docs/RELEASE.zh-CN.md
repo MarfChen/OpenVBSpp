@@ -259,7 +259,7 @@ README 首屏有 7 个徽章，分两类：
 
 | 徽章 | 类型 | 变成 / 保持绿色要做什么 |
 |---|---|---|
-| `tests-514 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
+| `tests-549 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
 | `version-0.9.20` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
 | `license-Apache--2.0` | 静态 | 常绿 |
 | `python-3.10+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |
@@ -362,7 +362,7 @@ mkdocs build --site-dir site          # 生成静态站（site/ 已进 .gitignor
 ### 9.4 与版本 / 架构相关的发版自检
 
 ```powershell
-python -m unittest discover -s tests                                    # 514 OK
+python -m unittest discover -s tests                                    # 549 OK
 python -m twine check dist/*
 pip download --only-binary=:all: --no-deps openvbspp==0.9.20 -d tmp    # 必须拿到 py3-none-any.whl
 ```

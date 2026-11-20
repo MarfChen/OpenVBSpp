@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-514%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.20-blue)
+![tests](https://img.shields.io/badge/tests-549%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.21-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -66,7 +66,7 @@ Release process (TestPyPI → PyPI → exe) lives in [dev-docs/RELEASE.md](dev-d
 
 **Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (514 tests) runs on
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (549 tests) runs on
 every supported version in CI; the runtime code itself still parses and runs on 3.9
 (`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
 See [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9 for the version policy and what to build for ARM.
@@ -173,7 +173,7 @@ The IDE service also exposes a versioned capabilities document
 | Inheritance | `Class Child Inherits Parent` (superset extension: overrides, inherited fields/properties) |
 | Python interop | `#python ... #endpython` blocks and the `COP` object pool, switched on by importing `<script src="python-embed" />` |
 | Dynamic execution | `Execute` / `Eval` (reuses the compiler, runs in global scope) |
-| Misc | `Erase`, `Option Compare Text`, `FormatNumber` family, `vbCrLf`-style constants, ~70 built-ins |
+| Misc | `Erase`, `Option Compare Text`, `FormatNumber` family, `vbCrLf`-style constants, ~95 built-ins |
 
 ### Procedures: `Sub` / `Function`
 
@@ -304,11 +304,14 @@ Source: echo 1
 | Category | Functions |
 |---|---|
 | Strings | `Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String Asc Chr InStr InStrRev Replace Split Join Filter StrComp Hex Oct` |
-| Conversion | `CStr CInt CLng CDbl CBool CByte` |
-| Math | `Abs Int Fix Sgn Sqr Round Rnd Randomize` |
+| Conversion | `CStr CInt CLng CDbl CBool CByte CCur CSng CDate` |
+| Math | `Abs Int Fix Sgn Sqr Round Rnd Randomize Sin Cos Tan Atn Exp Log` |
 | Arrays | `Array UBound LBound` |
-| Predicates | `IsNumeric IsEmpty IsNull IsObject IsArray IsDate TypeName` |
-| Date/time | `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff` |
+| Predicates | `IsNumeric IsEmpty IsNull IsObject IsArray IsDate IsMissing TypeName VarType` |
+| Date/time | `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff DatePart DateSerial DateValue TimeSerial TimeValue MonthName WeekdayName` |
+| Formatting | `Format FormatNumber FormatCurrency FormatDateTime FormatPercent` |
+| Runtime info | `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale` |
+| Procedures | `Execute` / `ExecuteGlobal` / `Eval` / `GetRef` / `LoadPicture` (raises: no picture library) |
 | Interaction | `MsgBox` (prints to stdout), `InputBox` (reads stdin) |
 
 Constants: `vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`.
@@ -473,7 +476,7 @@ OpenVBSPP/
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
 examples/demo/       # 6-step demo project for the screen recording
-tests/               # 514 unittest cases
+tests/               # 549 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
@@ -484,7 +487,7 @@ dev-docs/            # design, release and roadmap notes for maintainers
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 514 tests, ~2.6 s
+python -m unittest discover -s tests          # 549 tests, ~2.6 s
 ```
 
 | File | Covers |
@@ -495,6 +498,7 @@ python -m unittest discover -s tests          # 514 tests, ~2.6 s
 | `tests/test_option_typing.py` | `Option Typing` checks (including array element types and inheritance chains) |
 | `tests/test_interop.py` | `#python` blocks and the `COP` pool, plus the import requirement |
 | `tests/test_vbs_superset.py` | **superset conformance**: 100+ legal VBScript snippets must run |
+| `tests/test_vbs_coverage.py` | every VBScript built-in and literal added in v0.9.21 (`&H`/`&O`, `#date#`, math, `VarType`, `GetRef`, `ExecuteGlobal`, ...) |
 | `tests/test_over.py`, `test_over_registry.py` | `over` dependency graph, lock file, local sources, registry |
 | `tests/test_over_python.py` | Python dependency merging, pinning, frozen restore, uninstall |
 | `tests/test_com.py` | COM bridge lookup order, kill switch, error translation, adapter behaviour (no real COM needed) |
@@ -506,6 +510,11 @@ Not implemented yet ([doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4):
 
 - the `Collection` built-in class (that is VBA, not VBScript)
 - `Declare` (binding external DLL functions)
+- `MsgBox` / `InputBox` as real dialogs — they are console stand-ins (`MsgBox` prints its
+  text and returns 1, `InputBox` reads one line from stdin) — and `LoadPicture`, which
+  raises instead of loading a picture
+- procedures created at run time by `ExecuteGlobal` cannot be called by name (bind them
+  with `GetRef` instead), and only forward `GoTo` jumps compile
 
 COM host objects **are** supported: real connections on Windows through `com-support`;
 on other platforms, with `OPENVBS_COM=0`, or without `pywin32` you get an explicit error.

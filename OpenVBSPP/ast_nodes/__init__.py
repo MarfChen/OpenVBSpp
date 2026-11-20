@@ -21,7 +21,7 @@ from ._classes import *
 from ._statements import *
 
 
-__version__ = "0.9.20"
+__version__ = "0.9.21"
 __all__ = [
     "AST",
     "Program",
@@ -46,6 +46,7 @@ __all__ = [
     # 中文：表达式
     "Number",
     "Float",
+    "DateLit",
     "String",
     "Boolean",
     "EmptyValue",

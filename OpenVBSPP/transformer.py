@@ -18,7 +18,7 @@ limitations under the License.
 import ast
 
 from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, UnaryOp,
-                                 Print, Var, Member, Number, Float, String, Boolean,
+                                 Print, Var, Member, Number, Float, DateLit, String, Boolean,
                                  EmptyValue, NullValue, NothingValue,
                                  Compare, BinOp, AddressOf,
                                  While, If, DoLoop, Break, ExitDo, ExitFor,
@@ -1892,7 +1892,7 @@ class Transformer:
 
         key = canon(callee.name)
 
-        if key == "execute":
+        if key in ("execute", "executeglobal"):
             return self._transform_execute(node)
         if key == "getobject":
             return ast.Expr(value=self._transform_create_object(node, "get_object"))
@@ -2751,6 +2751,15 @@ class Transformer:
          # 中文：不是过程也不是内置函数：当作数组下标 a(i)
           
             base = self._read_name(func.name, node)
+            if not node.args:
+                # () on a variable: VBScript calls the procedure reference held by
+                # the variable, and an empty subscript list is meaningless anyway.
+                # 中文：变量上的 ()：VBScript 视为调用变量持有的过程引用；
+                # 中文：空的参数列表本来也没有下标含义。
+                return ast.Call(
+                    func=ast.Attribute(value=ast.Name(id=BUILTIN_MODULE, ctx=ast.Load()),
+                                       attr="call_value", ctx=ast.Load()),
+                    args=[base, ast.List(elts=[], ctx=ast.Load())], keywords=[])
             if key in self._delegates or key in self._param_names:
                 args = [self.transform(arg) for arg in node.args]
                 return ast.Call(
@@ -3015,6 +3024,12 @@ class Transformer:
 
         if isinstance(node, Float):
             return ast.Constant(value=node.val)
+
+        if isinstance(node, DateLit):
+            return ast.Call(
+                func=ast.Attribute(value=ast.Name(id=BUILTIN_MODULE, ctx=ast.Load()),
+                                   attr="date_literal", ctx=ast.Load()),
+                args=[ast.Constant(value=node.val)], keywords=[])
 
         if isinstance(node, String):
             return ast.Constant(value=node.val)

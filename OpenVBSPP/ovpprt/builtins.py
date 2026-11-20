@@ -436,6 +436,65 @@ def Filter(items, match, include=True, compare=None):
 
 
 # --------------------------------------------------------------------- Date and time / 中文：日期时间
+# Accepted shapes for a date written as text; the first match wins.
+# 中文：日期文本可接受的形式，按顺序取第一个匹配成功的。
+_DATE_FORMATS = (
+    "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d",
+    "%Y/%m/%d %H:%M:%S", "%Y/%m/%d",
+    "%m/%d/%Y %H:%M:%S", "%m/%d/%Y",
+    "%d %B %Y", "%B %d, %Y",
+)
+_DATE_AMPM_FORMATS = (
+    "%m/%d/%Y %I:%M:%S %p", "%m/%d/%Y %I:%M %p",
+)
+_TIME_FORMATS = ("%H:%M:%S", "%H:%M")
+_AMPM_FORMATS = ("%I:%M:%S %p", "%I:%M %p")
+
+# VBScript's date zero: same anchor Python's serial-date helpers use.
+# 中文：VBS 的日期零点，和序列日期换算用的是同一个锚点。
+_DATE_ORIGIN = (1899, 12, 30)
+
+
+def _time_only(moment):
+    """Turn a parsed clock time into the VBS Date value that holds it.
+
+    中文：把解析出的时间部分转成承载它的 VBS Date 值。
+    """
+    return _datetime.datetime(_DATE_ORIGIN[0], _DATE_ORIGIN[1], _DATE_ORIGIN[2],
+                              moment.hour, moment.minute, moment.second)
+
+
+def _parse_date_text(text):
+    """Parse a date/time string the way VBScript's `CDate` accepts it.
+
+    中文：按 VBScript `CDate` 的接受范围解析日期/时间字符串。
+    """
+    for fmt in _DATE_FORMATS:
+        try:
+            return _datetime.datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    for fmt in _DATE_AMPM_FORMATS:
+        try:
+            return _datetime.datetime.strptime(text.upper(), fmt)
+        except ValueError:
+            continue
+    for fmt in _TIME_FORMATS + _AMPM_FORMATS:
+        try:
+            return _time_only(_datetime.datetime.strptime(text.upper(), fmt))
+        except ValueError:
+            continue
+    raise ValueError(f"Cannot convert '{text}' to a date")
+
+
+def date_literal(text):
+    """Implementation of the `#...#` literal: strip the delimiters, then parse.
+
+    中文：`#...#` 字面量的实现 —— 去掉两侧的 #，再按日期解析。
+    """
+    return _parse_date_text(str(text).strip().strip("#").strip())
+
+
 def _to_datetime(value):
     if value is None or value is EMPTY or isinstance(value, EmptyType):
         return _datetime.datetime.now()
@@ -443,13 +502,16 @@ def _to_datetime(value):
         return value
     if isinstance(value, _datetime.date):
         return _datetime.datetime(value.year, value.month, value.day)
-    text = _to_str(value).strip()
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d", "%H:%M:%S"):
-        try:
-            return _datetime.datetime.strptime(text, fmt)
-        except ValueError:
-            continue
-    raise ValueError(f"Cannot convert '{text}' to a date")
+    if isinstance(value, _datetime.time):
+        # VBS has a single Date type, so `Hour(Time())` must keep working.
+        # 中文：VBS 只有一种 Date 类型，所以 `Hour(Time())` 必须能正常工作。
+        return _time_only(value)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        # A serial number: day 1 is 1899-12-31 in VBS, day 0 in our anchor.
+        # 中文：序列日期 —— VBS 里第 1 天是 1899-12-31，这里以 1899-12-30 为原点。
+        origin = _datetime.datetime(_DATE_ORIGIN[0], _DATE_ORIGIN[1], _DATE_ORIGIN[2])
+        return origin + _datetime.timedelta(days=float(value))
+    return _parse_date_text(_to_str(value).strip())
 
 
 def Now():
@@ -929,6 +991,230 @@ def InputBox(prompt="", *args):
 # The functions exposed to scripts are listed explicitly so internal helpers never
 # leak into the language.
 # 中文：显式列出暴露给 VBS 的内置函数，避免把模块内部的辅助函数混进去。
+
+# --------------------------------------------------------------------- Math extras / 中文：数学补充
+# VBScript exposes the trig / log family straight from the underlying library.
+# 中文：VBScript 直接把三角/对数这一族暴露给脚本。
+def Atn(value):
+    return math.atan(_to_number(value))
+
+
+def Cos(value):
+    return math.cos(_to_number(value))
+
+
+def Sin(value):
+    return math.sin(_to_number(value))
+
+
+def Tan(value):
+    return math.tan(_to_number(value))
+
+
+def Exp(value):
+    return math.exp(_to_number(value))
+
+
+def Log(value):
+    """Natural logarithm; VBS raises on zero and negatives.
+
+    中文：自然对数；VBS 对 0 与负数报错。
+    """
+    number = _to_number(value)
+    if number <= 0:
+        raise ValueError("Log: argument must be positive")
+    return math.log(number)
+
+
+# --------------------------------------------------------------------- Conversions / 中文：转换
+def CCur(value):
+    """Currency is a fixed-point number with four decimals.
+
+    中文：Currency 是四位小数的定点数。
+    """
+    return round(_to_number(value), 4)
+
+
+def CSng(value):
+    """Single precision: keep about seven significant digits.
+
+    中文：单精度 —— 保留约七位有效数字。
+    """
+    return float(f"{_to_number(value):.7g}")
+
+
+def CDate(value):
+    """Convert to the VBS Date value (a `datetime` when it runs here).
+
+    中文：转换成 VBS 的 Date 值（在这里就是 `datetime`）。
+    """
+    return _to_datetime(value)
+
+
+# --------------------------------------------------------------------- Type info / 中文：类型信息
+# The vbVarType constants a script can compare against.
+# 中文：脚本里可以拿来比对的 vbVarType 常量。
+VT_EMPTY, VT_NULL, VT_INTEGER, VT_LONG, VT_SINGLE = 0, 1, 2, 3, 4
+VT_DOUBLE, VT_CURRENCY, VT_DATE, VT_STRING, VT_OBJECT = 5, 6, 7, 8, 9
+VT_BOOLEAN, VT_VARIANT = 11, 12
+VT_ARRAY = 8192
+
+
+def VarType(value):
+    """Return the vbVarType number of a value.
+
+    中文：返回值的 vbVarType 编号。
+    """
+    if value is EMPTY or isinstance(value, EmptyType):
+        return VT_EMPTY
+    if value is NULL or isinstance(value, NullType):
+        return VT_NULL
+    if isinstance(value, list):
+        return VT_ARRAY + VT_VARIANT
+    if isinstance(value, VBool):
+        return VT_BOOLEAN
+    if isinstance(value, bool):
+        return VT_BOOLEAN
+    if isinstance(value, int):
+        return VT_LONG
+    if isinstance(value, float):
+        return VT_DOUBLE
+    if isinstance(value, str):
+        return VT_STRING
+    if isinstance(value, (_datetime.datetime, _datetime.date, _datetime.time)):
+        return VT_DATE
+    return VT_OBJECT
+
+
+def RGB(red, green, blue):
+    """Pack a colour the way VBS does: red + green*256 + blue*65536.
+
+    中文：按 VBS 的方式打包颜色：红 + 绿*256 + 蓝*65536。
+    """
+    return int(red) + int(green) * 256 + int(blue) * 65536
+
+
+# --------------------------------------------------------------------- Engine / 中文：引擎信息
+# OpenVBS++ answers like a VBScript 5.8 host so version checks in old scripts keep
+# working; the build number is ours, not Microsoft's.
+# 中文：OpenVBS++ 以 VBScript 5.8 宿主的口径回答，好让老脚本里的版本判断继续成立；
+# 构建号是我们自己的，不是微软的。
+_ENGINE = "VBScript"
+_ENGINE_BUILD = 0
+_ENGINE_MAJOR = 5
+_ENGINE_MINOR = 8
+_LCID = 1033
+
+
+def ScriptEngine():
+    return _ENGINE
+
+
+def ScriptEngineBuildVersion():
+    return _ENGINE_BUILD
+
+
+def ScriptEngineMajorVersion():
+    return _ENGINE_MAJOR
+
+
+def ScriptEngineMinorVersion():
+    return _ENGINE_MINOR
+
+
+def SetLocale(lcid):
+    """Set the locale id and return the previous one.
+
+    中文：设置区域 ID，并返回之前的那个。
+    """
+    global _LCID
+    previous = _LCID
+    _LCID = int(lcid)
+    return previous
+
+
+def GetLocale():
+    return _LCID
+
+
+# --------------------------------------------------------------------- Reflection / 中文：反射
+def IsMissing(value):
+    """True when an optional argument was left out.
+
+    OpenVBS++ fills an omitted optional argument with `Empty`, so this cannot tell
+    "omitted" from "explicitly Empty" — same result for both.
+
+    中文：判断可选参数是否被省略。OpenVBS++ 用 `Empty` 填充省略的实参，因此无法区分
+    「省略」与「显式传 Empty」，两者结果相同。
+    """
+    return value is EMPTY or isinstance(value, EmptyType)
+
+
+class _ProcedureRef(object):
+    """Handle returned by GetRef: call it, or invoke it like an argument list.
+
+    中文：GetRef 返回的句柄：可以直接调用，也可以像带参数的调用那样使用。
+    """
+    _vbs_name = "Object"
+
+    def __init__(self, target, name):
+        self._target = target
+        self.name = name
+
+    def __call__(self, *args):
+        return self._target(*args)
+
+    def __getitem__(self, key):
+        # (21) where f holds a reference compiles to a subscript on the variable,
+        # so route that form to the procedure as well.
+        # 中文：变量持有过程引用时，(21) 会被编译成对该变量的下标取值，
+        # 中文：因此这种写法也要转成一次过程调用。
+        return self._target(key)
+
+    def __repr__(self):
+        return "<procedure ref {0}>".format(self.name)
+
+
+def GetRef(name):
+    """Return a reference to a named procedure.
+
+    中文：返回指定名字的过程引用。
+    """
+    frame = sys._getframe(1)
+    key = str(name)
+    lower = key.lower()
+    # Compiler-generated procedure functions are named _ovpp_fn_<name> and
+    # _ovpp_sub_<name>; plain names are accepted too for NATIVE procs.
+    # 中文：编译器生成的过程函数名为 _ovpp_fn_<名字> 与 _ovpp_sub_<名字>；
+    # 中文：也接受直接的名字，便于引用原生过程。
+    candidates = ("_ovpp_fn_" + lower, "_ovpp_sub_" + lower, key, lower)
+    target = None
+    for candidate in candidates:
+        for table in (frame.f_locals, frame.f_globals):
+            value = table.get(candidate)
+            if callable(value):
+                target = value
+                break
+        if target is not None:
+            break
+    if target is None:
+        from OpenVBSPP.exceptions import OVPPProcedureNotDefinedError
+
+        raise OVPPProcedureNotDefinedError(
+            f"GetRef: no procedure named '{key}'", line_number=None)
+    return _ProcedureRef(target, key)
+
+
+def LoadPicture(path):
+    """Not available: OpenVBS++ has no GUI picture library.
+
+    中文：不支持 —— OpenVBS++ 没有图形图像库。
+    """
+    from OpenVBSPP.exceptions import OVPPObjectNotSupportedError
+
+    raise OVPPObjectNotSupportedError(
+        "LoadPicture is not available: OpenVBS++ has no GUI picture library")
+
 _BUILTIN_NAMES = (
     "Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String "
     "Asc Chr InStr InStrRev Replace Split Join "
@@ -940,7 +1226,10 @@ _BUILTIN_NAMES = (
     "Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff "
     "Format FormatNumber FormatCurrency FormatPercent FormatDateTime "
     "DateSerial TimeSerial DateValue TimeValue DatePart MonthName WeekdayName "
-    "MsgBox InputBox"
+    "MsgBox InputBox "
+    "Atn Cos Sin Tan Exp Log CCur CSng CDate VarType RGB "
+    "ScriptEngine ScriptEngineBuildVersion ScriptEngineMajorVersion ScriptEngineMinorVersion "
+    "SetLocale GetLocale IsMissing GetRef LoadPicture"
 ).split()
 
 REGISTRY = {name.lower(): globals()[name] for name in _BUILTIN_NAMES}

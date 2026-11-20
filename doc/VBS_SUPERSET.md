@@ -170,19 +170,31 @@ Since v0.9.20 Python interop must be imported explicitly: put
 with OpenVBS++, and `Option COP` (the previous switch) has been removed — writing it is now
 a syntax error whose message points at that import.
 
-### 2.8 Built-in functions
+### 2.10 Built-in functions
 
-About 85 are implemented: strings (`Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String Asc Chr InStr InStrRev Replace Split Join Filter StrComp Hex Oct`),
-conversion (`CStr CInt CLng CDbl CBool CByte`), math (`Abs Int Fix Sgn Sqr Round Rnd Randomize`),
-arrays (`Array UBound LBound`), tests (`IsNumeric IsEmpty IsNull IsObject IsArray IsDate TypeName`),
-dates (`Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff`),
-interaction (`MsgBox InputBox`).
+Every VBScript built-in function is available except `LoadPicture`, which exists only to
+fail with a clear message (§4); every built-in statement (`Execute`, `ExecuteGlobal`) is
+available as well.
 
-| Unimplemented built-ins | Status |
-|---|---|
-| `FormatNumber` / `FormatCurrency` / `FormatDateTime` / `FormatPercent` | ❌ |
-| `Execute` / `Eval` / `ExecuteGlobal` | ❌ |
-| `GetLocale` / `SetLocale` / `ScriptEngine` family | ❌ |
+- strings: `Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String Asc Chr InStr InStrRev Replace Split Join Filter StrComp Hex Oct`
+- conversion: `CStr CInt CLng CDbl CBool CByte CCur CSng CDate`
+- math: `Abs Int Fix Sgn Sqr Round Rnd Randomize Sin Cos Tan Atn Exp Log`
+- arrays: `Array UBound LBound`
+- tests: `IsNumeric IsEmpty IsNull IsObject IsArray IsDate IsMissing TypeName VarType`
+- dates: `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff DatePart DateSerial DateValue TimeSerial TimeValue MonthName WeekdayName`
+- formatting: `Format FormatNumber FormatCurrency FormatDateTime FormatPercent`
+- runtime information: `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale`
+- interaction: `MsgBox InputBox` (console stand-ins, see §4)
+
+Also supported since v0.9.21: `#date#` literals (for example `#2020-05-06#` and
+`#1/2/2020 3:04:05 PM#`) and the `&H` / `&O` numeric literals.
+
+| Function | Status | Notes |
+|---|---|---|
+| `Execute` / `ExecuteGlobal` | ✅ | Statement form; the code runs in the global scope |
+| `Eval` | ✅ | Expression form |
+| `GetRef` | ✅ | Both `f(21)` and `f()` invoke the reference; a bare `f` reads the object |
+| `LoadPicture` | ⚠️ | Raises `OVPPObjectNotSupportedError`: there is no GUI picture library |
 
 ## 3. Known semantic differences
 
@@ -229,21 +241,6 @@ is never printed.
 If `Exit For` sits inside a `Do` loop, it only leaves the innermost loop (Python has no
 named loops).
 
-## 4. Known gaps (one-to-one with `expectedFailure` in the tests)
-
-**Since v0.5 `tests/test_vbs_superset.py` has no `expectedFailure` left — every case
-passes.** The previously listed gaps (object model, `Execute`/`Eval`, formatting functions,
-`Option Compare Text`, `GetObject`, default members) have all been closed.
-
-What remains unsupported is only the following, either because it is not part of the
-language itself or because we deliberately decline it:
-
-| Item | Explanation |
-|---|---|
-| COM host objects (`Excel.Application`, `WScript.Shell`, …) | Supported on Windows since v0.9.14 through the `com-support` package; on other platforms they raise `OVPPObjectNotSupportedError` instead of simulating COM |
-| The `Collection` built-in class | VBScript itself has none (it belongs to VBA) |
-| Other `Attribute` properties (`VB_Name` etc.) | Only `VB_UserMemId` is parsed |
-
 ### 3.7 ByRef for object methods uses the uniform Ref protocol
 
 In VBS, the ByRef parameter of `obj.Method x` writes back into `x`. Since v0.6 every object
@@ -260,22 +257,63 @@ unpacked into locals at the top of the body. Built-in objects (`Dictionary`, …
 classes, and `call_method` automatically takes `.v` to call by value, so the same protocol
 works for both sides.
 
-### 3.9 `Resume` / `Resume Next` are not implemented
-
-VBS `Resume` (retry the failing statement) and `Resume Next` (continue with the next one)
-currently **fail at compile time**. The reason: implementing them requires wrapping every
-statement in a retry loop, and the label-handling path already exposed infinite-loop bugs;
-refusing clearly beats hanging a user script. Use `Try ... Catch` or a handler ending in
-`Exit Sub` instead.
-
-Plan: compile the procedure body into a "statement index + while dispatch" state machine and
-solve it in one go.
-
 ### 3.8 The `Option Typing` type system is conservative
 
 When enabled it only checks what can be decided: assignments, arguments, return values.
 `Variant`, `Empty`, `Null` and `Object` match anything, so legal programs are never
 false-positived. When disabled, annotations are ignored and behaviour is plain VBS.
+
+### 3.9 `Resume` / `Resume Next` need an error handler
+
+`Resume` (retry the failing statement) and `Resume Next` (continue with the next one) are
+implemented since v0.9.5 (see section 6): a procedure that contains them compiles into a
+statement-index state machine. Both only make sense inside a procedure that has an
+`On Error GoTo <label>` handler, so using them without one is a compile-time error.
+
+Do not confuse them with `On Error Resume Next`, which is a mode statement, is supported
+everywhere, and does not need a handler.
+
+### 3.10 `MsgBox` and `InputBox` are console stand-ins
+
+VBScript's `MsgBox` opens a window and returns the button the user pressed; `InputBox`
+opens a text field. OpenVBS++ targets consoles, pipes and batch jobs, so both are
+stand-ins:
+
+- `MsgBox text [, buttons] [, title]` prints the text on stdout and returns `1` (the
+  "OK" button). `buttons` and `title` are accepted and ignored.
+- `InputBox(prompt [, title] [, default])` prints the prompt, reads one line from stdin
+  and returns it as a string. `title` and `default` are ignored; a closed stdin raises.
+
+Nothing blocks and nothing is drawn, so the same script runs unattended in CI.
+
+### 3.11 `Declare` and native code
+
+`Declare Function/Sub` binds a DLL entry point. OpenVBS++ runs on the Python VM and has
+no such binding, so `Declare` is rejected with a clear error instead of silently doing
+nothing. The supported routes are:
+
+- COM: `CreateObject("ProgID")`, on Windows, through the `com-support` package.
+- Native Python: an `over` package, or a `#python` block (see section 2.9).
+
+## 4. Known gaps
+
+`tests/test_vbs_superset.py` carries no `expectedFailure` any more: every fragment in
+`VBS_FEATURES` runs. The earlier gaps (object model, `Execute`/`Eval`, formatting
+functions, `Option Compare Text`, `GetObject`, default members) are closed.
+
+What is still unsupported falls into two groups: things that need a host application this
+implementation does not have, and things we deliberately decline.
+
+| Item | Explanation |
+|---|---|
+| COM host objects (`Excel.Application`, `WScript.Shell`, …) | Supported on Windows since v0.9.14 through the `com-support` package; on other platforms they raise `OVPPObjectNotSupportedError` instead of simulating COM |
+| The `Collection` built-in class | VBScript itself has none (it belongs to VBA) |
+| Other `Attribute` properties (`VB_Name` etc.) | Only `VB_UserMemId` is parsed |
+| `MsgBox` / `InputBox` | Console stand-ins: `MsgBox` prints its text, ignores the buttons and the title, and returns 1; `InputBox` reads one line from stdin, ignores the default value, and has no GUI. Neither blocks a host window (see §3.10) |
+| `LoadPicture` | The function exists so old scripts fail with a clear message: there is no GUI picture library (`OVPPObjectNotSupportedError`) |
+| Procedures defined at run time by `ExecuteGlobal` | They can update variables but cannot be called by name, because procedure names bind at compile time. Use `GetRef` on an existing procedure, or put the code in its own module |
+| Backward `GoTo` | Only forward jumps are compiled; a jump to an earlier label raises `Recursive GoTo ... is not supported` |
+| `Declare` (DLL declaration) | Deliberately unsupported: the runtime is Python, not a DLL host. Use `CreateObject` for COM or an over package for native code (see §3.11) |
 
 ## 5. Change checklist
 
@@ -284,15 +322,15 @@ Run through this before and after touching the compiler:
 1. Does the new syntax change the behaviour of some legal VBS snippet? If so, change the
    implementation or document it in §3.
 2. Did `tests/test_vbs_superset.py` gain the matching case?
-3. Was a gap closed? Delete the corresponding method in `TestKnownGaps`, move the case into
-   `VBS_FEATURES`, update this file.
+3. Was a gap closed? Remove it from the §4 table, add the case to `VBS_FEATURES`, and update
+   this file's status sections.
 4. Is the full test suite (`python -m unittest discover -s tests`) still green?
 5. Are the support matrices in README and this file in sync?
 
 > The full object-model inventory (including keywords that do not apply) is in
 > [OBJECT_MODEL.md](OBJECT_MODEL.md) and [OOP.md](OOP.md).
 
-## 6. v0.9.5 status update
+## 6. Status update (v0.9.5 - v0.9.21)
 
 Resume / Resume Next are implemented: a procedure containing Resume compiles into a
 "statement index dispatch" state machine, one `_pc` branch per statement; on error the
@@ -301,6 +339,9 @@ failing index is recorded and control jumps to the `On Error GoTo` handler, from
 works inside nested If / loops as well. Procedures without Resume keep the original
 sequential compilation, with unchanged behaviour and performance.
 
-At this point **all native VBScript syntax is supported** (only `Declare` is explicitly
-unsupported; COM host objects work on Windows through the `com-support` package since
-v0.9.14, and other platforms report a clear error).
+After the v0.9.21 audit every native VBScript statement form is supported, with one
+deliberate exception: `Declare`. The remaining gaps are host integration rather than
+syntax: `MsgBox` / `InputBox` are console stand-ins, `LoadPicture` reports that there is
+no GUI picture library, procedures defined at run time by `ExecuteGlobal` cannot be
+called by name (use `GetRef`), and only forward `GoTo` is allowed. The section 4 table
+above is the complete list.

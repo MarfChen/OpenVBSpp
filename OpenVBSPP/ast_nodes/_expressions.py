@@ -28,6 +28,19 @@ class Float(AST):
     """
     def __init__(self, val): self.val = float(val)
     def __repr__(self): return f"Float({self.val})"
+class DateLit(AST):
+    """A `#...#` date literal, kept as text and parsed when the script runs.
+
+    中文：`#...#` 日期字面量 —— 原样保存文本，运行时再解析成日期值。
+    """
+
+    def __init__(self, val):
+        self.val = val
+
+    def __repr__(self):
+        return f"DateLit({self.val!r})"
+
+
 class String(AST):
     def __init__(self, val):
         raw = val

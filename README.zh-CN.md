@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-514%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.20-blue)
+![tests](https://img.shields.io/badge/tests-549%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.21-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -26,7 +26,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.20**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.21**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -167,7 +167,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 
 **支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。514 个测试在每个受支持的版本上都跑 CI；
+`pip install openvbspp` 在 x64 与 ARM64 上通用。549 个测试在每个受支持的版本上都跑 CI；
 运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
 但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
 [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9。
@@ -197,7 +197,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 | 网页 IDE | openvbs ide：浏览器里编辑/运行/检查/保存，零第三方依赖 |
 | Python 互操作 | `#python ... #endpython` 代码块、`COP` 公共对象池；用 `<script src="python-embed" />` 显式导入后可用 |
 | 动态执行 | `Execute` / `Eval`（复用编译器，在全局作用域运行） |
-| 其它 | `Erase`、`Option Compare Text`、`FormatNumber` 系列、`vbCrLf` 等预定义常量、约 70 个内置函数 |
+| 其它 | `Erase`、`Option Compare Text`、`FormatNumber` 系列、`vbCrLf` 等预定义常量、约 95 个内置函数 |
 
 ## 过程：Sub / Function
 
@@ -382,11 +382,14 @@ On Error GoTo 0
 | 分类 | 函数 |
 |---|---|
 | 字符串 | `Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String Asc Chr InStr InStrRev Replace Split Join Filter StrComp Hex Oct` |
-| 转换 | `CStr CInt CLng CDbl CBool CByte` |
-| 数学 | `Abs Int Fix Sgn Sqr Round Rnd Randomize` |
+| 转换 | `CStr CInt CLng CDbl CBool CByte CCur CSng CDate` |
+| 数学 | `Abs Int Fix Sgn Sqr Round Rnd Randomize Sin Cos Tan Atn Exp Log` |
 | 数组 | `Array UBound LBound` |
-| 判断 | `IsNumeric IsEmpty IsNull IsObject IsArray IsDate TypeName` |
-| 日期 | `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff` |
+| 判断 | `IsNumeric IsEmpty IsNull IsObject IsArray IsDate IsMissing TypeName VarType` |
+| 日期 | `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff DatePart DateSerial DateValue TimeSerial TimeValue MonthName WeekdayName` |
+| 格式化 | `Format FormatNumber FormatCurrency FormatDateTime FormatPercent` |
+| 运行时信息 | `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale` |
+| 过程 | `Execute` / `ExecuteGlobal` / `Eval` / `GetRef` / `LoadPicture`（没有图形库，会报错） |
 | 交互 | `MsgBox`（打印到标准输出）、`InputBox`（读标准输入） |
 
 预定义常量：`vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`。
@@ -564,7 +567,7 @@ OpenVBSPP/
 └── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
 examples/demo/          录屏用六段演示项目（旧脚本 / 类与 Try / Python / COM / 命名空间 / 包管理器）
-tests/                  回归测试（514 个用例）
+tests/                  回归测试（549 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 
@@ -581,6 +584,7 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 - `tests/test_interop.py`：`#python` 代码块、`COP` 对象池与显式导入要求。
 - `tests/test_vbs_superset.py`：**VBS 超集一致性**——100+ 条合法 VBS 片段必须跑通；
   v0.5 起已没有 expectedFailure（缺口全部补齐），新增缺口时按老规矩加。
+- `tests/test_vbs_coverage.py`：v0.9.21 补齐的每个 VBScript 内置与字面量（`&H`/`&O`、`#date#`、数学、`VarType`、`GetRef`、`ExecuteGlobal` 等）。
 - `tests/test_over.py` / `tests/test_over_registry.py`：over 的依赖图、锁文件、本地源与 registry。
 - `tests/test_over_python.py`：over 声明 Python 依赖时的合并、钉版本、frozen 还原与卸载。
 - `tests/test_com.py`：COM 桥的定位优先级、开关、错误翻译与适配层行为（不依赖真实 COM）。
@@ -591,6 +595,9 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 
 - `Collection` 内置类（VBScript 本身没有，属于 VBA）
 - `Declare`（声明外部 DLL 函数）
+- `MsgBox` / `InputBox` 不是真正的对话框 —— 它们是控制台替身（`MsgBox` 打印文本并返回 1，
+  `InputBox` 从标准输入读一行）；`LoadPicture` 直接报错而不加载图片
+- `ExecuteGlobal` 在运行期定义的过程无法按名字调用（改用 `GetRef` 绑定），且只支持向前 `GoTo`
 
 COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**：Windows 上由
 `com-support` 包真连，非 Windows 平台、`OPENVBS_COM=0`、或没装 `pywin32` 时会给出明确报错
