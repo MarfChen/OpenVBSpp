@@ -31,7 +31,7 @@
 | 0.9.23 | The `WScript` host object (`Echo`, zero-based `Arguments` with `Named`, `ScriptName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout`, `Quit`) plus script arguments on the command line; COM fidelity fixes (property-valued objects, `GetObject` monikers, 429/432, coclass `TypeName`, omitted arguments, `Files`/`SubFolders` collections); copyright year set to 2026 |
 
 **Current status**: every native VBScript statement form is in place (only `Declare`
-is declined by design); 645 tests green;
+is declined by design); 649 tests green;
 in-process loops, arrays and calls are now on par with hand-written Python
 (0.99×–1.35×). On Windows COM is real through the `com-support` package — and
 on non-Windows platforms, with `OPENVBS_COM=0`, or without `pywin32`, you get an

@@ -30,7 +30,7 @@
 | 0.9.22 | 内置 `ui-support` 包提供真正的 `MsgBox` / `InputBox` 对话框（Tk），CI/管道/嵌入运行时退回控制台，并新增 `THIRD_PARTY_LICENSES.md`（CPython 与 Tcl/Tk 原文） |
 | 0.9.23 | `WScript` 宿主对象（`Echo`、0 起始的 `Arguments` 与 `Named`、`ScriptName`、`StdOut`/`StdErr`/`StdIn`、`Sleep`、`Timeout`、`Quit`）与命令行脚本参数；COM 保真修复（属性返回对象、`GetObject` moniker、429/432、组件类名 `TypeName`、省略实参、`Files`/`SubFolders` 集合）；版权年份改为 2026 |
 
-**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；645 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
+**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；649 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
 `com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错）；
 `MsgBox` / `InputBox` 在交互式命令行运行时会弹真窗口，其余场合仍是控制台行为；`WScript`
 按 Windows Script Host 的方式描述这个控制台宿主，见 §3 末尾的说明。

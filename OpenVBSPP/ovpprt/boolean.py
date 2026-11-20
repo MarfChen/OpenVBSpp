@@ -59,11 +59,23 @@ def to_bool(value):
 # 中文：VBS 的逻辑运算符是按位的——对整数做位运算、对布尔保持布尔；
 # True is -1 and False is 0, so both meanings agree by construction.
 # 中文：因为 True 就是 -1、False 就是 0，这两套语义天然统一。
+def _normalize(value):
+    """Treat a plain Python `bool` as a VBScript Boolean before bit-operating.
+
+    中文：位运算前把普通 Python `bool` 当作 VBS 布尔处理。
+    """
+    if isinstance(value, bool):
+        return TRUE if value else FALSE
+    return value
+
+
 def _both_boolean(a, b):
     return isinstance(a, VBool) and isinstance(b, VBool)
 
 
 def _logical(a, b, op):
+    a = _normalize(a)
+    b = _normalize(b)
     left = int(a)
     right = int(b)
     result = op(left, right)
@@ -91,5 +103,6 @@ def ovpp_imp(a, b):
 
 
 def ovpp_not(a):
+    a = _normalize(a)
     result = ~int(a)
     return to_bool(result) if isinstance(a, VBool) else result

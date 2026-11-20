@@ -35,6 +35,24 @@ from OpenVBSPP.exceptions import OVPPObjectNotSupportedError
 _DEFAULT_MEMBER = "_default_member"
 
 
+def _vbs_scalar(value):
+    """Turn a plain Python `bool` into the VBScript Boolean (-1 / 0).
+
+    Host objects are written in Python, where `True` is 1. VBScript's `True` is -1
+    and its logical operators are bitwise, so leaking a Python bool makes
+    `Not value` return -2 (truthy) instead of False. Every value that crosses the
+    object boundary goes through here.
+
+    中文：把普通 Python `bool` 变成 VBS 布尔（-1 / 0）。宿主对象是用 Python 写的，
+    其中 `True` 是 1；VBS 的 `True` 是 -1 且逻辑运算符是按位的，漏出去的 Python
+    bool 会让 `Not value` 得到 -2（仍为真）而不是 False。所有跨对象边界的值都经过这里。
+    """
+    if isinstance(value, bool):
+        from OpenVBSPP.ovpprt.boolean import FALSE, TRUE
+        return TRUE if value else FALSE
+    return value
+
+
 def create_object(progid, registry, *args):
     """The runtime implementation of `CreateObject("ProgID")`.
 
@@ -256,12 +274,12 @@ def call_method(obj, name, refs):
             member = obj.item(key)
             values = [ref.v for ref in refs]
             if callable(member):
-                return member(*values)
+                return _vbs_scalar(member(*values))
             if not values:
-                return member
+                return _vbs_scalar(member)
             for index in values[:-1]:
                 member = member[index]
-            return member[values[-1]]
+            return _vbs_scalar(member[values[-1]])
 
     target = _lookup(obj, name)
     if target is _MISSING:
@@ -270,17 +288,17 @@ def call_method(obj, name, refs):
 
     if callable(target):
         if getattr(obj, "_ovpp_vbs_class", False):
-            return target(*refs)
-        return target(*[ref.v for ref in refs])
+            return _vbs_scalar(target(*refs))
+        return _vbs_scalar(target(*[ref.v for ref in refs]))
 
     # Not a method: treat it as array indexing.
     # 中文：不是方法——按数组下标处理。
     values = [ref.v for ref in refs]
     if not values:
-        return target
+        return _vbs_scalar(target)
     for index in values[:-1]:
         target = target[index]
-    return target[values[-1]]
+    return _vbs_scalar(target[values[-1]])
 
 
 def _is_nothing(value):
@@ -344,15 +362,15 @@ def member_get(obj, name):
         key = _dict_key(obj, name)
         if key is not None:
             member = obj.item(key)
-            return member() if callable(member) else member
+            return _vbs_scalar(member() if callable(member) else member)
 
     target = _lookup(obj, name)
     if target is _MISSING:
         raise OVPPObjectNotSupportedError(
             f"Object of type '{type(obj).__name__}' has no member '{name}'")
     if callable(target):
-        return target()
-    return target
+        return _vbs_scalar(target())
+    return _vbs_scalar(target)
 
 
 def member_call(obj, name, *args):
@@ -380,12 +398,12 @@ def member_call(obj, name, *args):
             f"Object of type '{type(obj).__name__}' has no member '{name}'")
 
     if callable(target):
-        return target(*args)
+        return _vbs_scalar(target(*args))
 
     # Not a method: treat it as array indexing.
     # 中文：不是方法——按数组下标处理。
     if not args:
-        return target
+        return _vbs_scalar(target)
     for index in args[:-1]:
         target = target[index]
     return target[args[-1]]

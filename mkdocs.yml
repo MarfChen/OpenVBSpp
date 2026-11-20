@@ -57,6 +57,7 @@ nav:
   - Tooling:
       - over package manager: OVER.md
       - Web IDE: WEB_IDE.md
+  - Cookbook: COOKBOOK.md
   - Legal and compliance: LEGAL.md
   - 中文文档:
       - VBScript 超集: VBS_SUPERSET.zh-CN.md
@@ -65,6 +66,7 @@ nav:
       - 现代特性: MODERN_FEATURES.zh-CN.md
       - over 包管理器: OVER.zh-CN.md
       - 网页 IDE: WEB_IDE.zh-CN.md
+      - COOKBOOK.zh-CN.md
       - 法务与合规: LEGAL.zh-CN.md
 
 extra:

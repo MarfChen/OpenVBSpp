@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-645%20cases-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.27-blue)
+![tests](https://img.shields.io/badge/tests-649%20cases-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.28-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -66,7 +66,7 @@ Release process (TestPyPI → PyPI → exe) lives in [dev-docs/RELEASE.md](dev-d
 
 **Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (645 tests) runs on
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (649 tests) runs on
 every supported version in CI; the runtime code itself still parses and runs on 3.9
 (`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
 See [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9 for the version policy and what to build for ARM.
@@ -251,6 +251,7 @@ On Windows, COM objects (`WScript.Shell`, `Excel.Application`, WMI, …) connect
 properties, methods, collections and `For Each` included, with no `import` in your script
 (provided by the `com-support` package; see [extras/com-support](extras/com-support)).
 Details and limits: [doc/OBJECT_MODEL.md](doc/OBJECT_MODEL.md), [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md).
+Task-shaped recipes live in the [cookbook](doc/COOKBOOK.md).
 
 ### `Option Typing`: compile-time type checking
 
@@ -519,7 +520,7 @@ OpenVBSPP/
   ast_nodes/ plugins/
 examples/            # 24 runnable .vbs examples
 examples/demo/       # 6-step demo project for the screen recording
-tests/               # 645 unittest cases (642 pass, 3 documented expected failures)
+tests/               # 649 unittest cases (646 pass, 3 documented expected failures)
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
@@ -530,7 +531,7 @@ dev-docs/            # design, release and roadmap notes for maintainers
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 645 tests, ~3.5 s
+python -m unittest discover -s tests          # 649 tests, ~3.5 s
 ```
 
 `unittest` reports `OK (expected failures=3)`: those three cases are VBScripts whose
@@ -625,6 +626,9 @@ Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
 - **Next** — method overloading, remaining `Attribute` properties, events, `Collection`,
   VBScript-accurate comparison coercion (see [doc/VBS_SUPERSET.md §4.1](doc/VBS_SUPERSET.md))
 - **v1.0** — stable language spec, official `ovpprt` runtime library, IDE / LSP support
+- **v0.9.28** - a task-shaped [cookbook](doc/COOKBOOK.md), FileSystemObject.GetSpecialFolder /
+  .GetFile / .GetAbsolutePathName, VBScript error numbers 53 and 76, and host booleans that
+  finally behave like VBScript booleans (Do While Not stream.AtEndOfStream no longer hangs).
 
 ## License, third parties, trademarks
 

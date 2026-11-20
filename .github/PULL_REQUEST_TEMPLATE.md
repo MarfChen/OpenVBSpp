@@ -14,7 +14,7 @@
 
 ## 提交前自查 / Checklist
 
-- [ ] `python -m unittest discover -s tests` 全绿（当前应是 645 个用例）
+- [ ] `python -m unittest discover -s tests` 全绿（当前应是 649 个用例）
 - [ ] 新增行为有对应的测试；修复缺陷的 PR 附了能复现该缺陷的测试
 - [ ] 没有改动任何**合法 VBScript 程序的现有语义**（超集铁律）
 - [ ] 改了 `OpenVBSPP/vendor/com-support/` 的话，`extras/com-support/` 里的同名文件同步了（两者必须逐字节一致）

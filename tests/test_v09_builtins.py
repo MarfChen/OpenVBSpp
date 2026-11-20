@@ -99,6 +99,37 @@ class TestFileSystemObject(unittest.TestCase):
                 f'echo r.ReadLine\necho r.ReadLine\necho r.AtEndOfStream\nr.Close')
         self.assertEqual(out(code), ["True", "one", "two", "True"])
 
+    def test_do_while_not_at_end_of_stream(self):
+        """`Not stream.AtEndOfStream` has to stop the loop at the last line.
+
+        中文：`Not stream.AtEndOfStream` 必须在最后一行之后让循环停下来。
+        """
+        code = (f'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+                f'p = "{self.dir}/loop.txt"\n'
+                f'Set w = fso.CreateTextFile(p, True)\n'
+                f'w.WriteLine "a"\nw.WriteLine "b"\nw.WriteLine "c"\nw.Close\n'
+                f'Set r = fso.OpenTextFile(p, 1)\n'
+                f'Do While Not r.AtEndOfStream\n'
+                f'    echo r.ReadLine\n'
+                f'Loop\n'
+                f'r.Close')
+        self.assertEqual(out(code), ["a", "b", "c"])
+
+    def test_host_boolean_is_a_vbs_boolean(self):
+        """Values from host objects must be VBS booleans (-1 / 0), not Python bools.
+
+        中文：宿主对象返回的布尔值必须是 VBS 布尔（-1 / 0），不能是 Python bool。
+        """
+        code = (f'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+                f'p = "{self.dir}/flag.txt"\n'
+                f'Set w = fso.CreateTextFile(p, True)\nw.WriteLine "x"\nw.Close\n'
+                f'echo Not fso.FileExists(p)\n'
+                f'echo Not fso.FileExists(p & ".nope")\n'
+                f'If fso.FileExists(p) = True Then\n'
+                f'    echo "equals-True"\n'
+                f'End If')
+        self.assertEqual(out(code), ["False", "True", "equals-True"])
+
     def test_path_helpers(self):
         code = ('Set fso = CreateObject("Scripting.FileSystemObject")\n'
                 'echo fso.GetFileName("C:\\data\\r.txt")\n'
@@ -120,6 +151,21 @@ class TestFileSystemObject(unittest.TestCase):
                 'Set r = fso.OpenTextFile("nope-does-not-exist.txt", 1)')
         with self.assertRaises(OVPPError):
             out(code)
+
+    def test_missing_file_uses_vbscript_error_number(self):
+        """A missing file raises 53, a missing folder 76 — the VBScript numbers.
+
+        中文：缺文件抛 53、缺目录抛 76 —— 与 VBScript 的错误号一致。
+        """
+        code = (f'Set fso = CreateObject("Scripting.FileSystemObject")\n'
+                f'On Error Resume Next\n'
+                f'Set r = fso.OpenTextFile("{self.dir}/nope.txt", 1)\n'
+                f'echo Err.Number\n'
+                f'Set folder = fso.GetFolder("{self.dir}/nope-dir")\n'
+                f'echo Err.Number\n'
+                f'Set file = fso.GetFile("{self.dir}/nope.txt")\n'
+                f'echo Err.Number')
+        self.assertEqual(out(code), ["53", "76", "53"])
 
     def test_method_names_are_case_insensitive(self):
         code = (f'Set fso = CreateObject("Scripting.FileSystemObject")\n'

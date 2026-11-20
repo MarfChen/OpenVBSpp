@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-645%20cases-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.27-blue)
+![tests](https://img.shields.io/badge/tests-649%20cases-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.28-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -26,7 +26,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.27**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.28**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -167,7 +167,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 
 **支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。645 个测试在每个受支持的版本上都跑 CI；
+`pip install openvbspp` 在 x64 与 ARM64 上通用。649 个测试在每个受支持的版本上都跑 CI；
 运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
 但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
 [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9。
@@ -319,6 +319,7 @@ echo c.Value            ' 5
 
 细节与限制见 [doc/OBJECT_MODEL.md](doc/OBJECT_MODEL.md)（设计报告）和
 [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §3.7（方法参数的 ByRef 差异）。
+按任务查找配方看 [实战手册](doc/COOKBOOK.zh-CN.md)。
 
 ## Option Typing：编译期类型检查
 
@@ -606,7 +607,7 @@ OpenVBSPP/
 └── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
 examples/demo/          录屏用六段演示项目（旧脚本 / 类与 Try / Python / COM / 命名空间 / 包管理器）
-tests/                  回归测试（645 个用例）
+tests/                  回归测试（649 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 
@@ -711,6 +712,9 @@ git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
   （COM 相关用例在非 Windows 上跳过）
 - 下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
 - **v1.0**：稳定语言规范、官方运行时库 `ovpprt`、IDE / LSP 支持
+- **v0.9.28**—可按任务查找的[实战手册](doc/COOKBOOK.zh-CN.md)、FileSystemObject.GetSpecialFolder / .GetFile /
+  .GetAbsolutePathName、VBScript 错误号 53 与 76，以及终于行为正常的宿主布尔值
+  （Do While Not stream.AtEndOfStream 不再死循环）。
 
 ## 许可
 

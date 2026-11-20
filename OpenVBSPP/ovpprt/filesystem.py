@@ -36,7 +36,7 @@ import os
 import tempfile
 from pathlib import Path
 
-from OpenVBSPP.exceptions import OVPPRuntimeError
+from OpenVBSPP.exceptions import OVPPFileNotFoundError, OVPPPathNotFoundError, OVPPRuntimeError
 
 
 def _path_lib(text):
@@ -175,7 +175,7 @@ class FileSystemObject:
     def DeleteFolder(self, path, force=None):
         target = Path(str(path))
         if not target.is_dir():
-            raise OVPPRuntimeError(f"Folder not found: {target}")
+            raise OVPPPathNotFoundError(f"Folder not found: {target}")
         if force:
             for child in sorted(target.rglob("*"), reverse=True):
                 child.unlink() if child.is_file() else child.rmdir()
@@ -184,8 +184,46 @@ class FileSystemObject:
     def GetFolder(self, path):
         target = Path(str(path))
         if not target.is_dir():
-            raise OVPPRuntimeError(f"Folder not found: {target}")
+            raise OVPPPathNotFoundError(f"Folder not found: {target}")
         return Folder(target)
+
+    def GetFile(self, path):
+        """`fso.GetFile(path)`: a File object for an existing file.
+
+        中文：`fso.GetFile(path)` —— 返回已存在文件的 File 对象。
+        """
+        target = Path(str(path))
+        if not target.is_file():
+            raise OVPPFileNotFoundError(f"File not found: {target}")
+        return File(target)
+
+    def GetAbsolutePathName(self, path):
+        """`fso.GetAbsolutePathName(path)`: resolve a path against the current directory.
+
+        中文：`fso.GetAbsolutePathName(path)` —— 把路径解析成绝对路径。
+        """
+        return str(Path(str(path)).resolve())
+
+    def GetSpecialFolder(self, which):
+        """`fso.GetSpecialFolder(0|1|2)`: the Windows, system or temporary folder.
+
+        中文：`fso.GetSpecialFolder(0|1|2)` —— Windows 目录、系统目录或临时目录。
+        """
+        index = int(which)
+        if index == 2:
+            return Folder(Path(tempfile.gettempdir()))
+        if index in (0, 1):
+            root = os.environ.get("SystemRoot") or os.environ.get("windir") or "/"
+            target = Path(root)
+            if index == 1:
+                target = target / "System32"
+                if not target.is_dir():
+                    target = Path(root)
+            if not target.is_dir():
+                raise OVPPPathNotFoundError(f"Folder not found: {target}")
+            return Folder(target)
+        raise OVPPRuntimeError(
+            f"Invalid special folder: {which} (0 = Windows, 1 = system, 2 = temp)")
 
     def GetParentFolderName(self, path):
         text = str(path)
@@ -218,7 +256,7 @@ class FileSystemObject:
     def DeleteFile(self, path, force=None):
         target = Path(str(path))
         if not target.is_file():
-            raise OVPPRuntimeError(f"File not found: {target}")
+            raise OVPPFileNotFoundError(f"File not found: {target}")
         try:
             target.unlink()
         except OSError as exc:
@@ -237,14 +275,14 @@ class FileSystemObject:
         mode = int(iomode or FOR_READING)
         if mode == FOR_READING:
             if not target.is_file():
-                raise OVPPRuntimeError(f"File not found: {target}")
+                raise OVPPFileNotFoundError(f"File not found: {target}")
             handle = open(target, "r", encoding="utf-8-sig", newline="")
         elif mode == FOR_APPENDING:
             target.parent.mkdir(parents=True, exist_ok=True)
             handle = open(target, "a", encoding="utf-8", newline="\n")
         else:
             if not target.exists() and not create:
-                raise OVPPRuntimeError(f"File not found: {target}")
+                raise OVPPFileNotFoundError(f"File not found: {target}")
             target.parent.mkdir(parents=True, exist_ok=True)
             handle = open(target, "w", encoding="utf-8", newline="\n")
         return TextStream(target, mode, handle)
@@ -360,6 +398,11 @@ class Folder:
     def __repr__(self):
         return f"Folder({self._path})"
 
+    def __str__(self):
+        # VBScript turns a Folder into its path in string context.
+        # 中文：VBS 在字符串上下文里会把 Folder 变成它的路径。
+        return str(self._path)
+
 
 class File:
     """The file object returned by `fso.GetFile` (minimal).
@@ -379,3 +422,8 @@ class File:
 
     def __repr__(self):
         return f"File({self._path})"
+
+    def __str__(self):
+        # VBScript turns a File into its path in string context.
+        # 中文：VBS 在字符串上下文里会把 File 变成它的路径。
+        return str(self._path)

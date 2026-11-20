@@ -109,6 +109,11 @@ class OVPPFileNotFoundError(OVPPError):
     name = "File not found"
 
 
+class OVPPPathNotFoundError(OVPPError):
+    number = 76
+    name = "Path not found"
+
+
 class OVPPOutOfRangeError(OVPPError):
     number = 9
     name = "Subscript out of range"

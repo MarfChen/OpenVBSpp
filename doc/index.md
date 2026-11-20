@@ -50,6 +50,6 @@ End If
 
 ## Status
 
-- Tests: 645 cases green (hard gate on Windows 3.10–3.13, Linux is a gate as well)
+- Tests: 649 cases green (hard gate on Windows 3.10–3.13, Linux is a gate as well)
 - Performance: 2.5–3× faster end to end than `cscript.exe`; loops and arrays are on par with hand-written Python
 - Legal: an independent implementation that does not distribute Microsoft code or documentation — see [Legal and compliance](LEGAL.md)

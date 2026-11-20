@@ -7,6 +7,35 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [0.9.28] - 2026-11-21
+
+### Added
+
+- **Cookbook** (`doc/COOKBOOK.md` and the Chinese `doc/COOKBOOK.zh-CN.md`, also
+  published on the documentation site): thirteen task-shaped recipes covering
+  the command line, `WScript` arguments and exit codes, text files, CSV
+  aggregation, `On Error` versus `Try`, COM and WMI, real dialogs, both module
+  forms, `#python` + `COP`, `over` packages, `Option Typing`/`Option Native`,
+  and a migration checklist. Every snippet was executed before it was written
+  down.
+- **`FileSystemObject.GetSpecialFolder`**, **`.GetFile`** and
+  **`.GetAbsolutePathName`**: legacy scripts use them constantly and they were
+  missing. `GetSpecialFolder(2)` is the temporary directory on every host.
+- **`OVPPPathNotFoundError`** (`Err.Number` 76) so a missing folder is
+  distinguishable from a missing file (53), as in VBScript.
+- **`Folder` and `File` stringify to their path**, so `"file: " & f` works.
+
+### Fixed
+
+- **Host-provided booleans are now real VBScript booleans.** `Not
+  stream.AtEndOfStream` used to evaluate `~True` and stay truthy, which made the
+  classic `Do While Not ... AtEndOfStream` loop run forever. `Not`, `And`, `Or`,
+  `Xor` and `Eqv` now normalise a Python `bool` to `VBool` first, wherever a
+  member, method or property result enters the language.
+- **`FileSystemObject` raises the VBScript numbers**: a missing file reports 53
+  and a missing folder reports 76, whether caught by `On Error Resume Next` or by
+  `Try`/`Catch`.
+
 ## [0.9.27] — 2026-11-21
 
 ### Fixed

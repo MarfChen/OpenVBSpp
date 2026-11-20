@@ -528,6 +528,15 @@ class TestBooleanRuntime(unittest.TestCase):
         self.assertEqual(int(vbool.ovpp_or(-1, 0)), -1)
         self.assertEqual(int(vbool.ovpp_not(0)), -1)
 
+    def test_python_bool_is_treated_as_vb_bool(self):
+        # A plain Python True must behave like VBS True (-1), not like 1.
+        # 中文：普通 Python True 必须等同 VBS 的 True（-1），而不是 1。
+        self.assertEqual(int(vbool.ovpp_not(True)), 0)
+        self.assertEqual(int(vbool.ovpp_not(False)), -1)
+        self.assertEqual(int(vbool.ovpp_and(True, 5)), 5)
+        self.assertEqual(int(vbool.ovpp_or(True, 0)), -1)
+        self.assertIsInstance(vbool.ovpp_not(True), vbool.VBool)
+
 
 class TestCli(unittest.TestCase):
     def _main(self, argv):
