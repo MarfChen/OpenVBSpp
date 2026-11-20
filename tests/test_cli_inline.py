@@ -1,4 +1,6 @@
-"""`openvbs -c CODE` / `-`(stdin)：命令行内联执行与诊断。"""
+"""`openvbs -c CODE` / `-` (stdin): inline execution and diagnostics.
+
+中文：`openvbs -c CODE` / `-`(stdin)：命令行内联执行与诊断。"""
 
 import contextlib
 import io

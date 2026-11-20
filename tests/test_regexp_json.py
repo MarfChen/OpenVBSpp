@@ -1,4 +1,5 @@
-"""
+"""v0.9.2: AddressOf (procedure values), the RegExp object, Json encode/decode.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-v0.9.2：AddressOf（过程值）、RegExp 对象、Json 编解码。"""
+v0.9.2：AddressOf（过程值）、RegExp 对象、Json 编解码。
+"""
 
 import contextlib
 import io

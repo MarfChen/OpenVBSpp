@@ -1,4 +1,5 @@
-"""
+"""Object model tests (Class / Property / Me / CreateObject / Dictionary).
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -78,7 +79,8 @@ class TestClassBasics(unittest.TestCase):
     def test_class_terminate_runs(self):
         code = ("Class Foo\n Private Sub Class_Terminate()\n  echo \"bye\"\n End Sub\n"
                 "End Class\nSet f = New Foo\nSet f = Nothing")
-        # __del__ 依赖引用计数，CPython 下会立即触发
+        # __del__ relies on reference counting, so CPython runs it immediately
+        # 中文：__del__ 依赖引用计数，CPython 下会立即触发
         self.assertEqual(out(code), ["bye"])
 
     def test_field_array(self):
@@ -232,7 +234,8 @@ class TestObjectErrors(unittest.TestCase):
             out(code)
 
     def test_createobject_unknown_progid(self):
-        # 关掉 COM 支持，保证在装了 pywin32 的机器上也是同一条错误（不真的去起 Excel）
+        # COM disabled, so the same error appears even with pywin32 installed (no real Excel)
+        # 中文：关掉 COM 支持，保证在装了 pywin32 的机器上也是同一条错误（不真的去起 Excel）
         with mock.patch.dict(os.environ, {"OPENVBS_COM": "0"}):
             with self.assertRaises(OVPPObjectNotSupportedError) as ctx:
                 out('Set o = CreateObject("Excel.Application")')
@@ -298,7 +301,8 @@ class TestGetObject(unittest.TestCase):
         self.assertEqual(out(code), ["8"])
 
     def test_getobject_unknown_progid(self):
-        # 同上：关掉 COM，避免真的去连本机已运行的 Excel
+        # as above: COM is off, so a running local Excel is never contacted
+        # 中文：同上：关掉 COM，避免真的去连本机已运行的 Excel
         with mock.patch.dict(os.environ, {"OPENVBS_COM": "0"}):
             with self.assertRaises(OVPPObjectNotSupportedError):
                 out('Set o = GetObject("Excel.Application")')

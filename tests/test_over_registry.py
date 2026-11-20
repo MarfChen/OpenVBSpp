@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""为 over 的本地 registry（publish-less 分发）补测试。"""
+"""Tests for the over local registry (publish-less distribution).
+
+中文：为 over 的本地 registry（publish-less 分发）补测试。"""
 import json
 import sys
 import tempfile
@@ -15,7 +17,9 @@ from OpenVBSPP import over                       # noqa: E402
 
 
 class RegistryCase(unittest.TestCase):
-    """准备一个可打包的包目录 + 一个独立的 registry 文件。"""
+    """Build a packable package directory plus a standalone registry file.
+
+    中文：准备一个可打包的包目录 + 一个独立的 registry 文件。"""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()

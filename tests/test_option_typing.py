@@ -1,4 +1,5 @@
-"""
+"""`Option Typing` compile-time type checking tests.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +42,8 @@ def out(code):
 
 class TestTypingOff(unittest.TestCase):
     def test_annotations_are_ignored_without_option(self):
-        # 没有 Option Typing 时注解不参与检查（等价于普通 VBS）
+        # without Option Typing annotations are not checked (equivalent to plain VBS)
+        # 中文：没有 Option Typing 时注解不参与检查（等价于普通 VBS）
         code = 'Dim n -> String\nn = 42\necho n'
         self.assertEqual(out(code), ["42"])
 
@@ -69,7 +71,8 @@ class TestTypingOn(unittest.TestCase):
             out('Option Typing\nDim n -> Integer\nn = "abc"')
 
     def test_builtin_return_type_is_checked(self):
-        # Len 返回 Integer，不能赋给 String
+        # Len returns Integer, so it cannot be assigned to a String
+        # 中文：Len 返回 Integer，不能赋给 String
         with self.assertRaises(OVPPTypeError):
             out('Option Typing\nDim s -> String\ns = Len("abc")')
 

@@ -1,4 +1,6 @@
-"""`openvbs --json check|run`：机器可读输出。"""
+"""`openvbs --json check|run`: machine-readable output.
+
+中文：`openvbs --json check|run`：机器可读输出。"""
 
 import contextlib
 import io

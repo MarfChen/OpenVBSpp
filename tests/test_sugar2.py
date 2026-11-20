@@ -1,4 +1,5 @@
-"""
+"""v0.9.1 sugar: string interpolation / compound assignment / ?. / ??.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-v0.9.1 语法糖：字符串插值 / 复合赋值 / ?. / ??。"""
+v0.9.1 语法糖：字符串插值 / 复合赋值 / ?. / ??。
+"""
 
 import contextlib
 import io
@@ -75,7 +77,8 @@ class TestOptionalChaining(unittest.TestCase):
         self.assertEqual(out(code), ["ann"])
 
     def test_nothing_does_not_raise(self):
-        # n 是 Nothing 时 n?.X 得到 Nothing，不抛异常
+        # when n is Nothing, n?.X yields Nothing instead of raising
+        # 中文：n 是 Nothing 时 n?.X 得到 Nothing，不抛异常
         self.assertEqual(out("Set n = Nothing\necho TypeName(n?.X)"), ["Nothing"])
 
     def test_method_call_on_nothing(self):

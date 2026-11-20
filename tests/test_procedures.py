@@ -1,4 +1,5 @@
-"""
+"""Regression tests for procedural features (Sub / Function / Dim / ReDim / Const / Option Explicit / arrays / built-ins).
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -130,7 +131,8 @@ class TestByRefAndByVal(unittest.TestCase):
         self.assertEqual(out(code), ["2,20"])
 
     def test_vbs_assignment_order_return_value_wins(self):
-        # VBS：先完成 ByRef 写回，再把返回值赋给 x
+        # VBS: ByRef write-back happens first, then the return value is assigned to x
+        # 中文：VBS：先完成 ByRef 写回，再把返回值赋给 x
         code = ('Function Bump(ByRef a)\n a = a + 1\n Bump = a * 10\nEnd Function\n'
                 'x = 1\nx = Bump(x)\necho x')
         self.assertEqual(out(code), ["20"])
@@ -142,7 +144,8 @@ class TestByRefAndByVal(unittest.TestCase):
         self.assertEqual(out(code), ["016", "4"])
 
     def test_literal_argument_to_byref_parameter(self):
-        # 字面量没有可写回的目标，不应报错
+        # a literal has no writable target, so this must not raise
+        # 中文：字面量没有可写回的目标，不应报错
         code = 'Sub Bump(a)\n a = a + 1\n echo a\nEnd Sub\nBump 1'
         self.assertEqual(out(code), ["2"])
 
@@ -222,7 +225,8 @@ class TestDimAndArrays(unittest.TestCase):
         self.assertEqual(out(code), ["True"])
 
     def test_array_parameter_declaration(self):
-        # 经典写法 Sub P(a()) 也会被接受
+        # the classic Sub P(a()) form is accepted too
+        # 中文：经典写法 Sub P(a()) 也会被接受
         code = ('Sub Fill(a())\n a(0) = 42\nEnd Sub\nDim x(2)\nFill x\necho x(0)')
         self.assertEqual(out(code), ["42"])
 
@@ -276,7 +280,8 @@ class TestScope(unittest.TestCase):
 
     def test_loop_variable_inside_procedure_is_local(self):
         code = ('i = 99\nSub P()\n For i = 1 To 2\n  echo i\n Next\nEnd Sub\nP\necho i')
-        # i 在脚本级已存在，过程里修改的是同一个变量（VBS 的后期绑定行为）
+        # i already exists at script level; the procedure mutates the same variable (VBS late binding)
+        # 中文：i 在脚本级已存在，过程里修改的是同一个变量（VBS 的后期绑定行为）
         self.assertEqual(out(code), ["1", "2", "3"])
 
 

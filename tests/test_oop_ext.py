@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-"""Shared（类静态成员）与 Implements（接口契约）。"""
+"""Shared (class-level members) and Implements (interface contracts).
+
+中文：Shared（类静态成员）与 Implements（接口契约）。"""
 
 import contextlib
 import io

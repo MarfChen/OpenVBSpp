@@ -1,4 +1,5 @@
-"""
+"""Multi-file: <script src> merging and <namespace src alias> namespaces.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-多文件：<script src> 合并 与 <namespace src alias> 命名空间。"""
+多文件：<script src> 合并 与 <namespace src alias> 命名空间。
+"""
 
 import contextlib
 import io

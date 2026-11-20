@@ -1,4 +1,6 @@
-"""构造参数 + over 包管理器（M1）。"""
+"""Constructor arguments plus the over package manager (M1).
+
+中文：构造参数 + over 包管理器（M1）。"""
 
 import contextlib
 import io
@@ -39,7 +41,8 @@ class TestConstructorArgs(unittest.TestCase):
         self.assertEqual(out(code), ["3"])
 
     def test_createobject_rejects_servername(self):
-        # VBS 的第二个参数是 servername（远程激活），本地不支持
+        # the second VBS argument is servername (remote activation); not supported locally
+        # 中文：VBS 的第二个参数是 servername（远程激活），本地不支持
         code = ("Class P\n Public name\n"
                 " Private Sub Class_Initialize(n)\n  name = n\n End Sub\n"
                 "End Class\nSet p = CreateObject(\"P\", \"bo\")")
@@ -218,7 +221,8 @@ class TestOverInstall(unittest.TestCase):
         over.install(app)
         lock_before = (app / "over.lock").read_text(encoding="utf-8")
 
-        # 删掉安装结果，frozen 安装应能按锁恢复
+        # delete the install result; a frozen install must restore it from the lock
+        # 中文：删掉安装结果，frozen 安装应能按锁恢复
         import shutil as _sh
         _sh.rmtree(app / "packages")
         installed = over.install(app, frozen=True)
@@ -234,7 +238,8 @@ class TestOverInstall(unittest.TestCase):
             '{"name": "app", "version": "0.1.0", '
             '"dependencies": {"lib": "file:../src_lib"}}', encoding="utf-8")
         over.install(app)
-        # 源升级到 2.0.0，frozen 安装必须报错而不是悄悄升级
+        # the source moves to 2.0.0; a frozen install must fail instead of silently upgrading
+        # 中文：源升级到 2.0.0，frozen 安装必须报错而不是悄悄升级
         (lib / "over.json").write_text(
             '{"name": "lib", "version": "2.0.0", "entry": "main.vbs"}',
             encoding="utf-8")

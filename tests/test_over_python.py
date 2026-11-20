@@ -1,4 +1,5 @@
-'''
+"""over python-dependency resolution tests: pip is replaced by an injected runner, fully offline.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@ over 包的 python 依赖解析测试：pip 由注入的 runner 顶替，完全�
 
 运行：
     python -m unittest tests.test_over_python -v
-'''
+"""
 
 import json
 import shutil
@@ -50,7 +51,9 @@ def write_manifest(directory, name, version="1.0.0", dependencies=None,
 
 
 class Recorder:
-    """顶替 pip：记录调用参数，返回假装装好的包。"""
+    """Stand in for pip: record the call and report packages as installed.
+
+    中文：顶替 pip：记录调用参数，返回假装装好的包。"""
 
     def __init__(self, installed=None, error=None):
         self.calls = []
@@ -77,7 +80,9 @@ class OverPythonBase(unittest.TestCase):
                         "dependencies": {}}) + "\n", encoding="utf-8")
 
     def add_dependency(self, name, package_dir=None):
-        """在 over.json 里登记一条依赖（默认指向 ../pkgs/<name>）。"""
+        """Register one dependency in over.json (pointing at ../pkgs/<name> by default).
+
+        中文：在 over.json 里登记一条依赖（默认指向 ../pkgs/<name>）。"""
         spec = "file:../pkgs/" + (package_dir or name)
         manifest = json.loads((self.root / "over.json").read_text("utf-8"))
         manifest["dependencies"][name] = spec

@@ -57,7 +57,7 @@ examples/         示例脚本（每个都会被 tests 跑）
 tests/            回归测试（examples + 过程 + 语法糖 + VBS 超集 + 性能语义）
 doc/              使用者文档，每篇英文 `.md` + 中文 `.zh-CN.md` 成对（语言参考、
                   对象模型、OOP、现代特性、over、网页 IDE、法务、首页）
-dev-docs/         维护者文档（不发布到文档站）：RELEASE、ROADMAP、IDE_LSP_DESIGN、
+dev-docs/         维护者文档（不发布到文档站，每篇也中英成对）：RELEASE、ROADMAP、IDE_LSP_DESIGN、
                   TRY_CATCH_DESIGN、OBJECT_MODEL_DESIGN、good-first-issues、plan.docx
 extras/           可分发的示例包：com-support（COM 支持）、python-embed（Python 互操作）、
                   web-ide、vscode-openvbspp（VS Code 语法/片段/运行诊断扩展）
@@ -145,6 +145,8 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
 14. **`doc/` 的每一篇都是中英成对**：改 `doc/X.md` 就同步 `doc/X.zh-CN.md`（反之亦然），
     两版首行都要保留 `> English | **[中文](X.zh-CN.md)**` 这类切换行。维护者内容
     （发版、路线、设计、新手任务）只放 `dev-docs/`，不要塞进 `doc/`（它会进文档站）。
+    `dev-docs/` 同样逐篇中英成对（`X.md` 英文主文 + `X.zh-CN.md` 中文），新增维护者
+    文档必须一次交两版；唯一例外是 `plan.docx`（二进制，无法双语）。
 15. **新增 vendor over 包要三处同步**：`OpenVBSPP/vendor/<pkg>/`（随包分发）、
     `extras/<pkg>/`（项目可 `over add <pkg>`，与 vendor 逐字节一致，`tests/test_python_embed.py`
     与 `tests/test_com.py` 会校验），以及打包清单 `MANIFEST.in`、`pyproject.toml` 的

@@ -1,4 +1,5 @@
-'''
+"""Semantic guards for the v0.9.15 performance work: the optimisations changed generated code, not language semantics.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +22,7 @@ v0.9.15 的性能优化的语义守卫。
   2. 只读的 ByRef 参数按值传，但读写语义与写回仍然正确；
   3. 没有 On Error / Err 的过程不再生成错误帧，出错仍要正常抛出；
   4. datetime / math / random / re / json 改成懒加载后不该在启动时被导入。
-'''
+"""
 
 import io
 import os
@@ -41,7 +42,9 @@ def out(code):
 
 
 class TestForFastPath(unittest.TestCase):
-    """For 编译成 range 之后的边界语义。"""
+    """Boundary semantics of compiling For into range.
+
+    中文：For 编译成 range 之后的边界语义。"""
 
     def test_counter_after_normal_loop(self):
         self.assertEqual(out("for i = 1 to 3\nnext\necho i"), ["4"])
@@ -65,7 +68,8 @@ class TestForFastPath(unittest.TestCase):
         self.assertEqual(out(code), ["3"])
 
     def test_body_assigns_counter_falls_back(self):
-        # 循环体改计数器时必须退回 while 形式，否则会漏掉/多算迭代
+        # a loop body that assigns the counter must fall back to while or iterations shift
+        # 中文：循环体改计数器时必须退回 while 形式，否则会漏掉/多算迭代
         code = ("for i = 1 to 5\n"
                 "  echo i\n"
                 "  i = i + 1\n"
@@ -84,7 +88,8 @@ class TestForFastPath(unittest.TestCase):
         self.assertEqual(out(code), ["1", "2", "3", "4"])
 
     def test_nested_loop_reusing_counter(self):
-        # 内层循环把计数器推到 2，外层再 +1 就到 3，所以只输出一次
+        # the inner loop pushes the counter to 2, the outer +1 lands on 3, so only one line prints
+        # 中文：内层循环把计数器推到 2，外层再 +1 就到 3，所以只输出一次
         code = ("for i = 1 to 2\n"
                 "  for i = 1 to 1\n"
                 "    echo i\n"
@@ -94,7 +99,9 @@ class TestForFastPath(unittest.TestCase):
 
 
 class TestByRefReadOnly(unittest.TestCase):
-    """只读 ByRef 参数按值传：读得到、写不到调用方；被改的仍然写回。"""
+    """Read-only ByRef parameters travel by value: readable, not writable by the callee; mutated ones are still written back.
+
+    中文：只读 ByRef 参数按值传：读得到、写不到调用方；被改的仍然写回。"""
 
     def test_read_only_byref_does_not_change_caller(self):
         code = ("Function Twice(n)\n  Twice = n * 2\nEnd Function\n"
@@ -141,7 +148,9 @@ class TestByRefReadOnly(unittest.TestCase):
 
 
 class TestErrorFrameOnDemand(unittest.TestCase):
-    """没有 On Error / Err 的过程不再生成错误帧，但错误传播不能变。"""
+    """Procedures without On Error / Err no longer build an error frame, yet propagation must not change.
+
+    中文：没有 On Error / Err 的过程不再生成错误帧，但错误传播不能变。"""
 
     def test_error_propagates_without_frame(self):
         from OpenVBSPP.exceptions import OVPPError
@@ -224,12 +233,14 @@ class TestLazyImports(unittest.TestCase):
                          "False False")
 
     def test_runtime_does_not_pull_json(self):
-        # runtime 自己要用 re，所以只钉住 json 不被顺带拉起来
+        # runtime itself imports re, so only pin that json is not dragged in
+        # 中文：runtime 自己要用 re，所以只钉住 json 不被顺带拉起来
         self.assertEqual(self._modules_after("import OpenVBSPP.runtime").split()[1],
                          "False")
 
     def test_lazy_module_still_provides_attributes(self):
-        # 代理模块必须真的能用（避免「为了快而坏掉」）
+        # the proxy module must really work, not be traded away for speed
+        # 中文：代理模块必须真的能用（避免「为了快而坏掉」）
         code = ("import OpenVBSPP.ovpprt.builtins as b\n"
                 "print(b.math.floor(1.9), len(b.re.findall('a', 'aa')))\n")
         env = dict(os.environ)

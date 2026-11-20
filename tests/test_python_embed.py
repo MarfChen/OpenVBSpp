@@ -1,4 +1,5 @@
-"""
+"""The python-embed capability package: bundled, explicitly imported, installable and removable.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -133,7 +134,8 @@ class InstallLifecycleTest(unittest.TestCase):
 
             over.remove(project, "python-embed")
             self.assertFalse(target.exists())
-            # 卸载之后仍能用：退回随包分发的副本
+            # still usable after removal: falls back to the bundled copy
+            # 中文：卸载之后仍能用：退回随包分发的副本
             self.assertEqual(over.resolve_source("python-embed", project),
                              VENDOR / "main.vbs")
 

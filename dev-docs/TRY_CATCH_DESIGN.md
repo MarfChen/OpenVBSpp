@@ -1,130 +1,140 @@
-# Try / Catch 设计报告 · 带 VBS 味道的结构化异常
+# Try / Catch design report · structured exceptions with a VBS accent
 
-> **状态：v0.8.0 已实现**（P0–P2）。实现与设计一致，差异记录在本文件末尾 §7。
+> English | **[中文](TRY_CATCH_DESIGN.zh-CN.md)**
+
+> **Status: implemented in v0.8.0** (P0–P2). The implementation matches this
+> design; deviations are recorded in §7 at the end of this file.
 >
-> **English abstract** — We *could* just add `Try … Catch … Finally … End Try`.
-> But VBScript already owns a distinctive error model: `On Error Resume Next`
-> plus a global `Err` object, and the "check `Err.Number` after the call"
-> idiom is the language's fingerprint. This report proposes a design where
-> structured exceptions and `On Error` are **the same machinery viewed from two
-> sides**, so mixing them in one procedure stays predictable, and VBS programs
-> keep working untouched.
->
-> 中文正文在后。核心观点：**不要另造一套异常**，而是让 `Try/Catch` 成为
-> `On Error` 的"局部、有作用域、可嵌套"的写法。
+> **Abstract** — We *could* just add `Try … Catch … Finally … End Try`. But
+> VBScript already owns a distinctive error model: `On Error Resume Next` plus a
+> global `Err` object, and the "check `Err.Number` after the call" idiom is the
+> language's fingerprint. This report proposes a design where structured
+> exceptions and `On Error` are **the same machinery viewed from two sides**, so
+> mixing them in one procedure stays predictable and VBS programs keep working
+> untouched. The core idea: **do not invent a second exception system**; make
+> `Try/Catch` the "local, scoped, nestable" spelling of `On Error`.
 
 ---
 
-## 1. 问题 / Problem
+## 1. Problem
 
-### 现状
+### Today
 
 ```vb
 On Error Resume Next
 DoWork
 If Err.Number <> 0 Then
-    echo "失败: " & Err.Description
+    echo "failed: " & Err.Description
     Err.Clear
 End If
 On Error GoTo 0
 ```
 
-这套机制能用，但有三处结构性缺陷（这也是所有 VBS 程序员都骂过的）：
+The mechanism works, but it has three structural defects (the ones every VBS
+programmer has cursed):
 
-| 缺陷 | 后果 |
+| Defect | Consequence |
 |---|---|
-| **`On Error` 是过程级开关**，没有块作用域 | 一个 `On Error Resume Next` 会一直生效到过程结束，中间任何一行都被"吞掉" |
-| **无法回到"出错点"之后** | `Resume Next` 只能跳过，做不了"重试 / 回滚 / 换方案" |
-| **嵌套时没有栈** | 内层过程设了 `GoTo 0`，外层就再也接不到错误 |
+| **`On Error` is a process-wide switch** with no block scope | one `On Error Resume Next` stays in force until the procedure ends, swallowing every line in between |
+| **No way back to "after the failure point"** | `Resume Next` can only skip; no retry / rollback / alternative strategy |
+| **No stack when nested** | an inner procedure doing `GoTo 0` leaves the outer one unable to see the error |
 
-### 目标
+### Goals
 
-1. 提供**块作用域**的异常处理（进块开启、出块自动恢复）；
-2. 支持 **`Finally`**（资源清理必须有）；
-3. 支持**重抛**与**异常链**（`InnerException` 式的因果链）；
-4. **与 `On Error` 共存**，且在同一个过程里混用时行为可预测；
-5. **纯超集**：不加任何新语义到已有 VBS 代码上，老脚本一个字节不改。
+1. **Block-scoped** exception handling (on entering the block, restored on exit);
+2. **`Finally`** support (resource cleanup is mandatory);
+3. **Re-raise** and **exception chaining** (an `InnerException`-style cause chain);
+4. **Coexist with `On Error`**, with predictable behaviour when both are mixed in
+   one procedure;
+5. **Pure superset**: no new semantics for existing VBS code; old scripts change
+   by not a single byte.
 
 ---
 
-## 2. 设计：三层，共用一套运行时
+## 2. Design: three layers, one runtime
 
-我的提议不是"加一个 try 语句"，而是把错误处理拆成**三层**，三层共享同一个
-运行时错误栈 `_ovpp_err`：
+The proposal is not "add a try statement" but to split error handling into
+**three layers** sharing one runtime error stack, `_ovpp_err`:
 
 ```
-第 3 层  Try / Catch / Finally        块作用域、可嵌套、可重抛   ← 新增语法
-第 2 层  On Error Resume Next / GoTo 0  过程级开关（VBS 原生）      ← 保持原样
-第 1 层  Err 对象 + 错误栈              运行时公共设施             ← 扩展
+layer 3  Try / Catch / Finally            block scope, nestable, re-raisable   <- new syntax
+layer 2  On Error Resume Next / GoTo 0    procedure-wide switch (native VBS)   <- unchanged
+layer 1  Err object + error stack         shared runtime plumbing              <- extended
 ```
 
-关键点：**第 2 层和第 3 层编译到同一套 `try/except` 结构**，只是"谁来接住"不同。
-这样混用时可预测，实现也不必维护两套语义。
+Key point: **layers 2 and 3 compile into the same `try/except` structure**; only
+"who catches it" differs. Mixing them stays predictable, and we do not maintain
+two sets of semantics.
 
-### 2.1 语法（带 VBS 味道的选择）
+### 2.1 Syntax (VBS-flavoured choices)
 
 ```vb
 Try
     DoWork
 Catch e
-    echo "出错了: " & e.Number & " " & e.Description
-    echo "来源: " & e.Source
-Catch e When Err.Number = 53        ' 可选的过滤子句（VBS 风格的关键字 When）
-    echo "文件没找到"
+    echo "error: " & e.Number & " " & e.Description
+    echo "source: " & e.Source
+Catch e When Err.Number = 53        ' optional filter clause (VBS-style keyword When)
+    echo "file not found"
 Finally
     CloseAll
 End Try
 ```
 
-设计取舍（为什么不是 C#/Java 的样子）：
+Trade-offs (why it does not look like C# / Java):
 
-| 选择 | 理由 |
+| Choice | Reason |
 |---|---|
-| `Catch e` 而不是 `Catch (e)` | VBS 调用过程本来就不用括号 |
-| `When` 过滤子句 | VBS 的 `Err.Number` 是数字，用数字过滤比类型匹配自然；`When` 是 VBS 已有的词（`Select Case` 之外没用过，不冲突） |
-| 捕获对象就是 `Err` 的一个**快照** | 不引入新的异常类型体系，`e.Number/.Description/.Source` 和 `Err` 完全一致，学习成本为零 |
-| `End Try` 而不是 `EndTry` | 和 `End If` / `End Sub` 对齐 |
-| 没有 `Throw` 关键字，用 `Err.Raise` | **刻意不加新关键字**：`Err.Raise` 已经是 VBS 的重抛方式，`Throw x` 只是语法糖 |
+| `Catch e` rather than `Catch (e)` | VBS procedure calls do not use parentheses anyway |
+| `When` filter clause | `Err.Number` is numeric, so numeric filtering reads more naturally than type matching; `When` is already a VBS word (used only in `Select Case`, so no conflict) |
+| The caught object is a **snapshot of `Err`** | introduces no new exception type system; `e.Number` / `.Description` / `.Source` are identical to `Err`, so there is nothing to learn |
+| `End Try` rather than `EndTry` | aligns with `End If` / `End Sub` |
+| No `Throw` keyword; use `Err.Raise` | **deliberately adds no keyword**: `Err.Raise` already is VBS's way to re-raise, and `Throw x` would only be sugar |
 
-### 2.2 与 `On Error` 的关系（最重要的一节）
+### 2.2 Relationship with `On Error` (the most important section)
 
-**规则一句话：`On Error` 设置的是"过程默认行为"，`Try` 是"块内覆盖"。**
+**One rule: `On Error` sets "the procedure default", `Try` overrides "inside the
+block".**
 
-| 场景 | 行为 |
+| Scenario | Behaviour |
 |---|---|
-| 过程内 `On Error Resume Next`，块外 | 照旧：错误被捕获、执行继续 |
-| 同上，进入 `Try` 块 | `Try` 生效期间，错误**不再被 Resume Next 吞掉**，而是交给 `Catch` |
-| 离开 `Try`（正常或异常路径） | 恢复进入前的 `On Error` 状态（块作用域） |
-| `Catch` 里没有匹配的 `When` | 继续向上：先给外层 `Try`，再给过程的 `On Error`，最后抛给调用者 |
-| `Catch` 内再抛（`Err.Raise`） | 走同一条链，`Finally` 仍然执行 |
-| 过程内没有 `Try`，只有 `On Error` | 和今天**完全一样**（零行为变化） |
+| `On Error Resume Next` in the procedure, outside the block | as before: the error is captured and execution continues |
+| Same, entering a `Try` block | while `Try` is active the error is **no longer swallowed by Resume Next**; it goes to `Catch` |
+| Leaving `Try` (normal or exceptional path) | the `On Error` state from before the block is restored (block scope) |
+| No `When` clause matches in `Catch` | keep propagating: outer `Try`, then the procedure's `On Error`, then the caller |
+| Re-raising inside `Catch` (`Err.Raise`) | follows the same chain; `Finally` still runs |
+| Procedure with `On Error` but no `Try` | **exactly as today** (zero behaviour change) |
 
-实现上就是一个"错误处理栈"：`Try` 入栈时压入一个 handler，出栈时弹出；
-`_ovpp_err.dispatch()` 查栈顶，栈空再走 `On Error` 的旧逻辑。旧逻辑不吃新路径，
-所以超集性质自动成立。
+Implementation-wise this is an "error handling stack": entering `Try` pushes a
+handler, leaving pops it; `_ovpp_err.dispatch()` looks at the top of the stack
+and, when empty, falls back to the old `On Error` logic. The old path never
+touches the new one, so the superset property holds automatically.
 
-### 2.3 `Finally` 的语义
+### 2.3 `Finally` semantics
 
-- **一定会执行**：正常离开、`Exit Sub/Function`、`Exit Do/For`、错误离开、重抛；
-- `Finally` 里抛出的错误**覆盖**正在传播的错误（与 .NET 一致），旧错误挂在
-  `Err.InnerException` 上；
-- `Finally` 里 `Exit Sub` 允许，但会跳过 `Finally` 之后的语句。
+- **Always runs**: normal exit, `Exit Sub/Function`, `Exit Do/For`, error exit,
+  re-raise;
+- an error raised in `Finally` **replaces** the one propagating (as in .NET); the
+  old error is attached to `Err.InnerException`;
+- `Exit Sub` inside `Finally` is allowed but skips the remaining statements of
+  the `Finally` block.
 
-### 2.4 错误对象与链 / Error object and chain
+### 2.4 Error object and chain
 
-沿用 `Err` 的四个字段，再加两个**只读**字段：
+Keep the four `Err` fields and add two **read-only** ones:
 
-| 字段 | 含义 |
+| Field | Meaning |
 |---|---|
-| `Err.Number` | 错误号（负数表示 COM 风格，正数表示 VBS 风格，沿用现状） |
-| `Err.Description` | 描述 |
-| `Err.Source` | 抛出位置（过程名，自动填） |
-| `Err.Line` | **新增**：出错行号（现在只在终端打印，不给程序） |
-| `Err.InnerException` | **新增**：上一个被覆盖的错误（形成链） |
+| `Err.Number` | error number (negative = COM-style, positive = VBS-style, as today) |
+| `Err.Description` | description |
+| `Err.Source` | where it was raised (procedure name, filled automatically) |
+| `Err.Line` | **new**: the line number that failed (previously only printed to the terminal) |
+| `Err.InnerException` | **new**: the previously replaced error (forming a chain) |
 
-`Err.Line` 是纯增量：VBS 程序不会读它，但调试器/LSP 和 `Catch` 都能用。
+`Err.Line` is purely additive: VBS programs never read it, but the debugger, LSP
+and `Catch` can.
 
-### 2.5 编译产物（示意）
+### 2.5 Generated code (sketch)
 
 ```vb
 Try
@@ -134,7 +144,7 @@ Catch e
 End Try
 ```
 
-编译成（简化）：
+compiles to (simplified):
 
 ```python
 _handler = _ovpp_err.push_handler()
@@ -150,82 +160,85 @@ finally:
     _ovpp_err.pop_handler(_handler)
 ```
 
-要点：`handle()` 负责 `When` 过滤与"没人要就继续往上抛"，`pop_handler` 恢复
-`On Error` 状态——所以**块作用域是天然的**，不需要编译器做复杂的状态分析。
+The point: `handle()` owns the `When` filtering and the "nobody wants it, keep
+propagating" decision, and `pop_handler` restores the `On Error` state — so
+**block scoping is free**, no compiler state analysis needed.
 
 ---
 
-## 3. 为什么不用别的方案
+## 3. Why not other approaches
 
-| 方案 | 否决理由 |
+| Approach | Rejected because |
 |---|---|
-| `On Error Resume Next` + 立即检查（现状） | 无块作用域、无 `Finally`、无重试 |
-| 照抄 C#：`try/catch/finally` | 丢掉了 VBS 的 `Err` 心智模型；两套错误对象并存会让新人困惑 |
-| 照抄 Python：`raise/try/except` | 需要新关键字 `raise`/`except`，且和 `Err.Raise` 功能重复 |
-| 用 `Resume` 做重试（VBA 风格） | VBA 的 `Resume label` 需要行号/标签，本语言没有行号语句，成本高于收益 |
-| 只加 `Catch` 不加 `Finally` | 资源清理没有归宿，反而容易写出泄漏 |
+| `On Error Resume Next` plus immediate checks (today) | no block scope, no `Finally`, no retry |
+| Copy C#: `try/catch/finally` | loses the VBS `Err` mental model; two error object systems confuse newcomers |
+| Copy Python: `raise/try/except` | needs new `raise` / `except` keywords and duplicates `Err.Raise` |
+| Retry via `Resume` (VBA style) | VBA's `Resume label` needs line numbers or labels; this language has no line-number statements, so cost exceeds benefit |
+| `Catch` without `Finally` | resource cleanup has nowhere to live, which invites leaks |
 
 ---
 
-## 4. 超集兼容性论证
+## 4. Superset compatibility argument
 
-| 可能的重叠 | 结论 |
+| Possible overlap | Conclusion |
 |---|---|
-| `Try` / `Catch` / `Finally` / `When` 是不是 VBS 关键字？ | **不是**。它们是"上下文关键字"，只在语句开头被识别；现有 VBS 里 `Try = 1` 这种变量名仍然合法（我们的词法器本来就不保留关键字） |
-| 老脚本里有没有 `Try:` 这样的标签？ | 没有（VBS 没有用户标签） |
-| `End Try` 会不会和 `End` 语句冲突？ | 不会，`End` 后面接 `Try` 才成立，现有 `End` 无参数形式照旧 |
-| 未使用 `Try` 的代码 | 零变化（新语法不参与编译） |
+| Are `Try` / `Catch` / `Finally` / `When` VBS keywords? | **No.** They are contextual keywords recognised only at the start of a statement; `Try = 1` as a variable name remains legal (our lexer keeps no keyword set anyway) |
+| Do old scripts contain labels like `Try:`? | No (VBS has no user labels) |
+| Does `End Try` conflict with the `End` statement? | No; `End` followed by `Try` is the only form, and bare `End` is unchanged |
+| Code that never uses `Try` | zero change (the new syntax never participates in compilation) |
 
-再补一条硬性要求：**`tests/test_vbs_superset.py` 里所有用例必须在加上这个特性后
-继续通过**，且新增的 `Try` 用例单独分组，禁止改动既有断言。
+One more hard requirement: **every case in `tests/test_vbs_superset.py` must keep
+passing after the feature lands**, and the new `Try` cases live in their own
+group; existing assertions may not be modified.
 
 ---
 
-## 5. 实施顺序（建议）
+## 5. Implementation order (suggested)
 
-| 阶段 | 内容 | 风险 |
+| Phase | Content | Risk |
 |---|---|---|
-| P0 | 运行时：`push_handler/pop_handler/handle/snapshot` + `Err.Line` | 低（纯新增） |
-| P1 | 语法：`Try … Catch e [When expr] … Finally … End Try`，单层 | 中（parser 块结构） |
-| P2 | 嵌套、重抛、`InnerException` 链 | 中 |
-| P3 | `Exit Sub` 穿越 `Finally`、`On Error` 混用矩阵测试 | 高（要穷举组合） |
-| P4 | LSP/调试器接入（`Err.Line` + 栈帧） | 低 |
+| P0 | Runtime: `push_handler/pop_handler/handle/snapshot` plus `Err.Line` | low (purely additive) |
+| P1 | Syntax: `Try … Catch e [When expr] … Finally … End Try`, single level | medium (parser block structure) |
+| P2 | Nesting, re-raise, `InnerException` chain | medium |
+| P3 | `Exit Sub` crossing `Finally`, the `On Error` mixing matrix | high (combinations must be enumerated) |
+| P4 | LSP / debugger integration (`Err.Line` plus stack frames) | low |
 
-P3 的测试矩阵建议直接列成表：`{块内正常, 块内出错, Catch 内出错, 块内 ExitSub}` ×
-`{Finally 有/无}` × `{外层 On Error 开/关}`，共 16 种，全部要有断言。
-
----
-
-## 6. 开放问题（需要你拍板）
-
-1. **`Catch` 是否允许多个无 `When` 的分支？** 我倾向：只允许一个通配 `Catch`，
-   且必须在最后（和 `Select Case Else` 的位置规则一致）。
-2. **`Finally` 里 `Exit Sub` 是否允许？** 我倾向允许，但要文档写清它会跳过
-   `Finally` 剩余语句。
-3. **要不要一个 `Try … Catch` 的简写形式**（单行 `Try stmt Catch: ...`）？
-   我倾向**不做**，异常处理应该显式。
-4. **错误号空间**：`Err.Raise` 的负数编号是否要和 `_ERROR_MAP` 对齐？
-   我倾向保持现状，只补文档。
-
+For P3 the test matrix should be written out: `{normal, error in block, error in
+Catch, ExitSub in block}` × `{Finally present/absent}` × `{outer On Error on/off}`
+— 16 combinations, all asserted.
 
 ---
 
-## 7. 实现落地记录（v0.8.0）
+## 6. Open questions (decided during implementation)
 
-| 设计项 | 实现 | 说明 |
+1. **May `Catch` have several clauses without `When`?** Preference: only one
+   catch-all `Catch`, and it must be last (same rule as `Select Case Else`).
+2. **Is `Exit Sub` allowed inside `Finally`?** Preference: allow it, but document
+   that it skips the remaining `Finally` statements.
+3. **A one-line shorthand for `Try … Catch`?** Preference: **no**; exception
+   handling should be explicit.
+4. **Error number space**: should negative numbers passed to `Err.Raise` align
+   with `_ERROR_MAP`? Preference: keep as is, document only.
+
+---
+
+## 7. Implementation record (v0.8.0)
+
+| Design item | Implementation | Notes |
 |---|---|---|
-| 错误处理栈 | ✅ ovpprt/err.py 的 push_handler/pop_handler/handler_active | 支持嵌套 |
-| Try 覆盖 On Error Resume Next | ✅ capture() 发现栈非空直接重新抛出 | 一行代码解决语义优先级 |
-| Catch e 快照 | ✅ _Snapshot（Number/Description/Source/**Line**） | 与 Err 字段一一对应 |
-| When 过滤 | ✅ 编译成 if/elif 链，未命中则 
-aise 继续向上 | When 里可以直接用 e.Number |
-| Finally | ✅ Python 	ry/finally + pop_handler() | Exit Sub 自动穿越 |
-| 重抛 | ✅ 继续用 Err.Raise（不新增 Throw） | 与设计一致 |
-| Err.Line | ✅ 从 traceback 找最深的非包内帧 | 生成代码带 VBS 行号，所以直接可用 |
+| Error handling stack | ✅ `push_handler` / `pop_handler` / `handler_active` in `ovpprt/err.py` | nesting supported |
+| `Try` overrides `On Error Resume Next` | ✅ `capture()` re-raises when the stack is non-empty | one line settles the precedence |
+| `Catch e` snapshot | ✅ `_Snapshot` (Number / Description / Source / **Line**) | maps one-to-one onto `Err` |
+| `When` filtering | ✅ compiled into an if/elif chain; a miss re-raises | `e.Number` is available inside `When` |
+| `Finally` | ✅ Python `try/finally` plus `pop_handler()` | `Exit Sub` passes through automatically |
+| Re-raise | ✅ still `Err.Raise` (no new `Throw`) | matches the design |
+| `Err.Line` | ✅ deepest non-package frame from the traceback | generated code carries VBS line numbers, so it works directly |
 
-**与设计的偏差**：无功能性偏差。设计里的四个开放问题按建议默认值实现——
-只允许最后一个 Catch 省略 When（否则解析期报错）、Finally 里允许 Exit Sub、
-不做单行简写、错误号保持现状。
+**Deviations from the design**: none functionally. The four open questions were
+implemented with the suggested defaults — only the last `Catch` may omit `When`
+(anything else is a parse error), `Exit Sub` is allowed in `Finally`, no
+one-line shorthand, error numbers unchanged.
 
-**新增测试**：	ests/test_try_catch.py（14 条），包含两条上下文关键字用例，
-确保 Try/Catch/Finally 作为普通变量名时仍然符合 VBS 语义。
+**New tests**: `tests/test_try_catch.py` (14 cases), including two contextual
+keyword cases proving `Try` / `Catch` / `Finally` still work as ordinary
+variable names with VBS semantics.

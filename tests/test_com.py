@@ -1,4 +1,5 @@
-'''
+"""com-support tests: bundled distribution, runtime resolution, CreateObject without any import.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@ COM 支持包（com-support）测试：随包分发、运行期解析、无需 i
 
 运行：
     python -m unittest tests.test_com -v
-'''
+"""
 
 import contextlib
 import importlib.util
@@ -45,7 +46,9 @@ EXTRAS = ROOT / "extras" / "com-support"
 
 
 def out(code):
-    """跑一段 VBS 并返回它的输出。"""
+    """Run a piece of VBS and return its output.
+
+    中文：跑一段 VBS 并返回它的输出。"""
     buffer = io.StringIO()
     with contextlib.redirect_stdout(buffer):
         vbs_run(code, filename="<com>")
@@ -115,7 +118,9 @@ def create(progid, *args):
 
 
 def write_package(directory, source=FAKE_SUPPORT, version="9.9.9"):
-    """造一个 com-support 形状的 over 包。"""
+    """Build an over package shaped like com-support.
+
+    中文：造一个 com-support 形状的 over 包。"""
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "com_support.py").write_text(source, encoding="utf-8")
@@ -129,7 +134,9 @@ def write_package(directory, source=FAKE_SUPPORT, version="9.9.9"):
 
 
 class ComTestCase(unittest.TestCase):
-    """把 cwd 挪到临时项目里，清掉环境变量与模块缓存。"""
+    """Move cwd into a temporary project and clear env vars and module caches.
+
+    中文：把 cwd 挪到临时项目里，清掉环境变量与模块缓存。"""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="ovpp-com-"))
@@ -137,7 +144,8 @@ class ComTestCase(unittest.TestCase):
         self._old_cwd = Path.cwd()
         os.chdir(self.tmp)
         self.addCleanup(os.chdir, self._old_cwd)
-        # 临时项目根：com.py 靠 over.json 认项目目录
+        # temporary project root: com.py finds the project through over.json
+        # 中文：临时项目根：com.py 靠 over.json 认项目目录
         (self.tmp / "over.json").write_text(
             json.dumps({"name": "demo", "version": "0.1.0", "entry": "main.vbs",
                         "dependencies": {}}) + "\n", encoding="utf-8")
@@ -218,8 +226,10 @@ class TestBridgeResolution(ComTestCase):
                 os.environ[com.ENV_DISABLE] = value
                 self.assertIsNone(com.provider())
         os.environ[com.ENV_DISABLE] = "1"
-        # "1" 不是关闭值：只断言它没被当成"关闭"，不要求本机装了 pywin32
-        # （否则没装 pywin32 的解释器上这条会误报失败）。
+        # "1" is not a disable value: only assert it is not treated as "off"; no pywin32 required
+        # 中文："1" 不是关闭值：只断言它没被当成"关闭"，不要求本机装了 pywin32
+        # (otherwise this reports a false failure where pywin32 is missing).
+        # 中文：（否则没装 pywin32 的解释器上这条会误报失败）。
         self.assertNotIn("disabled by", com.describe())
 
     def test_non_windows_platform_is_gated(self):
@@ -283,7 +293,9 @@ class TestCreateObject(ComTestCase):
 
 
 class TestAdapter(unittest.TestCase):
-    """直接加载 vendor 里的适配层，验证代理行为（不需要 pywin32）。"""
+    """Load the vendor adapter directly to check proxy behaviour (pywin32 not needed).
+
+    中文：直接加载 vendor 里的适配层，验证代理行为（不需要 pywin32）。"""
 
     def setUp(self):
         spec = importlib.util.spec_from_file_location(
@@ -365,7 +377,9 @@ class PackagingSpecTest(unittest.TestCase):
 
 
 class FakeDispatch:
-    """冒充 win32com 的 IDispatch 动态对象。"""
+    """A fake IDispatch dynamic object standing in for win32com.
+
+    中文：冒充 win32com 的 IDispatch 动态对象。"""
 
     def __init__(self):
         self.calls = []

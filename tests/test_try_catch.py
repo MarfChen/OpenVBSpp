@@ -1,4 +1,5 @@
-"""
+"""Try / Catch / Finally structured errors (a superset extension).
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-Try / Catch / Finally 结构化异常（超集扩展）。"""
+Try / Catch / Finally 结构化异常（超集扩展）。
+"""
 
 import contextlib
 import io
@@ -129,13 +131,16 @@ class TestLabels(unittest.TestCase):
             out("Sub F()\n On Error GoTo nowhere\nEnd Sub\nF")
 
     def test_label_is_not_a_variable(self):
-        # 标签行不是赋值：done: 后面不能当变量用
+        # a label line is not an assignment: done: cannot be used as a variable
+        # 中文：标签行不是赋值：done: 后面不能当变量用
         code = 'Sub F()\n GoTo done\ndone:\n echo "ok"\nEnd Sub\nF'
         self.assertEqual(out(code), ["ok"])
 
 
 class TestTryAsIdentifier(unittest.TestCase):
-    """`Try` 是上下文关键字：作为普通变量名必须仍然合法（VBS 超集要求）。"""
+    """`Try` is a contextual keyword: using it as a plain variable name must stay legal (superset rule).
+
+    中文：`Try` 是上下文关键字：作为普通变量名必须仍然合法（VBS 超集要求）。"""
 
     def test_try_can_be_a_variable(self):
         self.assertEqual(out("Try = 5\necho Try"), ["5"])

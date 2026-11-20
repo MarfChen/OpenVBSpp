@@ -1,4 +1,5 @@
-"""
+"""Python interop: `#python ... #endpython` and `COP`. Since 0.9.20 both need an explicit `<script src="python-embed" />`.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -62,14 +63,16 @@ class TestPythonEmbed(unittest.TestCase):
         self.assertEqual(out(code), ["12"])
 
     def test_line_numbers_stay_correct(self):
-        # #python 块之后的行号必须仍然指向真实行
+        # line numbers after a #python block must still point at the real lines
+        # 中文：#python 块之后的行号必须仍然指向真实行
         code = PY_IMPORT + 'a = 1\n#python\nx = 2\n#endpython\necho missing'
         with self.assertRaises(Exception) as ctx:
             out(code)
         self.assertEqual(getattr(ctx.exception, "line_number", None), 6)
 
     def test_unterminated_block_is_ignored(self):
-        # 没有 #endpython 时，按普通 VBS 处理（# 会报语法错）
+        # without #endpython the block is plain VBS, so a stray # is a syntax error
+        # 中文：没有 #endpython 时，按普通 VBS 处理（# 会报语法错）
         with self.assertRaises(OVPPSyntaxError):
             out(PY_IMPORT + 'a = 1\n#python\nx = 2')
 

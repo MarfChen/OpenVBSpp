@@ -1,132 +1,135 @@
-# OpenVBS++ 对象模型设计报告
+# OpenVBS++ object model design report
 
-> 版本：v0.4（P1 + P2 已落地），文档于 v0.9.20 复核
-> 目标读者：项目作者 / 后续维护者
-> 状态：**P1（集合 / `Set` / `CreateObject`）与 P2（`Class` / `Property` / `Me`）已实现**，
-> 实现与本文的差异见 §8「实现现状对照」。P3（继承等超集扩展）仍为规划。
-> 使用者视角的说明在 `doc/OBJECT_MODEL.md`（中文 `doc/OBJECT_MODEL.zh-CN.md`），
-> 本文只记录设计取舍与演进计划，不要和那份文档重复。
+> English | **[中文](OBJECT_MODEL_DESIGN.zh-CN.md)**
+
+> Version: v0.4 (P1 + P2 landed), reviewed at v0.9.20
+> Audience: the project author and future maintainers
+> Status: **P1 (collections / `Set` / `CreateObject`) and P2 (`Class` / `Property` / `Me`) are implemented**;
+> differences between this document and the implementation are in §8 "Implementation status".
+> P3 (super-set extensions such as inheritance) is still a plan.
+> User-facing documentation lives in `doc/OBJECT_MODEL.md` (Chinese: `doc/OBJECT_MODEL.zh-CN.md`);
+> this file records design trade-offs and the evolution plan only, and must not duplicate that document.
 
 ---
 
-## 1. 目标与硬约束
+## 1. Goals and hard constraints
 
-### 1.1 必须满足的前提
+### 1.1 Prerequisites that must hold
 
-| 约束 | 说明 |
+| Constraint | Explanation |
 |---|---|
-| **VBS 超集** | 任何合法 VBScript 程序（含 `Class` / `Property` / `Set` / `CreateObject`）都必须能编译。对象相关语法当年是最大的缺口，P1/P2 之后已补齐（覆盖情况见 `doc/VBS_SUPERSET.md`）；目前仍缺的是 `Declare` 与 `Collection` 内置类。 |
-| **不破坏现有语义** | 现有实现：过程改名为 `_ovpp_fn_*` / `_ovpp_sub_*`；ByRef 用 `Ref` 盒子 + 调用点写回；`Empty` / `Null` / `Nothing` 是运行时哨兵；`Option Explicit` 在编译期查名字；`On Error Resume Next` 靠"每条语句包 try/except + `_ovpp_err.capture`"实现。对象模型必须与这些机制**正交**，不能推倒重来。 |
-| **零第三方依赖** | 运行时只能用标准库（这是教育向项目的底线）。 |
-| **可移植** | 不启动 Windows COM。VBS 的对象在真实环境里是 IDispatch，我们不追这条路线，而是提供**等价的 Python 对象 + 同名内置类**。 |
-| **错误信息友好** | 行号 + 源码行 + VBS 错误号，与现有 `OVPP*` 错误体系一致。 |
+| **VBS superset** | Every legal VBScript program (including `Class` / `Property` / `Set` / `CreateObject`) must compile. Object syntax used to be the largest gap; after P1/P2 it is covered (see `doc/VBS_SUPERSET.md`). What is still missing is `Declare` and the `Collection` built-in class. |
+| **Do not break existing semantics** | Current implementation: procedures are renamed to `_ovpp_fn_*` / `_ovpp_sub_*`; ByRef uses `Ref` boxes and write-back at the call site; `Empty` / `Null` / `Nothing` are runtime sentinels; `Option Explicit` is checked at compile time; `On Error Resume Next` works by wrapping statements in try/except plus `_ovpp_err.capture`. The object model must stay **orthogonal** to all of this — no rewrite. |
+| **Zero third-party dependencies** | The runtime may only use the standard library (a hard rule of this educational project). |
+| **Portable** | No Windows COM launch. VBS objects are IDispatch in the real world; we do not follow that route and instead provide **equivalent Python objects plus same-named built-in classes**. |
+| **Friendly errors** | Line number + source line + VBS error number, consistent with the existing `OVPP*` error family. |
 
-### 1.2 设计取向
+### 1.2 Design stance
 
-- **语义优先**：优先保证"同一个 VBS 程序在我们的实现里行为一致"，其次才考虑性能与实现优雅。
-- **编译期能判定的就别留到运行期**：`Set`/`Let` 的区分、默认成员的解析、`Option Explicit` 与字段可见性，都尽量在编译期确定。
-- **不做 COM 模拟**：`CreateObject("Scripting.Dictionary")` 走内置注册表；`CreateObject("Excel.Application")` 之类的 COM ProgID 直接给出清晰错误。
+- **Semantics first**: guarantee "the same VBS program behaves the same in our implementation" before performance or elegance.
+- **Decide at compile time when possible**: `Set`/`Let` distinction, default-member resolution, `Option Explicit` and field visibility are all resolved during compilation where they can be.
+- **No COM emulation**: `CreateObject("Scripting.Dictionary")` goes through the built-in registry; COM ProgIDs such as `CreateObject("Excel.Application")` produce a clear error.
 
 ---
 
-## 2. VBScript 对象语义速览
+## 2. VBScript object semantics at a glance
 
-| 概念 | VBS 语义 | 关键陷阱 |
+| Concept | VBS semantics | Key trap |
 |---|---|---|
-| 值 vs 对象 | 变量可以装标量（Integer/String/…）或对象引用 | `obj = other` 在 VBS 里是**默认属性赋值**，不是引用赋值 |
-| `Let` | 显式值赋值（通常省略） | `Let obj = x` 写的是默认属性 |
-| `Set` | 引用赋值，只用于对象 | `Set x = 5` 是运行时错误 |
-| 默认成员 | 类可声明 `Attribute Value` 默认成员，`obj = v` / `v = obj` 等价于访问它 | 没有默认成员时 `obj = v` 会报"对象不支持此属性" |
-| `Property Get/Let/Set` | 属性过程，可带参数 | `Set` 属性过程名叫 `Property Set`，与 `Set` 语句同名不同物 |
-| `Me` | 当前对象引用 | 在没有类上下文时不可用 |
-| `Class_Initialize` / `Class_Terminate` | 构造 / 析构 | 析构时机不确定，且不能抛错 |
-| `Nothing` | 空对象引用 | 用 `Is` 比较，不能用 `=` |
-| `Is` | 对象身份比较 | 与 `Case Is` 语法同名但无关 |
-| `For Each` | 遍历集合/数组，迭代器语义 | 遍历中修改集合是未定义行为 |
-| `With` | 表达式求值一次，块内 `.member` 指向它 | 块内不能重新绑定 |
-| `CreateObject` | 按 ProgID 创建 COM 对象 | 我们的实现只认内置类名 |
-| 生命周期 | 引用计数（COM），最后引用释放时触发 `Class_Terminate` | 循环引用会泄漏 |
+| Value vs object | A variable may hold a scalar (Integer/String/…) or an object reference | `obj = other` is **default-property assignment**, not reference assignment |
+| `Let` | Explicit value assignment (usually omitted) | `Let obj = x` writes the default property |
+| `Set` | Reference assignment, objects only | `Set x = 5` is a runtime error |
+| Default member | A class may declare `Attribute Value`, so `obj = v` / `v = obj` access it | Without a default member, `obj = v` raises "object doesn't support this property" |
+| `Property Get/Let/Set` | Property procedures, may take parameters | the `Set` property procedure is `Property Set`, same word as the `Set` statement but unrelated |
+| `Me` | Reference to the current object | unavailable without a class context |
+| `Class_Initialize` / `Class_Terminate` | constructor / destructor | destruction timing is unspecified and must not raise |
+| `Nothing` | Empty object reference | compare with `Is`, not `=` |
+| `Is` | Object identity comparison | unrelated to the `Case Is` syntax despite the name |
+| `For Each` | Iterate a collection/array with iterator semantics | modifying the collection while iterating is undefined |
+| `With` | Evaluate the expression once; `.member` inside refers to it | cannot rebind inside the block |
+| `CreateObject` | Create a COM object by ProgID | our implementation only knows built-in class names |
+| Lifetime | reference counting (COM); the last release triggers `Class_Terminate` | reference cycles leak |
 
 ---
 
-## 3. 落到 Python 上的设计
+## 3. Mapping onto Python
 
-### 3.1 总体表示
+### 3.1 Overall representation
 
-**每个 VBS `Class` 编译成一个 Python class**，命名规则与过程一致：
+**Every VBS `Class` compiles to one Python class**, named like procedures:
 
 ```
 VBS:  Class Person
 Python: class _ovpp_cls_person: ...
 ```
 
-类体里的字段用**实例字典**保存（`self._fields`），而不是直接映射成 Python 属性。理由：
+Class fields are stored in an **instance dictionary** (`self._fields`) rather than mapped to Python attributes. Reasons:
 
-1. VBS 字段是 `Variant`，可以是任意类型，用 dict 便于统一处理 `Empty` 初值；
-2. `Property` 与字段可能同名，dict 存储能明确区分"字段槽"和"属性过程"；
-3. `With` / 默认成员 / `For Each` 都需要统一的成员查找入口。
+1. VBS fields are `Variant`s of any type; a dict makes the `Empty` initial value uniform;
+2. a `Property` may share a name with a field, and dict storage keeps "field slot" and "property procedure" clearly separate;
+3. `With` / default members / `For Each` all need one uniform member lookup entry point.
 
 ```python
 class _ovpp_cls_person:
-    _field_names = ("name", "age")          # 编译期已知，用于初始化与 Option Explicit 检查
-    _default_member = None                  # 默认成员名（Attribute Value 指定）
+    _field_names = ("name", "age")          # known at compile time: init + Option Explicit checks
+    _default_member = None                  # default member name (from Attribute Value)
 
     def __init__(self):
         self._fields = {"name": _ovpp_empty, "age": _ovpp_empty}
-        self._init()                        # 调用 Class_Initialize
+        self._init()                        # calls Class_Initialize
 
     def _init(self):
-        # Class_Initialize 的编译结果（如有）
+        # compiled Class_Initialize body (if any)
         ...
 
-    # 属性过程
+    # property procedures
     def _get_name(self):
         return self._fields["name"]
     def _let_name(self, value):
         self._fields["name"] = value
 
-    # 方法（VBS 的 Sub/Function）
+    # methods (VBS Sub/Function)
     def _ovpp_sub_say(self, msg):
         ...
 ```
 
-### 3.2 成员查找顺序（编译期生成的统一入口）
+### 3.2 Member lookup order (single accessor generated by the compiler)
 
-所有成员访问（`obj.x`、`With .x`、`Me.x`）都编译成对**同一个**访问器的调用，由它在运行时决定语义：
+Every member access (`obj.x`, `With .x`, `Me.x`) compiles to a call on **the same** accessor, which decides the semantics at runtime:
 
 ```python
-_ovpp_obj.get_member(obj, "x")   # 读
-_ovpp_obj.set_member(obj, "x", v)  # 写（Let）
-_ovpp_obj.set_object(obj, "x", v)  # 写（Set）
+_ovpp_obj.get_member(obj, "x")     # read
+_ovpp_obj.set_member(obj, "x", v)  # write (Let)
+_ovpp_obj.set_object(obj, "x", v)  # write (Set)
 ```
 
-查找顺序（与 VBS 一致）：
+Lookup order (same as VBS):
 
-| 顺序 | 目标 | 命中后的行为 |
+| Order | Target | Behaviour on hit |
 |---|---|---|
-| 1 | `Property Get x` | 调 `_get_x()` |
-| 2 | 字段 `x` | 返回 `_fields["x"]` |
-| 3 | 方法 `x` | 返回绑定方法（供 `obj.x(...)` 调用） |
-| 4 | 内置成员（`Dictionary` 等） | 走内置类的 Python 实现 |
-| 5 | 都没有 | `OVPPObjectNotSupportedError`（438） |
+| 1 | `Property Get x` | call `_get_x()` |
+| 2 | field `x` | return `_fields["x"]` |
+| 3 | method `x` | return the bound method (for `obj.x(...)`) |
+| 4 | built-in member (`Dictionary` etc.) | the built-in class's Python implementation |
+| 5 | none of the above | `OVPPObjectNotSupportedError` (438) |
 
-写入时：先找 `Property Let/Set`，再找字段，都没有就报错（VBS 同样不允许动态加字段）。
+For writes: look for `Property Let/Set` first, then the field, otherwise raise (VBS also forbids adding fields dynamically).
 
-### 3.3 `Let` 与 `Set` 的区分
+### 3.3 Distinguishing `Let` from `Set`
 
-- 语法层：`Set x = expr` 保留 `Set` 标记，`Let x = expr` / `x = expr` 是普通赋值。
-- 编译期：
-  - 目标变量已知是对象类型（静态推断：被 `Set` 赋值过、或 `Dim` 后首次 `Set`）→ 按引用赋值；
-  - 目标是类字段 → 生成 `set_member`；
-  - **无法静态判定时**（VBS 大量存在，例如 `x = obj` 想写默认属性）→ 生成运行时分派：
+- Syntax level: `Set x = expr` keeps the `Set` marker; `Let x = expr` and `x = expr` are ordinary assignments.
+- Compile time:
+  - the target is statically known to be an object (assigned with `Set`, or first `Set` after `Dim`) → reference assignment;
+  - the target is a class field → emit `set_member`;
+  - **cannot be decided statically** (frequent in VBS, e.g. `x = obj` meaning the default property) → emit a runtime dispatch:
 
 ```python
 _ovpp_obj.let_assign(current_value, new_value)
-# 若 current_value 是对象且有默认成员 → set_member(default, new_value)
-# 否则 → 普通赋值
+# if current_value is an object with a default member -> set_member(default, new_value)
+# otherwise -> plain assignment
 ```
 
-这条"运行时分派"是 `Let`/`Set` 语义正确性的关键，代价是一次类型判断（可接受）。
+That runtime dispatch is the key to correct `Let`/`Set` semantics; the cost is one type check (acceptable).
 
 ### 3.4 `Property Get/Let/Set`
 
@@ -135,20 +138,20 @@ _ovpp_obj.let_assign(current_value, new_value)
 | `Property Get X()` | `def _get_x(self):` |
 | `Property Let X(v)` | `def _let_x(self, v):` |
 | `Property Set X(v)` | `def _setobj_x(self, v):` |
-| 带参数的 `Property Get X(i)` | `def _get_x(self, i):`（参数照常传递） |
+| parameterised `Property Get X(i)` | `def _get_x(self, i):` (parameters passed as usual) |
 
-- `Let` 与 `Set` 属性过程同名（`X`）时，两份实现共存，由调用方是 `let` 还是 `set` 决定用哪个——这正是 VBS 的行为。
-- 属性过程体里的 `X = value`（给属性名赋值）在 VBS 中表示"设置返回值"（Get 时）或递归——按 VBS 规则：**Get 过程内 `X = v` 是设置返回值**，编译成 `ret_x = v` 最后 `return ret_x`（复用函数返回值的做法）。
+- When `Let` and `Set` property procedures share the name `X`, both implementations coexist and the caller's `let` or `set` decides which runs — exactly VBS behaviour.
+- `X = value` inside a property body means "set the return value" (for `Get`) per VBS rules: **inside a Get procedure `X = v` sets the return value**, compiled to `ret_x = v` followed by `return ret_x` (reusing the function return-value machinery).
 
 ### 3.5 `Me`
 
-`Me` 编译为方法内的第一个隐式参数（Python 的 `self`）。在 `With` 块内出现 `Me` 时正常解析；在没有类的上下文中使用 `Me` → 编译期报错（与 VBS 一致）。
+`Me` compiles to the first implicit parameter of the method (Python's `self`). `Me` inside a `With` block resolves normally; `Me` outside any class context → compile-time error (same as VBS).
 
-### 3.6 默认成员
+### 3.6 Default member
 
-VBS 的 `Attribute Value` 声明默认成员。编译期记录 `_default_member`，运行时的 `let_assign` / 取值分流都查它。
+VBS declares a default member with `Attribute Value`. The compiler records `_default_member`, and the runtime `let_assign` / read paths consult it.
 
-没有默认成员的类被当作值使用时 → 运行期 438 错误（`Object doesn't support this property or method`）。
+Using a class without a default member as a value → runtime error 438 (`Object doesn't support this property or method`).
 
 ### 3.7 `CreateObject` / `GetObject`
 
@@ -156,55 +159,55 @@ VBS 的 `Attribute Value` 声明默认成员。编译期记录 `_default_member`
 Set d = CreateObject("Scripting.Dictionary")
 ```
 
-编译策略：`CreateObject` 是内置函数，参数是**字符串字面量**时在编译期解析成类，参数是变量时走运行期注册表。
+Compilation strategy: `CreateObject` is a built-in function; when the argument is a **string literal** the class is resolved at compile time, when it is a variable the runtime registry is used.
 
-| ProgID | 我们的实现 |
+| ProgID | Our implementation |
 |---|---|
 | `Scripting.Dictionary` | `ovpprt.collections.Dictionary` |
-| `Scripting.FileSystemObject` | 暂不实现（涉及文件系统） |
-| `WScript.Shell` 等宿主对象 | 不实现，给出明确错误 |
-| 其他（`Excel.Application` 等） | `OVPPObjectNotSupportedError`，消息里提示"COM 对象不受支持" |
+| `Scripting.FileSystemObject` | implemented (filesystem subset) |
+| `WScript.Shell` and other host objects | implemented on Windows through the `com-support` package; a clear error elsewhere |
+| others (`Excel.Application` …) | real COM on Windows via `com-support`; otherwise `OVPPObjectNotSupportedError` mentioning "COM objects are not supported" |
 
-`GetObject` 同理：只支持我们能提供的对象，否则报错。
+`GetObject` works the same way: only objects we can provide, otherwise an error.
 
-### 3.8 内置集合
+### 3.8 Built-in collections
 
-| VBS | Python 实现 |
+| VBS | Python implementation |
 |---|---|
-| `Dictionary`：`Add` / `Exists` / `Item` / `Remove` / `RemoveAll` / `Count` / `Keys` / `Items` | dict 包装，保持插入顺序（Python 3.7+ 天然有序） |
-| `Collection`：`Add` / `Item` / `Remove` / `Count` | list 包装，索引 1-based（VBS 的 Collection 是 1 起的！） |
-| 数组 | 已有的 list |
+| `Dictionary`: `Add` / `Exists` / `Item` / `Remove` / `RemoveAll` / `Count` / `Keys` / `Items` | dict wrapper, insertion order preserved (Python 3.7+ is ordered) |
+| `Collection`: `Add` / `Item` / `Remove` / `Count` | list wrapper, **1-based** index (VBS `Collection` is 1-based!) |
+| arrays | the existing list |
 
-`For Each` 对 `Dictionary` 迭代 **Keys**（VBS 行为），对 `Collection` 迭代元素，对数组迭代元素 —— 正好都是 Python 的迭代协议，`ast.For` 直接可用。
+`For Each` iterates **Keys** for a `Dictionary` (VBS behaviour), elements for a `Collection`, elements for an array — which is exactly the Python iteration protocol, so `ast.For` works as-is.
 
-### 3.9 与 `With` / `For Each` / `Err` 的交互
+### 3.9 Interaction with `With` / `For Each` / `Err`
 
-- `With obj`：`obj` 求值一次存进临时变量（现有实现已如此），块内 `.x` 走同一套 `get_member` / `set_member`。
-- `For Each x In obj`：`iter(obj)`；对象类可以实现 `_iterate()` 返回键或元素列表。
-- `Err`：`Err` 是内置单例对象，不是脚本类；`Err.Number` 等走 Python `@property`（当前实现）。
-- 对象方法里抛出的错误：由 `_ovpp_err` 的 try/except 捕获，`Err.Number` 填对应编号；方法内部若有 `On Error Resume Next`，只影响方法自己那一帧（现有 `enter`/`leave` 机制）。
+- `With obj`: `obj` is evaluated once into a temporary (already the case), and `.x` inside goes through the same `get_member` / `set_member`.
+- `For Each x In obj`: `iter(obj)`; object classes may implement `_iterate()` returning keys or elements.
+- `Err`: a built-in singleton, not a script class; `Err.Number` etc. are Python `@property` (current implementation).
+- Errors raised inside object methods: caught by `_ovpp_err`'s try/except and mapped to the matching `Err.Number`; a method-local `On Error Resume Next` only affects that method's frame (existing `enter`/`leave` machinery).
 
-### 3.10 生命周期与 `Class_Terminate`
+### 3.10 Lifetime and `Class_Terminate`
 
-| 方案 | 优点 | 缺点 |
+| Option | Pros | Cons |
 |---|---|---|
-| `__del__` | 简单 | 时机不确定、异常被吞、循环引用不触发 |
-| `weakref.finalize` | 比 `__del__` 可控 | 仍需 GC 回收才触发；闭包捕获要小心 |
-| 显式 `Destroy` / 作用域结束 | 确定 | 与 VBS 语义不符（VBS 是引用计数） |
+| `__del__` | simple | timing unspecified, exceptions swallowed, cycles never trigger |
+| `weakref.finalize` | more controllable than `__del__` | still needs GC, watch closure captures |
+| explicit `Destroy` / scope end | deterministic | not VBS semantics (VBS is reference counted) |
 
-**建议**：默认用 `weakref.finalize(self, _ovpp_term, self._fields)` 近似；同时在文档里明确"析构时机不保证，不要依赖它释放关键资源"。`Class_Terminate` 里抛出的异常一律吞掉并记入 `Err`（VBS 也不允许从这里往外抛）。
+**Recommendation**: approximate with `weakref.finalize(self, _ovpp_term, self._fields)` by default, and state in the docs that "destruction timing is not guaranteed; do not rely on it to release critical resources". Exceptions raised in `Class_Terminate` are swallowed and recorded in `Err` (VBS does not allow throwing out of it either).
 
-### 3.11 `Option Explicit` 与对象
+### 3.11 `Option Explicit` and objects
 
-- 脚本级/过程级变量：现有检查不变。
-- 对象字段：`Option Explicit` 不影响字段（VBS 里字段在类内声明），但**类内未声明的变量**要检查——编译 `Class` 时把字段名和方法参数加入作用域声明集即可。
+- Script-level / procedure-level variables: existing checks unchanged.
+- Object fields: `Option Explicit` does not apply to fields (they are declared inside the class), but **undeclared variables inside a class** must be checked — when compiling a `Class`, add field names and method parameters to the scope declaration set.
 
 ---
 
-## 4. 生成代码示意
+## 4. Generated code sketch
 
 ```vb
-' 输入
+' input
 Class Counter
     Private n
     Public Property Get Value()
@@ -224,7 +227,7 @@ echo c.Value
 ```
 
 ```python
-# 输出（示意，实际会带行号与错误处理包装）
+# output (sketch; the real one carries line numbers and error handling)
 class _ovpp_cls_counter:
     _field_names = ("n",)
     _default_member = None
@@ -251,63 +254,63 @@ _ovpp_builtin.Echo(get_member(c, "value"))
 
 ---
 
-## 5. 分阶段落地计划
+## 5. Phased delivery plan
 
-| 阶段 | 内容 | 验收标准 | 粗估 |
+| Phase | Content | Acceptance | Estimate |
 |---|---|---|---|
-| **P1 语法与内置集合** | `Set`/`Let` 语义分流、`CreateObject`/`GetObject`（内置类）、`Dictionary`/`Collection`、`For Each` 支持集合、`Is Nothing` | VBS 超集测试里 `dictionary` / `create_object` 两个 expectedFailure 变成通过；新增 ≥20 条用例 | 1~1.5 天 |
-| **P2 类与属性** | `Class ... End Class`、字段、`Property Get/Let/Set`、`Me`、`Class_Initialize`/`Class_Terminate`、默认成员 | `class_definition` / `property_procedures` 通过；对象模型专项用例 ≥30 条 | 2~3 天 |
-| **P3 扩展（非 VBS）** | 继承（`Inherits`）、接口、运算符重载 | 必须保证**不改变**任何已有 VBS 语义；扩展语法只允许出现在新关键字后 | 后续 |
+| **P1 syntax and built-in collections** | `Set`/`Let` dispatch, `CreateObject`/`GetObject` (built-in classes), `Dictionary`/`Collection`, `For Each` over collections, `Is Nothing` | the `dictionary` / `create_object` expectedFailures in the superset tests turn green; ≥20 new cases | 1–1.5 days |
+| **P2 classes and properties** | `Class ... End Class`, fields, `Property Get/Let/Set`, `Me`, `Class_Initialize`/`Class_Terminate`, default member | `class_definition` / `property_procedures` pass; ≥30 object-model cases | 2–3 days |
+| **P3 extensions (non-VBS)** | inheritance (`Inherits`), interfaces, operator overloading | must **not** change any existing VBS semantics; extension syntax only after new keywords | later |
 
-每阶段完成后：更新 `doc/VBS_SUPERSET.md`、把对应 expectedFailure 移进 `VBS_FEATURES`、跑全量测试。
+After each phase: update `doc/VBS_SUPERSET.md`, move the corresponding expectedFailure into `VBS_FEATURES`, run the full suite.
 
 ---
 
-## 6. 风险与取舍
+## 6. Risks and trade-offs
 
-| # | 风险 | 说明 | 建议 |
+| # | Risk | Explanation | Recommendation |
 |---|---|---|---|
-| 1 | **`Let`/`Set` 静态不可判定** | `x = obj` 到底写默认属性还是普通赋值，取决于运行时类型 | 走运行时分派（3.3），不要试图纯静态决定 |
-| 2 | 默认成员歧义 | 同一对象可能同时有默认成员和方法同名的属性 | 查找顺序固定为 属性过程 → 字段 → 方法（3.2 表），文档写死 |
-| 3 | `Property Set` 与 `Set` 语句 | 两者语法无关但都叫 Set，容易混淆 | 词法上已区分（关键字 + 上下文），测试覆盖两种场景 |
-| 4 | COM 缺失（已缓解） | 大量真实 VBS 依赖 `Excel.Application` 等 | v0.9.14 起由 `com-support` 包在 Windows 上真连 COM（封 pywin32，脚本里无需 import）；非 Windows / 关闭开关时明确报错，绝不假装能跑 |
-| 5 | `Class_Terminate` 时机 | Python GC 与 VBS 引用计数不同 | 用 `weakref.finalize`，文档声明"不保证"；关键资源用显式 Close |
-| 6 | `Private` 字段被 `With` 绕过 | `.n` 在类内部可见，外部不应可见 | 访问器按"当前编译单元"判断可见性，类外访问私有字段报 438 |
-| 7 | 属性与方法同名 | VBS 允许 `Property Get X` 和 `Sub X` 同时存在？实际不允许 | 编译期报重名错误，比运行期诡异行为好 |
-| 8 | `For Each` 中修改集合 | 行为未定义 | 迭代快照（`list(obj)`）后再遍历，避免 RuntimeError |
-| 9 | 类内 `Dim` 与字段 | VBS 类里 `Dim x` 就是字段 | 统一当字段处理，加入 `_field_names` |
-| 10 | 循环引用泄漏 | Python GC 能回收，但 `Class_Terminate` 不触发 | 文档说明；提供 `Destroy` 显式清理 |
-| 11 | `TypeName` / `IsObject` 对类实例 | 需要返回 `"Counter"` 而不是 Python 类名 | 注册类名映射表 |
-| 12 | 与 `Option Explicit` 的交互 | 类内变量未声明要不要报错 | 类内字段视作声明；方法局部变量照常检查 |
+| 1 | **`Let`/`Set` not statically decidable** | whether `x = obj` writes the default property or assigns depends on the runtime type | runtime dispatch (§3.3); do not attempt pure static resolution |
+| 2 | default-member ambiguity | an object may have a default member and a same-named property | fixed lookup order: property procedure → field → method (§3.2), documented |
+| 3 | `Property Set` vs the `Set` statement | syntactically unrelated but identically named, easy to confuse | already distinguished lexically (keyword + context); tests cover both |
+| 4 | missing COM (mitigated) | many real VBS scripts depend on `Excel.Application` etc. | since v0.9.14 the `com-support` package connects to real COM on Windows (wrapping pywin32, no import in scripts); on other platforms or when disabled it errors clearly and never pretends to work |
+| 5 | `Class_Terminate` timing | Python GC differs from VBS reference counting | use `weakref.finalize` and document "not guaranteed"; critical resources need an explicit Close |
+| 6 | `Private` fields bypassed by `With` | `.n` is visible inside the class, not outside | the accessor checks visibility per compilation unit; outside access to a private field raises 438 |
+| 7 | property and method with the same name | VBS does not actually allow `Property Get X` and `Sub X` together | compile-time duplicate-name error beats strange runtime behaviour |
+| 8 | mutating a collection inside `For Each` | behaviour undefined | iterate over a snapshot (`list(obj)`) to avoid RuntimeError |
+| 9 | `Dim` inside a class | in VBS `Dim x` in a class is a field | treat it as a field and add it to `_field_names` |
+| 10 | reference-cycle leaks | Python GC collects, but `Class_Terminate` will not fire | document it; offer an explicit `Destroy` |
+| 11 | `TypeName` / `IsObject` on class instances | must return `"Counter"`, not the Python class name | keep a class-name registry |
+| 12 | interaction with `Option Explicit` | should undeclared class variables error? | class fields count as declared; method locals are checked normally |
 
 ---
 
-## 7. 与"VBS 超集"原则的关系
+## 7. Relationship to the "VBS superset" principle
 
-- 本设计完成后，`tests/test_vbs_superset.py` 里的 8 个 expectedFailure 中，
-  `class_definition`、`property_procedures`、`create_object`、`dictionary` 4 个应当转为通过；
-  `execute`、`eval`、`format_functions`、`option_compare_text` 属于另外的独立特性，另行排期。
-- 超集原则要求：**新增的对象语法不得让已有 VBS 程序的行为发生变化**。
-  例如引入 `Class` 后，`Set x = Nothing`、`x Is Nothing`、`With`、`Err` 等现有语义必须保持原样——
+- After this design lands, of the 8 expectedFailures in `tests/test_vbs_superset.py`, the four
+  `class_definition`, `property_procedures`, `create_object` and `dictionary` should turn green;
+  `execute`, `eval`, `format_functions` and `option_compare_text` are independent features scheduled separately.
+- The superset principle requires: **new object syntax must not change the behaviour of existing VBS programs.**
+  For example, after `Class` exists, `Set x = Nothing`, `x Is Nothing`, `With` and `Err` must keep working exactly as before.
 
 ---
 
-## 8. 实现现状对照（v0.4）
+## 8. Implementation status (v0.4)
 
-实际落地时做了若干简化，都是为了控制复杂度、且不违反 VBS 语义：
+The implementation simplified several decisions to control complexity without violating VBS semantics:
 
-| 设计里的方案 | 实际实现 | 原因 / 影响 |
+| Design | Implementation | Reason / impact |
 |---|---|---|
-| 字段存 `self._fields` 字典 + 统一访问器 | **直接用 Python 属性**（`self.name`） | 生成代码更短、调试更直观；字段名在编译期已小写化 |
-| `get_member` / `set_member` 运行时分派 | 读走 `_ovpp_obj.member_get`，带参调用走 `member_call`，写走普通属性赋值 | 只需在"读一个可能的方法/字段"处做一次运行期判定 |
-| `Property Get/Let/Set` → `_get_x` / `_let_x` | → Python `@property` / `@x.setter` | 属性名与字段名不同即可共存；`Let` 与 `Set` 属性过程合并为同一个 setter |
-| 默认成员自动取值 | 语法已解析（`Attribute X.VB_UserMemId = 0` 记录到 `_default_member`），**不做自动取值/赋值** | 价值低、二义性高，列入 v0.5 |
-| `Class_Terminate` 用 `weakref.finalize` | `__del__` + 异常吞掉 | CPython 下引用计数立即生效，测试可观察 |
-| 方法参数支持 ByRef | ✅ v0.6 起统一 Ref 协议：`call_method(obj, name, [Ref...])`，ByVal 在方法体入口解包 | 调用点不需要知道接收者的类 |
-| `CreateObject` 走 ProgID 注册表 | 字面量在编译期解析，动态字符串走运行时 `_ovpp_classes` 注册表 | 常见写法零开销 |
-| `Collection` 内置类 | 未实现 | VBScript 本身没有内建 `Collection`（属于 VBA） |
+| fields in a `self._fields` dict + unified accessor | **plain Python attributes** (`self.name`) | shorter generated code, easier debugging; field names lower-cased at compile time |
+| `get_member` / `set_member` runtime dispatch | reads go through `_ovpp_obj.member_get`, calls with arguments through `member_call`, writes are plain attribute assignment | one runtime decision only where a name may be a method or a field |
+| `Property Get/Let/Set` → `_get_x` / `_let_x` | → Python `@property` / `@x.setter` | property and field names differ so they coexist; `Let` and `Set` property procedures merge into one setter |
+| automatic default-member value | syntax parsed (`Attribute X.VB_UserMemId = 0` recorded as `_default_member`), **no automatic get/set** | low value, high ambiguity; scheduled for v0.5 |
+| `Class_Terminate` via `weakref.finalize` | `__del__` with exceptions swallowed | CPython reference counting fires immediately, observable in tests |
+| method parameters support ByRef | ✅ since v0.6 a unified `Ref` protocol: `call_method(obj, name, [Ref...])`, ByVal unpacked at method entry | the call site need not know the receiver's class |
+| `CreateObject` via ProgID registry | literals resolved at compile time, dynamic strings via the `_ovpp_classes` runtime registry | zero cost for the common spelling |
+| `Collection` built-in class | not implemented | VBScript itself has no built-in `Collection` (that is VBA) |
 
-已实现并通过测试：`Class`、字段、方法、属性、`Me`、`New`、`CreateObject`、
-`Dictionary`、`With`、`Is Nothing`、`TypeName`、`Class_Initialize`、`Class_Terminate`。
-对应测试见 `tests/test_objects.py`，超集用例已从 `TestKnownGaps` 移入 `VBS_FEATURES`。
-  这也是 P2 验收项之一。
+Implemented and covered by tests: `Class`, fields, methods, properties, `Me`, `New`,
+`CreateObject`, `Dictionary`, `With`, `Is Nothing`, `TypeName`, `Class_Initialize`,
+`Class_Terminate`. See `tests/test_objects.py`; the superset cases moved from
+`TestKnownGaps` into `VBS_FEATURES`.

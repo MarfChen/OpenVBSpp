@@ -57,6 +57,8 @@ Release-by-release engineering notes (how to cut a release) live in
   script author, how to use it and what the limits are; implementation notes belong in
   `dev-docs/`. The convention is written down in `AGENTS.md` (文档约定).
 
+- Maintainer documents in `dev-docs/` also ship as English | Chinese pairs
+  (`X.md` + `X.zh-CN.md`), matching `doc/`.
 ### Fixed
 
 - `over` no longer leaves a half-cloned git cache behind: an incomplete cache directory is

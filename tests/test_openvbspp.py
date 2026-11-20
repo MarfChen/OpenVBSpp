@@ -1,4 +1,5 @@
-"""
+"""OpenVBS++ regression tests.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +46,9 @@ EXAMPLES = ROOT / "examples"
 
 
 def run(code, filename="<test>"):
-    """运行代码并返回 stdout 内容。"""
+    """Run code and return what it wrote to stdout.
+
+    中文：运行代码并返回 stdout 内容。"""
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         vbs_run(code, filename=filename)
@@ -53,12 +56,16 @@ def run(code, filename="<test>"):
 
 
 def out(code, filename="<test>"):
-    """运行代码并返回按行切分的输出。"""
+    """Run code and return its output split into lines.
+
+    中文：运行代码并返回按行切分的输出。"""
     return run(code, filename=filename).splitlines()
 
 
 class TestExamples(unittest.TestCase):
-    """examples/ 下的脚本必须保持可运行且有稳定输出。"""
+    """Scripts under examples/ must keep running with stable output.
+
+    中文：examples/ 下的脚本必须保持可运行且有稳定输出。"""
 
     EXPECTED = {
         "arrays.vbs": ["total=150", "5 -> 60", "ann / bob / cid", "ANN3", "42"],
@@ -132,7 +139,8 @@ class TestOperators(unittest.TestCase):
         self.assertEqual(out("echo true + true"), ["-2"])
 
     def test_and_or_not(self):
-        # VBS 的逻辑运算符对整数是按位的：-1 And 0 = 0，Not 0 = -1
+        # VBS logical operators are bitwise on integers: -1 And 0 = 0, Not 0 = -1
+        # 中文：VBS 的逻辑运算符对整数是按位的：-1 And 0 = 0，Not 0 = -1
         self.assertEqual(out("echo -1 AND 0"), ["0"])
         self.assertEqual(out("echo -1 OR 0"), ["-1"])
         self.assertEqual(out("echo NOT 0"), ["-1"])
@@ -152,7 +160,8 @@ class TestOperators(unittest.TestCase):
         self.assertEqual(out("echo -2 ^ 2"), ["-4"])
 
     def test_concat_binds_tighter_than_compare(self):
-        # 曾经这里会报语法错误（比较右值用错了优先级函数）
+        # this used to be a syntax error (wrong precedence function for the right operand)
+        # 中文：曾经这里会报语法错误（比较右值用错了优先级函数）
         self.assertEqual(out('echo "a" < "b" & "c"'), ["True"])
 
     def test_compare_number_with_string_raises_type_error(self):
@@ -171,7 +180,8 @@ class TestControlFlow(unittest.TestCase):
         self.assertEqual(out('a = 2\nif a == 1 then\necho "A"\nelse\necho "B"\nend if'), ["B"])
 
     def test_if_without_else(self):
-        # 曾经这里是 UnboundLocalError
+        # this used to raise UnboundLocalError
+        # 中文：曾经这里是 UnboundLocalError
         self.assertEqual(out('a = 1\nif a == 1 then\necho "x"\nend if\necho "y"'), ["x", "y"])
         self.assertEqual(out('a = 9\nif a == 1 then\necho "x"\nend if\necho "y"'), ["y"])
 
@@ -205,7 +215,8 @@ class TestControlFlow(unittest.TestCase):
         self.assertEqual(out("i = 5\ndo\necho i\ni = i + 1\nloop while i < 3"), ["5"])
 
     def test_exit_do_inside_if(self):
-        # 曾经这里会卡死
+        # this used to hang
+        # 中文：曾经这里会卡死
         code = ("i = 0\ndo\ni = i + 1\nif i == 2 then\nexit do\nend if\nloop\necho i")
         self.assertEqual(out(code), ["2"])
 
@@ -240,7 +251,8 @@ class TestControlFlow(unittest.TestCase):
         self.assertEqual(out(code), ["B"])
 
     def test_select_case_ranges_and_is(self):
-        # Case 1, 3 To 5, Is <> 10  →  除 10 以外全部命中
+        # Case 1, 3 To 5, Is <> 10  ->  everything except 10 matches
+        # 中文：Case 1, 3 To 5, Is <> 10  →  除 10 以外全部命中
         for value, expected in ((1, "hit"), (3, "hit"), (5, "hit"),
                                 (7, "hit"), (20, "hit"), (10, "other")):
             code = (f'x = {value}\nselect case x\n'
@@ -251,11 +263,13 @@ class TestControlFlow(unittest.TestCase):
                 self.assertEqual(out(code), [expected])
 
     def test_select_case_without_cases(self):
-        # 曾经抛 ValueError: None disallowed in statement list
+        # this used to raise ValueError: None disallowed in statement list
+        # 中文：曾经抛 ValueError: None disallowed in statement list
         self.assertEqual(out("x = 1\nselect case x\nend select\necho 9"), ["9"])
 
     def test_select_case_with_only_else(self):
-        # 曾经抛 AttributeError
+        # this used to raise AttributeError
+        # 中文：曾经抛 AttributeError
         self.assertEqual(out('x = 1\nselect case x\ncase else\necho "e"\nend select'), ["e"])
 
     def test_nested_select_case(self):
@@ -293,7 +307,8 @@ class TestControlFlow(unittest.TestCase):
             "next\n"
             "echo sum"
         )
-        # i=1: +1 +10 ；i=2: 两次 case else 共 +200
+        # i=1: +1 +10 ; i=2: two case-else hits add +200
+        # 中文：i=1: +1 +10 ；i=2: 两次 case else 共 +200
         self.assertEqual(out(code), ["211"])
 
     def test_exit_do_from_inside_select_case(self):
@@ -302,7 +317,8 @@ class TestControlFlow(unittest.TestCase):
         self.assertEqual(out(code), ["3"])
 
     def test_empty_block_bodies_are_allowed(self):
-        # 空的 If / 循环体在 Python 里必须补 pass，这里确认不会编译失败
+        # empty If / loop bodies need pass in Python; check compile still succeeds
+        # 中文：空的 If / 循环体在 Python 里必须补 pass，这里确认不会编译失败
         self.assertEqual(out('if 1 == 1 then\nend if\necho "ok"'), ["ok"])
         self.assertEqual(out('for i = 1 to 2\nnext\necho "ok"'), ["ok"])
         self.assertEqual(out('while false\nwend\necho "ok"'), ["ok"])
@@ -346,7 +362,8 @@ class TestSyntaxErrors(unittest.TestCase):
         return err
 
     def test_missing_end_if(self):
-        # 曾经会无限循环（卡死）
+        # this used to loop forever
+        # 中文：曾经会无限循环（卡死）
         err = self.assertSyntaxError('if 1 == 1 then\necho 1\n')
         self.assertIn("End If", err.message)
 
@@ -366,14 +383,16 @@ class TestSyntaxErrors(unittest.TestCase):
         self.assertSyntaxError("end if")
 
     def test_single_line_if_is_supported(self):
-        # v0.3 起支持单行 If
+        # single-line If has been supported since v0.3
+        # 中文：v0.3 起支持单行 If
         self.assertEqual(out('if 1 == 1 then echo "x"'), ["x"])
 
     def test_exit_sub_unsupported(self):
         self.assertSyntaxError("exit sub")
 
     def test_unknown_statement(self):
-        # 'print' 不是过程，也不是语法关键字：现在会给出"过程未定义"并提示用 Echo
+        # 'print' is neither a procedure nor a keyword: it now reports procedure-not-defined and suggests Echo
+        # 中文：'print' 不是过程，也不是语法关键字：现在会给出"过程未定义"并提示用 Echo
         from OpenVBSPP.exceptions import OVPPProcedureNotDefinedError
         with self.assertRaises(OVPPProcedureNotDefinedError) as ctx:
             run("print 1")
@@ -391,7 +410,8 @@ class TestSyntaxErrors(unittest.TestCase):
         self.assertEqual(out("echo 2.0"), ["2"])
 
     def test_colon_statement_separator(self):
-        # v0.3 起支持用冒号分隔多条语句
+        # colon-separated statements have been supported since v0.3
+        # 中文：v0.3 起支持用冒号分隔多条语句
         self.assertEqual(out("a = 1 : b = 2"), [])
         self.assertEqual(out("a = 1 : echo a"), ["1"])
 
@@ -453,7 +473,8 @@ class TestCompiler(unittest.TestCase):
             vbs_compile("echo 1\n", mode="save")
 
     def test_save_writes_pyc_and_ast(self):
-        # 曾经因为写死 ./__pycache__ 而 FileNotFoundError
+        # this used to raise FileNotFoundError because ./__pycache__ was hard-coded
+        # 中文：曾经因为写死 ./__pycache__ 而 FileNotFoundError
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = Path(tmp) / "nested" / "cache"
             vbs_compile("echo 1\n", mode="save", filename="demo.vbs",

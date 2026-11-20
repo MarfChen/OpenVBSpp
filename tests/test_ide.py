@@ -1,4 +1,5 @@
-"""
+"""Service-layer tests for the built-in web IDE: no browser, pure logic plus one HTTP smoke.
+
 Copyright 2027 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,7 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-内置网页 IDE 的服务层测试（不启浏览器，纯逻辑 + 一次 HTTP 冒烟）。"""
+内置网页 IDE 的服务层测试（不启浏览器，纯逻辑 + 一次 HTTP 冒烟）。
+"""
 
 import json
 import sys
@@ -164,7 +166,9 @@ class TestServer(unittest.TestCase):
         self.assertIsInstance(data["native_dialogs"], bool)
 
     def test_file_save_and_open_roundtrip(self):
-        """绝对路径读写（原生对话框选完文件之后用的就是这两个接口）。"""
+        """Absolute-path read/write, which the native file dialog uses afterwards.
+
+        中文：绝对路径读写（原生对话框选完文件之后用的就是这两个接口）。"""
         target = Path(self.tmp.name) / "picked.vbs"
         request = urllib.request.Request(
             self.url("/api/file/save"),
