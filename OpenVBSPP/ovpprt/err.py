@@ -13,15 +13,28 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-VBS 的错误运行时：Err 对象 + On Error Resume Next 的状态机。
+The VBScript error runtime: the Err object plus the On Error Resume Next state
+machine.
 
-实现要点：
-  * 每个过程一帧（enter/leave），`On Error Resume Next` 只影响当前帧，
-    所以子过程里的错误处理不会泄漏给调用方；
-  * 打开 Resume Next 后，编译器会把每条语句包进 try/except，
-    except 里调用 capture()：记录错误信息并继续执行（"恢复"的语义）；
-  * 没打开错误处理时 capture() 会把异常重新抛出，由 runtime.vbs_run 翻译成
-    OVPP* 错误。
+中文：VBS 的错误运行时 —— Err 对象 + On Error Resume Next 的状态机。
+
+Implementation notes:
+
+中文：实现要点：
+  * one frame per procedure (enter/leave); `On Error Resume Next` affects only the current
+    frame,
+中文：每个过程一帧（enter/leave），`On Error Resume Next` 只影响当前帧，
+    so a handler inside a callee never leaks to its caller;
+    中文：所以子过程里的错误处理不会泄漏给调用方；
+  * with Resume Next on, the compiler wraps each statement in try/except,
+    中文：打开 Resume Next 后，编译器会把每条语句包进 try/except，
+    and the except clause calls capture(): it records the error and carries on, which
+    is what resuming means;
+    中文：except 里调用 capture()，记录错误信息并继续执行（「恢复」的语义）；
+  * without a handler, capture() re-raises and runtime.vbs_run turns it into an
+    中文：没打开错误处理时 capture() 会把异常重新抛出，由 runtime.vbs_run 翻译成
+    OVPP* error.
+    中文：OVPP* 错误。
 '''
 
 import os
@@ -40,8 +53,11 @@ class _Frame:
 
 _FRAMES = [_Frame()]
 
-# Try 块的处理栈：非空表示"有结构化异常块在等待"，
-# 此时 On Error Resume Next 不再吞异常（Try 优先）。
+# Stack of Try blocks: a non-empty stack means a structured handler is waiting, so
+# On Error Resume Next stops swallowing errors (Try wins).
+# 中文：Try 块的处理栈 —— 非空表示有结构化异常块在等待，此时 On Error Resume Next
+# stop swallowing: Try wins.
+# 中文：不再吞异常（Try 优先）。
 _HANDLERS = []
 _RESUME = [""]   # "" / "next" / "retry"
 
@@ -54,7 +70,8 @@ _STATE = {
     "line": 0,
 }
 
-# 错误号字典：Number -> 人类可读的描述（VBS 常用错误号）
+# Error numbers: Number -> human readable description (common VBScript errors).
+# 中文：错误号字典 —— Number -> 人类可读的描述（VBS 常用错误号）。
 ERRORS = {
     5: "Invalid procedure call or argument",
     6: "Overflow",
@@ -111,7 +128,11 @@ ERRORS = {
 
 
 def describe_number(number):
-    """错误号 → 人类可读描述（查不到就返回 'Error N'）。"""
+    """Turn an error number into a readable description, falling back to
+    `Error N`.
+
+    中文：错误号 → 人类可读描述（查不到就返回 `Error N`）。
+    """
     try:
         number = int(number)
     except (TypeError, ValueError):
@@ -119,7 +140,8 @@ def describe_number(number):
     return ERRORS.get(number, f"Error {number}")
 
 
-# Python 异常 → VBS 错误号
+# Python exception -> VBScript error number.
+# 中文：Python 异常 → VBS 错误号。
 _PY_MAP = (
     (ZeroDivisionError, 11, "Division by zero"),
     (NameError, 1001, "Variable is undefined"),
@@ -159,7 +181,10 @@ def _clear():
 
 
 class ErrObject:
-    """Err 对象：`Err.Number` / `Err.Description` / `Err.Clear` / `Err.Raise`。"""
+    """The Err object: `Err.Number`, `Err.Description`, `Err.Clear`, `Err.Raise`.
+
+    中文：Err 对象 —— `Err.Number` / `Err.Description` / `Err.Clear` / `Err.Raise`。
+    """
 
     @property
     def number(self):
@@ -206,13 +231,17 @@ class ErrObject:
         error = OVPPRuntimeError(
             message=_STATE["description"] or describe_number(number),
             description=f"Raised by script (Err.Raise {int(number)})")
-        # 错误号用脚本指定的值覆盖类默认值
+        # The script-supplied number overrides the class default.
+        # 中文：错误号用脚本指定的值覆盖类默认值。
         error.number = int(number)
         raise error
 
     @property
     def Line(self):
-        """出错行号（超集扩展，VBS 不提供）。"""
+        """The failing line number (a superset extension; VBScript has none).
+
+    中文：出错行号（超集扩展，VBS 不提供）。
+    """
         return _STATE["line"]
 
     def __str__(self):
@@ -224,14 +253,20 @@ class ErrObject:
 ERR = ErrObject()
 
 
-# --------------------------------------------------------------------- 状态机
+# --------------------------------------------------------------------- State machine / 中文：状态机
 def enter():
-    """进入一个过程：压入新的错误处理帧（默认关闭）。"""
+    """Enter a procedure: push a fresh error-handling frame (handler off).
+
+    中文：进入一个过程 —— 压入新的错误处理帧（默认关闭）。
+    """
     _FRAMES.append(_Frame())
 
 
 def leave():
-    """离开一个过程：弹出帧。"""
+    """Leave a procedure: pop the frame.
+
+    中文：离开一个过程 —— 弹出帧。
+    """
     if len(_FRAMES) > 1:
         _FRAMES.pop()
 
@@ -251,10 +286,14 @@ def handler_enabled():
 
 
 def _guess_line(exc):
-    """从 traceback 里找出"用户脚本那一行"。
+    """Find the user script line inside a traceback.
 
-    生成的 Python 代码每个语句都带着 VBS 行号，所以取最深的那个
-    "不在本包内部"的栈帧，就是脚本出错的真实行号。
+    Every generated Python statement carries a VBScript line number, so the deepest
+    frame outside this package is the real line that failed.
+
+    中文：从 traceback 里找出「用户脚本那一行」。生成的 Python 代码每个语句都带着
+    VBScript line number, so the deepest frame that is not inside this package is the real line where the script failed.
+    中文：VBS 行号，所以取最深的那个「不在本包内部」的栈帧，就是脚本出错的真实行号。
     """
     line = getattr(exc, "line_number", 0) or 0
     if line:
@@ -270,7 +309,10 @@ def _guess_line(exc):
 
 
 def record(exc):
-    """记录错误状态，但不抛出（Try 块用）。"""
+    """Record the error state without raising (used by Try blocks).
+
+    中文：记录错误状态，但不抛出（Try 块用）。
+    """
     number, description = _describe(exc)
     _STATE["number"] = number
     _STATE["description"] = description
@@ -280,24 +322,34 @@ def record(exc):
 
 
 def capture(exc):
-    """记录错误；没有接手者时继续往上抛。
+    """Record the error, re-raising it when nothing takes over.
 
-    任何一层 Try 块都算接手者——所以块内的 On Error Resume Next 不会
-    把异常吞掉，异常会交给 Try 的 Catch。
+    Any enclosing Try block counts as a taker, so On Error Resume Next inside a Try
+    never swallows the exception: it is handed to the Catch clause.
+
+    中文：记录错误；没有接手者时继续往上抛。任何一层 Try 块都算接手者，所以块内的
+    On Error Resume Next does not swallow here: the exception goes to the Try block's Catch.
+    中文：On Error Resume Next 不会把异常吞掉，异常会交给 Try 的 Catch。
     """
     record(exc)
     if _HANDLERS or not _FRAMES[-1].handler:
         raise
 
 
-# --------------------------------------------------------------------- Try 块
+# --------------------------------------------------------------------- Try blocks / 中文：Try 块
 def push_handler():
-    """进入 Try 块。"""
+    """Enter a Try block.
+
+    中文：进入 Try 块。
+    """
     _HANDLERS.append(True)
 
 
 def pop_handler():
-    """离开 Try 块（尽力而为，异常路径上也不会崩）。"""
+    """Leave a Try block (best effort, safe on error paths).
+
+    中文：离开 Try 块（尽力而为，异常路径上也不会崩）。
+    """
     if _HANDLERS:
         _HANDLERS.pop()
 
@@ -307,19 +359,28 @@ def handler_active():
 
 
 def set_resume(mode):
-    """处理段里执行到 Resume / Resume Next 时记录动作。"""
+    """Record the action taken by `Resume` / `Resume Next` inside a handler.
+
+    中文：处理段里执行到 Resume / Resume Next 时记录动作。
+    """
     _RESUME[0] = mode or ""
 
 
 def take_resume():
-    """取出并清空最近的 Resume 动作。"""
+    """Take and clear the latest Resume action.
+
+    中文：取出并清空最近的 Resume 动作。
+    """
     mode = _RESUME[0]
     _RESUME[0] = ""
     return mode
 
 
 class _Snapshot:
-    """Catch 变量 e：错误信息的一份不可变快照。"""
+    """The Catch variable `e`: an immutable snapshot of the error.
+
+    中文：Catch 变量 e —— 错误信息的一份不可变快照。
+    """
     __slots__ = ("number", "description", "source", "line")
 
     def __init__(self, state):
@@ -338,12 +399,18 @@ class _Snapshot:
 
 
 def snapshot():
-    """当前错误的一份快照（给 Catch e 的 e 用）。"""
+    """A snapshot of the current error, handed to `Catch e`.
+
+    中文：当前错误的一份快照（给 Catch e 的 e 用）。
+    """
     return _Snapshot(_STATE)
 
 
 def reset():
-    """把错误状态和帧栈恢复到初始情况（测试用）。"""
+    """Reset the error state and the frame stack (used by tests).
+
+    中文：把错误状态和帧栈恢复到初始情况（测试用）。
+    """
     del _FRAMES[1:]
     del _HANDLERS[:]
     _RESUME[0] = ""

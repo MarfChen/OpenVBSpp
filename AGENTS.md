@@ -176,7 +176,14 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
 - **版权头**：所有 `.py` 文件（含 `tests/`、`cli.py`、`packaging/`）开头统一是
   `Copyright 2027 Marf Chen(MarfChen)` + Apache 2.0 全文。已经有模块 docstring 的，
   把版权插在同一个 docstring 的开头，不要出现两个 docstring。
-- **模块 docstring**：一律三单引号，第一行写模块职责，后面写实现要点。
+- **注释与 docstring 一律中英双语、面向使用者**（v0.9.20 起）：先英文、再
+  `中文：…`。模块 docstring 在版权块之后先写英文段落再写 `中文：…` 段落；类/函数
+  docstring 写成 `"""English` + 空行 + `中文：…` + 收尾 `"""`（英文首行绝不能
+  提前闭合 `"""`，否则中文变成裸代码，报 `SyntaxError: invalid character '：'`）；
+  行内注释写 `# English` 一行 + `# 中文：…` 一行，短的可以并成 `# English / 中文：…`。
+  内容标准是"使用者视角"：这个模块/函数给脚本作者什么能力、怎么用、有什么限制；
+  面向开发者的实现备忘（构建细节、内部权衡、待办计划）写在 `dev-docs/`，不要留在源码里。
+- **模块 docstring**：一律三单引号，版权块之后先英文段、再 `中文：` 段。
 - **函数/类 docstring**：只给"读完名字还需要解释"的写；`peek` / `eat` 这类自解释的不写；
   异常类由类名 + 错误号说明，不重复写 docstring。
 - **版本号**：`OpenVBSPP/__init__.py`、`ast_nodes/__init__.py`、`ovpprt/__init__.py`、
@@ -205,7 +212,7 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
 - **`MANIFEST.in` 的路径不能带空格**：distutils 会按空白切分，`include doc/OpenVBS spec.docx`
   被读成 `doc/OpenVBS` 和 `spec.docx` 两个不存在的 pattern（build 时只给 warning，产物静默少文件）。
   所以 `doc/` 一律写成 `recursive-include doc *.md *.docx` + 需要挡掉的用无空格路径
-  `exclude doc/plan.docx`。改完必须验证 sdist 内容，不能只看 "Successfully built"：
+  `exclude dev-docs/plan.docx`。改完必须验证 sdist 内容，不能只看 "Successfully built"：
   ```powershell
   .\venv\Scripts\python.exe -c "import tarfile;print([n for n in tarfile.open('dist/openvbspp-<ver>.tar.gz').getnames() if '/doc/' in n])"
   ```

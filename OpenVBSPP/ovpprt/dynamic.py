@@ -13,13 +13,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-动态执行：Execute / Eval。
+Dynamic execution: `Execute` and `Eval`.
 
-两者都复用编译器本身：把字符串当成一段 OpenVBS++ 源码编译后在
-**调用方的全局作用域**里执行（与 VBS 的 Execute/Eval 语义一致 ——
-它们总是在全局作用域运行）。
+Both reuse the compiler itself: the string is compiled as an OpenVBS++ source and
+run in the caller's global scope, matching VBScript, where both always run in the
+global scope. `compiler` is imported lazily to avoid the import cycle
+ovpprt → compiler → transformer → ovpprt.
 
-这里延迟导入 compiler，避免 ovpprt → compiler → transformer → ovpprt 的循环导入。
+中文：动态执行 `Execute` / `Eval`。两者都复用编译器：把字符串当成一段 OpenVBS++
+The source is compiled and run in the caller's global scope, matching VBScript, which always runs these globally.
+中文：源码编译后在调用方的全局作用域里执行（与 VBS 一致——它们总是在全局作用域运行）。
+`compiler` is imported lazily to avoid the ovpprt -> compiler -> transformer -> ovpprt import cycle.
+中文：`compiler` 用延迟导入，避免 ovpprt → compiler → transformer → ovpprt 的循环导入。
 '''
 
 from OpenVBSPP.ovpprt.empty import EMPTY
@@ -34,12 +39,18 @@ def _compile(source, mode_name):
 
 
 def execute(source, scope):
-    """Execute "语句..."：在给定的全局作用域里执行。"""
+    """`Execute "statements"`: run the code in the given global scope.
+
+    中文：`Execute "语句..."`——在给定的全局作用域里执行。
+    """
     exec(_compile(source, "<execute>"), scope)
 
 
 def evaluate(source, scope):
-    """Eval("表达式")：求值并返回结果。"""
+    """`Eval("expression")`: evaluate the expression and return its value.
+
+    中文：`Eval("表达式")`——求值并返回结果。
+    """
     wrapped = f"{EVAL_RESULT} = ({source})"
     exec(_compile(wrapped, "<eval>"), scope)
     return scope.pop(EVAL_RESULT, EMPTY)

@@ -13,16 +13,27 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-`over` —— OpenVBS++ 的包管理器（M2：本地源 + 依赖安装 + 锁文件 + pip 依赖）。
+The `over` package manager: local sources, dependency install, lock file, pip deps.
 
-设计取舍（没有中央服务器）：
-  * 包源只有两种：**本地目录**（含 over.json）和 **.ovppkg 单文件包**（zip）；
-  * 安装目标是**项目本地**的 `./packages/<name>/`，不污染全局环境；
-  * 版本约束只做 semver 子集：`=1.2.3` / `^1.2` / `>=1.2` / `<2`；
-  * `over.lock` 记录精确版本 + 内容哈希，保证可重现；
-  * 所有操作离线可用。
+Design choices, since there is no central server:
+  * only two kinds of source: a **local directory** holding over.json, and a
+    **.ovppkg** single-file package (a zip);
+  * installs stay **project local** under `./packages/<name>/` and never touch the
+    global environment;
+  * version constraints are a semver subset: `=1.2.3` / `^1.2` / `>=1.2` / `<2`;
+  * `over.lock` pins exact versions plus content hashes, so installs reproduce;
+  * every operation works offline.
 
-清单 `over.json`：
+中文：`over` —— OpenVBS++ 的包管理器（本地源 + 依赖安装 + 锁文件 + pip 依赖）。
+Trade-offs, with no central server: a package source is either a local directory holding over.json or a single-file .ovppkg
+中文：设计取舍（没有中央服务器）：包源只有本地目录（含 over.json）与 .ovppkg 单文件包
+(a zip). A package installs into the project's own `./packages/<name>/` and never touches the global environment. Version constraints cover only
+中文：（zip）两种；安装目标是项目本地的 `./packages/<name>/`，不污染全局环境；版本约束只做
+a semver subset, `over.lock` pins exact versions with content hashes so installs are reproducible, and everything works offline.
+中文：semver 子集；`over.lock` 记录精确版本与内容哈希，保证可重现；所有操作离线可用。
+
+The over.json manifest:
+中文：清单 `over.json`：
     {
       "name": "my-app",
       "version": "0.1.0",
@@ -32,12 +43,22 @@ limitations under the License.
       "platforms": ["win32"]
     }
 
-`dependencies` 是 over 包（.vbs）；`python` 是 PyPI 依赖（pip 装）。
-安装时会遍历**整张 over 依赖图**收集所有 `python` 需求，一次性交给 pip，
-由 pip 自己解析传递依赖，真实安装结果写进 `over.lock`。
+`dependencies` lists over packages (.vbs); `python` lists PyPI requirements that pip
+installs. An install walks the **whole over dependency graph**, collects every
+`python` requirement and hands them to pip in one shot, letting pip resolve
+transitive dependencies; what was really installed is written to `over.lock`.
 
-源码里用 `<namespace src="text-utils" alias="tu">` 引用包名时，编译器会先找
-`./packages/text-utils/`，再退回相对路径。
+A script refers to a package by name with
+`<namespace src="text-utils" alias="tu">`; the compiler looks in
+`./packages/text-utils/` first and falls back to a relative path.
+
+中文：`dependencies` 是 over 包（.vbs），`python` 是 PyPI 依赖（pip 装）。安装时会遍历
+Python needs are collected across the whole over dependency graph and handed to pip in one go, letting pip resolve transitive dependencies;
+中文：整张 over 依赖图收集所有 `python` 需求，一次性交给 pip，由 pip 自己解析传递依赖，
+what was actually installed is recorded in `over.lock`. When a script writes <namespace src="text-utils" alias="tu">
+中文：真实安装结果写进 `over.lock`。源码里用 `<namespace src="text-utils" alias="tu">`
+the compiler looks in `./packages/text-utils/` first and only then falls back to a relative path.
+中文：引用包名时，编译器会先找 `./packages/text-utils/`，再退回相对路径。
 '''
 
 import hashlib
@@ -55,15 +76,19 @@ PACKAGES_DIR = "packages"
 VENDOR_DIR = "vendor"
 COM_PACKAGE = "com-support"
 
-#: 锁格式：2 = 多了 "extra"/"extras"/"python" 字段（仍能读 1）
+#: Lock format 2 adds "extra"/"extras"/"python"; format 1 still reads fine.
+#: 中文：锁格式 2 多了 "extra"/"extras"/"python" 字段（仍能读 1）。
 LOCK_VERSION = 2
 
 
 class OverError(Exception):
-    """包管理器错误。"""
+    """A package manager error.
+
+    中文：包管理器错误。
+    """
 
 
-# --------------------------------------------------------------------- 版本
+# --------------------------------------------------------------------- Versions / 中文：版本
 _VERSION_RE = re.compile(r"(\d+)(?:\.(\d+))?(?:\.(\d+))?")
 
 
@@ -76,7 +101,10 @@ def parse_version(text):
 
 
 def satisfies(version, spec):
-    """semver 子集：=1.2.3 / ^1.2 / >=1.2 / <2，空表示任意。"""
+    """A semver subset: `=1.2.3`, `^1.2`, `>=1.2`, `<2`; empty means any version.
+
+    中文：semver 子集：=1.2.3 / ^1.2 / >=1.2 / <2，空表示任意。
+    """
     spec = (spec or "").strip()
     if not spec or spec == "*":
         return True
@@ -111,9 +139,12 @@ def satisfies(version, spec):
     return True
 
 
-# --------------------------------------------------------------------- 清单
+# --------------------------------------------------------------------- Manifest / 中文：清单
 class Manifest:
-    """一个包的 over.json。"""
+    """One package manifest, read from over.json.
+
+    中文：一个包的 over.json。
+    """
 
     def __init__(self, data, root=None):
         self.data = data
@@ -141,15 +172,22 @@ class Manifest:
 
     @property
     def kind(self):
-        """包类型：空 = 普通 .vbs 包，"python" = 纯 Python 支撑包。"""
+        """Package type: empty for an ordinary .vbs package, `python` for a pure Python support package.
+
+        中文：包类型：空 = 普通 .vbs 包，"python" = 纯 Python 支撑包。
+        """
         return str(self.data.get("kind", "") or "")
 
     @property
     def capabilities(self):
-        """这个包向语言暴露的能力（例如 ["python-embed"]）。
+        """Capabilities this package exposes to the language, such as `["python-embed"]`.
 
-        `<script src="包名" />` 指向一个带能力的包时，编译器不合并它的源码，
-        而是打开对应能力 —— 目前用于 Python 互操作（`#python` 块与 `COP`）。
+    中文：这个包向语言暴露的能力（例如 ["python-embed"]）。
+
+        When `<script src="name" />` names a package that provides capabilities, the compiler does not merge its source;
+        中文：`<script src="包名" />` 指向一个带能力的包时，编译器不合并它的源码，
+        it turns the capability on instead, which today means Python interop (`#python` blocks and `COP`).
+        中文：而是打开对应能力 —— 目前用于 Python 互操作（`#python` 块与 `COP`）。
         """
         raw = self.data.get("capabilities")
         if not raw:
@@ -160,7 +198,10 @@ class Manifest:
 
     @property
     def platforms(self):
-        """适用平台列表（空 = 全平台）。写法：["win32"] / ["linux", "darwin"]。"""
+        """Platforms this package applies to (empty means all), such as `["win32"]`.
+
+        中文：适用平台列表（空 = 全平台）。写法：["win32"] / ["linux", "darwin"]。
+        """
         raw = self.data.get("platforms")
         if not raw:
             return []
@@ -170,7 +211,10 @@ class Manifest:
 
     @property
     def python_dependencies(self):
-        """Python(pip) 依赖：`{"pywin32": ">=306"}`；也接受 `["pywin32>=306"]`。"""
+        """Python (pip) requirements such as `{"pywin32": ">=306"}`; the list form `["pywin32>=306"]` works too.
+
+        中文：Python(pip) 依赖：`{"pywin32": ">=306"}`；也接受 `["pywin32>=306"]`。
+        """
         raw = self.data.get("python") or {}
         if isinstance(raw, str):
             raw = [raw]
@@ -184,7 +228,10 @@ class Manifest:
                 for name, spec in dict(raw).items() if str(name).strip()}
 
     def supports_platform(self, platform=None):
-        """当前平台是否适用（无 platforms 声明时为真）。"""
+        """Whether the current platform applies (true when nothing is declared).
+
+        中文：当前平台是否适用（无 platforms 声明时为真）。
+        """
         wanted = self.platforms
         if not wanted:
             return True
@@ -222,7 +269,7 @@ class Manifest:
             encoding="utf-8")
 
 
-# --------------------------------------------------------------------- 安装
+# --------------------------------------------------------------------- Install / 中文：安装
 def _hash_tree(directory):
     digest = hashlib.sha256()
     for path in sorted(Path(directory).rglob("*")):
@@ -233,7 +280,10 @@ def _hash_tree(directory):
 
 
 def _source_path(source, base):
-    """把依赖声明解析成本地目录 / .ovppkg 路径。"""
+    """Resolve a dependency declaration to a local directory or .ovppkg path.
+
+    中文：把依赖声明解析成本地目录 / .ovppkg 路径。
+    """
     spec = str(source).strip()
     if spec.startswith("file:"):
         spec = spec[5:]
@@ -244,7 +294,10 @@ def _source_path(source, base):
 
 
 def read_lock(root):
-    """读 over.lock（没有就返回 None）。"""
+    """Read over.lock, or None when there is none.
+
+    中文：读 over.lock（没有就返回 None）。
+    """
     path = Path(root) / LOCK_NAME
     if not path.is_file():
         return None
@@ -256,7 +309,10 @@ def read_lock(root):
 
 def _install_frozen(root, lock, sources, verbose=False, python_deps=True,
                     pip_runner=None, python_executable=None):
-    """按锁文件安装：版本必须与锁一致，保证可重现。"""
+    """Install from the lock file: versions must match it exactly, which is what makes an install reproducible.
+
+    中文：按锁文件安装：版本必须与锁一致，保证可重现。
+    """
     packages_dir = Path(root) / PACKAGES_DIR
     packages_dir.mkdir(exist_ok=True)
     installed = []
@@ -300,7 +356,8 @@ def _install_frozen(root, lock, sources, verbose=False, python_deps=True,
             raise OverError(
                 f"Cannot restore bundled package '{name}': {exc}") from exc
 
-    # python 依赖：钉到锁里记录的精确版本
+    # Python dependencies: pin the exact versions recorded in the lock file.
+    # 中文：python 依赖：钉到锁里记录的精确版本
     if python_deps:
         restored = _restore_python_from_lock(root, lock,
                                              python_executable=python_executable,
@@ -317,10 +374,14 @@ def _install_frozen(root, lock, sources, verbose=False, python_deps=True,
 def install(root, source_map=None, verbose=False, frozen=False, dry_run=False,
             python_deps=True, pip_runner=None, python_executable=None,
             with_com=False):
-    """安装 over.json 里的依赖（本地目录 / .ovppkg / git+URL）以及 python 依赖。
+    """Install the dependencies declared in over.json (local directory, .ovppkg or git URL) plus the Python requirements.
 
-    frozen=True 且有 over.lock 时，按锁文件精确恢复（可重现安装）。
-    python_deps=False 可跳过 pip（纯 over 包、离线环境）。
+    中文：安装 over.json 里的依赖（本地目录 / .ovppkg / git+URL）以及 python 依赖。
+
+    With frozen=True and an over.lock present, restore exactly what the lock describes, which is a reproducible install.
+    中文：frozen=True 且有 over.lock 时，按锁文件精确恢复（可重现安装）。
+    python_deps=False skips pip entirely, for pure over packages or an offline box.
+    中文：python_deps=False 可跳过 pip（纯 over 包、离线环境）。
     """
     root = Path(root)
     manifest = Manifest.load(root)
@@ -339,7 +400,8 @@ def install(root, source_map=None, verbose=False, frozen=False, dry_run=False,
                                pip_runner=pip_runner,
                                python_executable=python_executable)
 
-    # 先把整张依赖图走一遍：解析来源、检测循环、收集版本约束
+    # Walk the whole graph first: resolve sources, detect cycles, collect constraints.
+    # 中文：先把整张依赖图走一遍 —— 解析来源、检测循环、收集版本约束。
     requirements = collect_requirements(root)
 
     installed = []
@@ -373,7 +435,8 @@ def install(root, source_map=None, verbose=False, frozen=False, dry_run=False,
                 f"Cannot resolve package '{name}' from {located} "
                 f"(supported: local folder, .ovppkg, git+URL)")
 
-        # 版本冲突：该包的所有需求都必须被满足
+        # Version conflict: every requirement on this package has to be satisfied.
+        # 中文：版本冲突 —— 该包的所有需求都必须被满足。
         for requirement in requirements.get(name, []):
             if requirement.spec and not satisfies(child.version, requirement.spec):
                 raise OverError(
@@ -383,14 +446,17 @@ def install(root, source_map=None, verbose=False, frozen=False, dry_run=False,
 
         entry = {"name": name, "version": child.version,
                  "source": str(located), "hash": _hash_tree(target)}
-        commit = _git_commit(located)   # 只对 git 检出有意义（复制到 packages 时会去掉 .git）
+        # Only meaningful for git checkouts (the .git directory is dropped on copy).
+        # 中文：只对 git 检出有意义（复制到 packages 时会去掉 .git）。
+        commit = _git_commit(located)
         if commit:
             entry["commit"] = commit
         installed.append(entry)
         if verbose:
             print(f"installed {name} {child.version}")
 
-        # 这个包的 python 依赖也并进来（pip 稍后一次性解析）
+        # Absorb this package's Python requirements; pip resolves them all later.
+        # 中文：这个包的 python 依赖也并进来（pip 稍后一次性解析）。
         python_needs.absorb(child)
 
         for child_name, child_spec in child.dependencies.items():
@@ -401,8 +467,11 @@ def install(root, source_map=None, verbose=False, frozen=False, dry_run=False,
 
     lock_document = {"version": LOCK_VERSION, "packages": installed}
 
-    # 内置包（com-support）：显式要求时才装进项目；Windows 上即使不装，
-    # 随包分发的副本也能让 CreateObject 直接可用。
+    # Bundled packages (com-support) are copied into the project only on request; on
+    # Windows the bundled copy already makes CreateObject work.
+    # 中文：内置包（com-support）显式要求时才装进项目；Windows 上即使不装，
+    # The bundled copy is enough to make CreateObject work right away.
+    # 中文：随包分发的副本也能让 CreateObject 直接可用。
     if with_com:
         extra = provision_bundled(root, COM_PACKAGE, verbose=verbose)
         lock_document["extras"] = [extra]
@@ -423,7 +492,10 @@ def install(root, source_map=None, verbose=False, frozen=False, dry_run=False,
 
 def _resolve_python(collector, python_deps=True, pip_runner=None,
                     python_executable=None, verbose=False):
-    """把收集到的 python 依赖交给 pip，返回要写进锁文件的条目。"""
+    """Hand the collected Python requirements to pip and return the lock entries.
+
+    中文：把收集到的 python 依赖交给 pip，返回要写进锁文件的条目。
+    """
     if not python_deps:
         return []
     wanted = collector.entries()
@@ -453,7 +525,10 @@ def _resolve_python(collector, python_deps=True, pip_runner=None,
 
 
 def update(root, source_map=None):
-    """忽略缓存重新解析并安装（git 源会重新拉取）。"""
+    """Resolve and install again, ignoring caches (git sources are re-fetched).
+
+    中文：忽略缓存重新解析并安装（git 源会重新拉取）。
+    """
     import shutil as _shutil
     cache = Path.home() / ".openvbspp" / "over" / "cache"
     if cache.is_dir():
@@ -467,7 +542,10 @@ def update(root, source_map=None):
 
 
 def init(root, name=None):
-    """生成一个最小的 over.json。"""
+    """Write a minimal over.json.
+
+    中文：生成一个最小的 over.json。
+    """
     root = Path(root)
     path = root / MANIFEST_NAME
     if path.is_file():
@@ -497,12 +575,18 @@ def list_installed(root):
 
 
 def bundled_package_dir(name=COM_PACKAGE):
-    """随包分发的内置 over 包目录（OpenVBSPP/vendor/<name>）。"""
+    """The directory of a bundled over package: `OpenVBSPP/vendor/<name>`.
+
+    中文：随包分发的内置 over 包目录（OpenVBSPP/vendor/<name>）。
+    """
     return Path(__file__).resolve().parent / VENDOR_DIR / name
 
 
 def bundled_packages():
-    """随包分发的全部内置 over 包：[(name, version), ...]。"""
+    """Every bundled over package as `[(name, version), ...]`.
+
+    中文：随包分发的全部内置 over 包：[(name, version), ...]。
+    """
     vendor = Path(__file__).resolve().parent / VENDOR_DIR
     found = []
     if not vendor.is_dir():
@@ -519,10 +603,14 @@ def bundled_packages():
 
 
 def provision_bundled(root, name=COM_PACKAGE, verbose=False):
-    """把随包分发的内置包装进 <项目>/packages/<name>/，返回锁文件条目。
+    """Copy a bundled package into `<project>/packages/<name>/` and return its lock entry.
 
-    Windows 上 com-support 只要存在于 packages/ 就优先用它；不装也能用
-    （运行期会退回 vendor 副本），显式装进来是为了让包管理器可见、可卸载。
+    中文：把随包分发的内置包装进 <项目>/packages/<name>/，返回锁文件条目。
+
+    On Windows a com-support in packages/ wins; without it everything still works
+    中文：Windows 上 com-support 只要存在于 packages/ 就优先用它；不装也能用
+    because the run time falls back to the vendor copy. Installing it explicitly makes it visible and removable through the package manager.
+    中文：（运行期会退回 vendor 副本），显式装进来是为了让包管理器可见、可卸载。
     """
     source = bundled_package_dir(name)
     if not source.is_dir():
@@ -544,7 +632,10 @@ def provision_bundled(root, name=COM_PACKAGE, verbose=False):
 
 
 def list_installed_details(root):
-    """列出项目里一切可管理的东西：over 包、内置包、python 依赖。"""
+    """List everything the project manages: over packages, bundled packages and Python dependencies.
+
+    中文：列出项目里一切可管理的东西：over 包、内置包、python 依赖。
+    """
     root = Path(root)
     lock = read_lock(root) or {}
     details = []
@@ -573,7 +664,10 @@ def list_installed_details(root):
 
 
 def info(root, name):
-    """一个包的详情；找不到返回 None。"""
+    """Details for one package, or None when it is not installed.
+
+    中文：一个包的详情；找不到返回 None。
+    """
     wanted = _normalize_name(name)
     for entry in list_installed_details(root):
         if _normalize_name(entry["name"]) != wanted:
@@ -597,7 +691,10 @@ def info(root, name):
 
 def remove(root, name, python=False, python_executable=None, pip_runner=None,
            verbose=False):
-    """移除一个包：over 包删目录 + 锁条目；python=True 走 pip 卸载。"""
+    """Remove a package: an over package loses its directory and lock entry, while `python=True` uninstalls through pip.
+
+    中文：移除一个包：over 包删目录 + 锁条目；python=True 走 pip 卸载。
+    """
     root = Path(root)
     lock = read_lock(root) or {}
     wanted = _normalize_name(name)
@@ -635,7 +732,8 @@ def remove(root, name, python=False, python_executable=None, pip_runner=None,
         if directory.exists():
             shutil.rmtree(directory)
 
-    # 顺手从 over.json 的依赖声明里摘掉
+    # Also drop it from the dependency declarations in over.json.
+    # 中文：顺手从 over.json 的依赖声明里摘掉。
     manifest_path = root / MANIFEST_NAME
     if manifest_path.is_file():
         manifest = Manifest.load(root)
@@ -662,7 +760,10 @@ def remove(root, name, python=False, python_executable=None, pip_runner=None,
 
 
 def com_support_status(root=None):
-    """COM 支持的当前状态（给 `over list` / `over info com-support` 用）。"""
+    """The current COM support status, shown by `over list` and `over info com-support`.
+
+    中文：COM 支持的当前状态（给 `over list` / `over info com-support` 用）。
+    """
     from OpenVBSPP.ovpprt import com as bridge
 
     directory, origin = bridge.resolve()
@@ -674,10 +775,14 @@ def com_support_status(root=None):
 
 
 def add(root, name, spec=None):
-    """往 over.json 里加一条依赖并安装；内置包可以省略 source。
+    """Add a dependency to over.json and install it; `source` may be omitted for a bundled package.
 
-    省略 source 且 `<name>` 是随包分发的内置包时，把它复制进
-    `packages/<name>/` 并记进锁文件（之后 `over remove` 能卸掉）。
+    中文：往 over.json 里加一条依赖并安装；内置包可以省略 source。
+
+    When source is omitted and `<name>` is a bundled package, copy it into
+    中文：省略 source 且 `<name>` 是随包分发的内置包时，把它复制进
+    `packages/<name>/` and record it in the lock file, so `over remove` can take it out later.
+    中文：`packages/<name>/` 并记进锁文件（之后 `over remove` 能卸掉）。
     """
     root = Path(root)
     manifest = Manifest.load(root)
@@ -699,9 +804,12 @@ def add(root, name, spec=None):
     return install(root)
 
 
-# --------------------------------------------------------------------- python 依赖
+# --------------------------------------------------------------------- Python dependencies / 中文：python 依赖
 def _normalize_name(name):
-    """PEP 503 规范化：`PyWin32` / `py_win32` -> `pywin32`。"""
+    """PEP 503 normalisation, so `PyWin32` and `py_win32` both become `pywin32`.
+
+    中文：PEP 503 规范化：`PyWin32` / `py_win32` -> `pywin32`。
+    """
     return re.sub(r"[-_.]+", "-", str(name)).strip().lower()
 
 
@@ -709,7 +817,10 @@ _PIP_NAME_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(.*)$")
 
 
 def split_pip_requirement(text):
-    """`pywin32>=306` -> ("pywin32", ">=306")。"""
+    """Split one requirement: `pywin32>=306` becomes `("pywin32", ">=306")`.
+
+    中文：`pywin32>=306` -> ("pywin32", ">=306")。
+    """
     match = _PIP_NAME_RE.match(str(text))
     if not match:
         raise OverError(f"Invalid python requirement: {text!r}")
@@ -717,7 +828,10 @@ def split_pip_requirement(text):
 
 
 def requirement_strings(requirements):
-    """{名字: 约束} 或 ["名字约束"] -> 送进 pip 的需求字符串列表。"""
+    """Turn `{name: spec}` or `["name spec"]` into pip requirement strings.
+
+    中文：{名字: 约束} 或 ["名字约束"] -> 送进 pip 的需求字符串列表。
+    """
     if isinstance(requirements, dict):
         result = []
         for name, spec in requirements.items():
@@ -734,13 +848,19 @@ def requirement_strings(requirements):
 
 
 class _PythonCollector:
-    """汇总整张 over 依赖图上的 python 依赖（同名约束合并、去掉重复来源）。"""
+    """Collect Python requirements across the whole over graph: constraints for one name are merged and duplicate sources dropped.
+
+    中文：汇总整张 over 依赖图上的 python 依赖（同名约束合并、去掉重复来源）。
+    """
 
     def __init__(self):
         self._found = {}
 
     def absorb(self, manifest):
-        """把一个 over 包清单里的 python 依赖并进来（平台不符则跳过）。"""
+        """Absorb the Python requirements of one over manifest, skipping platforms that do not apply.
+
+        中文：把一个 over 包清单里的 python 依赖并进来（平台不符则跳过）。
+        """
         if manifest is None or not manifest.supports_platform():
             return
         for name, spec in manifest.python_dependencies.items():
@@ -754,7 +874,10 @@ class _PythonCollector:
                 entry["required_by"].append(owner)
 
     def entries(self):
-        """{规范化名: {name, specs, required_by, requirement}}"""
+        """Internal shape: `{normalised name: {name, specs, required_by, requirement}}`.
+
+        中文：{规范化名: {name, specs, required_by, requirement}}
+        """
         result = {}
         for key, entry in self._found.items():
             spec = ",".join(entry["specs"])
@@ -769,7 +892,10 @@ class _PythonCollector:
 
 
 def pip_available(python_executable=None):
-    """这个解释器能不能跑 pip。"""
+    """Whether this interpreter can run pip.
+
+    中文：这个解释器能不能跑 pip。
+    """
     import subprocess
 
     executable = python_executable or sys.executable
@@ -782,10 +908,14 @@ def pip_available(python_executable=None):
 
 
 def default_pip_runner(requirements, python_executable=None, verbose=False):
-    """真正调用 pip 安装，返回 [{name, version, requested}]。
+    """Really run pip and return `[{name, version, requested}]`.
 
-    用 `pip install --report <tmp.json>` 拿到**解析后的完整闭包**（含传递
-    依赖），因此锁文件描述的是实际装了什么，而不只是声明了什么。
+    中文：真正调用 pip 安装，返回 [{name, version, requested}]。
+
+    `pip install --report <tmp.json>` yields the fully resolved closure, transitive
+    中文：用 `pip install --report <tmp.json>` 拿到**解析后的完整闭包**（含传递
+    dependencies included, so the lock describes what was installed rather than what was declared.
+    中文：依赖），因此锁文件描述的是实际装了什么，而不只是声明了什么。
     """
     import subprocess
     import tempfile
@@ -832,7 +962,10 @@ def default_pip_runner(requirements, python_executable=None, verbose=False):
 
 
 def default_pip_uninstaller(names, python_executable=None, verbose=False):
-    """调用 pip 卸载一组 python 包，返回真正卸载掉的名单。"""
+    """Ask pip to uninstall a set of Python packages and return what really went away.
+
+    中文：调用 pip 卸载一组 python 包，返回真正卸载掉的名单。
+    """
     import subprocess
 
     package_names = [str(name) for name in names or [] if str(name).strip()]
@@ -856,7 +989,10 @@ def default_pip_uninstaller(names, python_executable=None, verbose=False):
 
 def install_python(requirements, python_executable=None, runner=None,
                    verbose=False):
-    """安装 python 依赖；`runner` 可注入，便于离线单测。"""
+    """Install Python requirements; `runner` can be injected so tests stay offline.
+
+    中文：安装 python 依赖；`runner` 可注入，便于离线单测。
+    """
     requests = requirement_strings(requirements)
     if not requests:
         return []
@@ -876,7 +1012,10 @@ def install_python(requirements, python_executable=None, runner=None,
 
 def uninstall_python(names, python_executable=None, runner=None,
                      verbose=False):
-    """卸载 python 依赖；`runner` 可注入，便于离线单测。"""
+    """Uninstall Python requirements; `runner` can be injected so tests stay offline.
+
+    中文：卸载 python 依赖；`runner` 可注入，便于离线单测。
+    """
     package_names = [str(name) for name in names or [] if str(name).strip()]
     if not package_names:
         return []
@@ -886,14 +1025,20 @@ def uninstall_python(names, python_executable=None, runner=None,
 
 
 def lock_python(root):
-    """锁文件里记录的 python 依赖（没有则空列表）。"""
+    """The Python requirements recorded in the lock file (empty when absent).
+
+    中文：锁文件里记录的 python 依赖（没有则空列表）。
+    """
     lock = read_lock(root) or {}
     return list(lock.get("python") or [])
 
 
 def _restore_python_from_lock(root, lock, python_executable=None,
                               runner=None, verbose=False):
-    """按锁文件把 python 依赖钉到记录的版本（`--frozen`）。"""
+    """Pin Python requirements to the versions in the lock file (`--frozen`).
+
+    中文：按锁文件把 python 依赖钉到记录的版本（`--frozen`）。
+    """
     entries = lock.get("python") or []
     if not entries:
         return []
@@ -908,12 +1053,16 @@ def _restore_python_from_lock(root, lock, python_executable=None,
                           runner=runner, verbose=verbose)
 
 
-# --------------------------------------------------------------------- 解析包路径
+# --------------------------------------------------------------------- Package lookup / 中文：解析包路径
 def resolve_source(name, base_dir):
-    """给编译器用：包名 -> 入口文件路径（找不到返回 None）。
+    """Used by the compiler: package name to entry file path, or None.
 
-    查找顺序：项目里的 `packages/<name>/`（可钉版本、换实现）优先，
-    然后是随包分发的 `OpenVBSPP/vendor/<name>/`（内置包，开箱即用）。
+    中文：给编译器用：包名 -> 入口文件路径（找不到返回 None）。
+
+    Lookup order: the project's `packages/<name>/` first, where you can pin a version or swap the implementation,
+    中文：查找顺序：项目里的 `packages/<name>/`（可钉版本、换实现）优先，
+    then the bundled `OpenVBSPP/vendor/<name>/`, which works out of the box.
+    中文：然后是随包分发的 `OpenVBSPP/vendor/<name>/`（内置包，开箱即用）。
     """
     for candidate in (Path(base_dir) / PACKAGES_DIR / name,
                       bundled_package_dir(name)):
@@ -929,12 +1078,15 @@ def resolve_source(name, base_dir):
     return None
 
 
-# --------------------------------------------------------------------- Git 源
+# --------------------------------------------------------------------- Git sources / 中文：Git 源
 GIT_PREFIXES = ("git+", "git:")
 
 
 def _rmtree(path):
-    """删目录，顺带处理 git 留下的只读对象文件。"""
+    """Delete a directory, also coping with the read-only object files git leaves behind.
+
+    中文：删目录，顺带处理 git 留下的只读对象文件。
+    """
     import os
     import stat
 
@@ -958,7 +1110,10 @@ def _git_cache_dir():
 
 
 def _fetch_git(spec):
-    """`git+https://host/repo.git#ref` -> 本地缓存的检出目录。"""
+    """Turn `git+https://host/repo.git#ref` into a cached local checkout.
+
+    中文：`git+https://host/repo.git#ref` -> 本地缓存的检出目录。
+    """
     import subprocess
 
     raw = spec[4:] if spec.startswith("git+") else spec[3:]
@@ -968,7 +1123,9 @@ def _fetch_git(spec):
         name = name[:-4]
     target = _git_cache_dir() / (name + ("_" + ref.replace("/", "_") if ref else ""))
 
-    # 上一次 clone 被打断（或缓存被手工清理过）时只剩半个 .git，重来一遍
+    # An interrupted clone (or a hand-cleaned cache) can leave half a .git behind, so
+    # start over.
+    # 中文：上一次 clone 被打断（或缓存被手工清理过）时只剩半个 .git，重来一遍。
     if target.exists() and not (target / MANIFEST_NAME).is_file():
         _rmtree(target)
 
@@ -997,16 +1154,22 @@ def _fetch_git(spec):
 
 
 def _locate(spec, base):
-    """依赖声明 -> 本地目录（支持目录、.ovppkg、git+URL）。"""
+    """Turn a dependency declaration into a local directory (plain directory, .ovppkg or git URL).
+
+    中文：依赖声明 -> 本地目录（支持目录、.ovppkg、git+URL）。
+    """
     text = str(spec).strip()
     if text.startswith(GIT_PREFIXES):
         return _fetch_git(text)
     return _source_path(text, base)
 
 
-# --------------------------------------------------------------------- 解析
+# --------------------------------------------------------------------- Resolution / 中文：解析
 class Requirement:
-    """一条依赖需求（带来源链，用于冲突报告）。"""
+    """One requirement, carrying its source chain so conflicts can be reported.
+
+    中文：一条依赖需求（带来源链，用于冲突报告）。
+    """
 
     __slots__ = ("name", "spec", "chain", "source")
 
@@ -1027,7 +1190,10 @@ def _split_spec(spec):
 
 
 def collect_requirements(root):
-    """遍历依赖图，收集每个包的版本约束与来源链（含循环检测）。"""
+    """Walk the dependency graph collecting constraints and source chains, detecting cycles.
+
+    中文：遍历依赖图，收集每个包的版本约束与来源链（含循环检测）。
+    """
     root = Path(root)
     manifest = Manifest.load(root)
     found = {}
@@ -1063,7 +1229,10 @@ def collect_requirements(root):
 
 
 def check_conflicts(requirements, versions):
-    """同一包被多个约束要求时，报告所有来源链。"""
+    """Report every source chain when several constraints target the same package.
+
+    中文：同一包被多个约束要求时，报告所有来源链。
+    """
     problems = []
     for name, reqs in requirements.items():
         version = versions.get(name)
@@ -1080,7 +1249,10 @@ def check_conflicts(requirements, versions):
 
 # --------------------------------------------------------------------- pack
 def pack(directory, output=None):
-    """把一个包目录打成 `.ovppkg`（zip），返回产物路径。"""
+    """Pack one package directory into a `.ovppkg` zip and return the artefact path.
+
+    中文：把一个包目录打成 `.ovppkg`（zip），返回产物路径。
+    """
     directory = Path(directory)
     manifest = Manifest.load(directory)
     target = Path(output) if output else (
@@ -1100,10 +1272,14 @@ def pack(directory, output=None):
 
 # --------------------------------------------------------------------- dry-run
 def plan_install(root, source_map=None, verbose=False):
-    """只解析依赖图，不写盘（`over install --dry-run`）。
+    """Resolve the dependency graph without writing anything (`over install --dry-run`).
 
-    返回 [{"name", "version", "source", "spec", "chain", "action"}]，
-    action 为 "install" 或 "unchanged"。
+    中文：只解析依赖图，不写盘（`over install --dry-run`）。
+
+    Returns [{"name", "version", "source", "spec", "chain", "action"}],
+    中文：返回 [{"name", "version", "source", "spec", "chain", "action"}]，
+    where action is "install" or "unchanged".
+    中文：action 为 "install" 或 "unchanged"。
     """
     root = Path(root)
     sources = dict(source_map or {})
@@ -1143,9 +1319,12 @@ def plan_install(root, source_map=None, verbose=False):
     return plan
 
 
-# --------------------------------------------------------------------- git 源
+# --------------------------------------------------------------------- Git sources / 中文：git 源
 def _git_commit(path):
-    """取一个 git 检出目录的 HEAD commit（非 git 目录返回 None）。"""
+    """The HEAD commit of a git checkout, or None when the directory is not a repository.
+
+    中文：取一个 git 检出目录的 HEAD commit（非 git 目录返回 None）。
+    """
     import subprocess
 
     path = Path(path)
@@ -1160,7 +1339,10 @@ def _git_commit(path):
 
 
 def git_tags(spec):
-    """`git ls-remote --tags` 枚举远程版本（去掉 v 前缀与 ^{}）。"""
+    """List remote versions with `git ls-remote --tags`, dropping the `v` prefix and `^{}`.
+
+    中文：`git ls-remote --tags` 枚举远程版本（去掉 v 前缀与 ^{}）。
+    """
     import subprocess
 
     raw = spec[4:] if spec.startswith("git+") else spec[3:]
@@ -1190,7 +1372,10 @@ def git_tags(spec):
 
 
 def select_git_ref(spec, version_spec=None):
-    """在远程标签里挑一个满足约束的最新版本；没有标签就返回 None。"""
+    """Pick the newest remote tag satisfying the constraint, or None when there is no tag.
+
+    中文：在远程标签里挑一个满足约束的最新版本；没有标签就返回 None。
+    """
     tags = git_tags(spec)
     for tag in reversed(tags):
         if not version_spec or satisfies(parse_version(tag.lstrip("vV")), version_spec):
@@ -1200,7 +1385,10 @@ def select_git_ref(spec, version_spec=None):
 
 # --------------------------------------------------------------------- search
 def registry_index():
-    """本地 registry：`~/.openvbspp/over/registry.json`（没有则空）。"""
+    """The local registry at `~/.openvbspp/over/registry.json` (empty when absent).
+
+    中文：本地 registry：`~/.openvbspp/over/registry.json`（没有则空）。
+    """
     path = Path.home() / ".openvbspp" / "over" / "registry.json"
     if not path.is_file():
         return {}
@@ -1212,7 +1400,10 @@ def registry_index():
 
 
 def search(term, root=None, registry=None):
-    """在本地 registry + 已安装包 + 依赖声明里搜索（大小写不敏感）。"""
+    """Search the local registry, the installed packages and declared dependencies, case insensitively.
+
+    中文：在本地 registry + 已安装包 + 依赖声明里搜索（大小写不敏感）。
+    """
     term = (term or "").lower()
     results = []
 
@@ -1226,7 +1417,9 @@ def search(term, root=None, registry=None):
             keyed = [(parse_version(item) or 0, item) for item in versions]
             latest = max(keyed)[1]
         elif isinstance(entry, dict):
-            latest = entry.get("version")      # 兼容旧的扁平结构
+            # Tolerate the old flat structure.
+            # 中文：兼容旧的扁平结构。
+            latest = entry.get("version")
         description = (entry or {}).get("description", "")
         if not description and versions and latest:
             description = (versions.get(latest) or {}).get("description", "")
@@ -1252,14 +1445,20 @@ REGISTRY_NAME = "registry.json"
 
 
 def registry_path(explicit=None):
-    """registry.json 的位置：显式路径 > ~/.openvbspp/over/registry.json。"""
+    """Where registry.json lives: an explicit path wins over `~/.openvbspp/over/registry.json`.
+
+    中文：registry.json 的位置：显式路径 > ~/.openvbspp/over/registry.json。
+    """
     if explicit:
         return Path(explicit)
     return Path.home() / ".openvbspp" / "over" / REGISTRY_NAME
 
 
 def _pkg_fingerprint(path):
-    """算一个包的 sha256 与大小，作为 registry 的完整性凭据。"""
+    """Hash and size of a package, used as the registry integrity record.
+
+    中文：算一个包的 sha256 与大小，作为 registry 的完整性凭据。
+    """
     import hashlib
 
     digest = hashlib.sha256()
@@ -1272,7 +1471,10 @@ def _pkg_fingerprint(path):
 
 
 def _manifest_from_pkg(path):
-    """从 .ovppkg（zip）里读 over.json。"""
+    """Read over.json out of a `.ovppkg` zip.
+
+    中文：从 .ovppkg（zip）里读 over.json。
+    """
     with zipfile.ZipFile(path) as archive:
         if MANIFEST_NAME not in archive.namelist():
             raise OverError(f"{path} has no {MANIFEST_NAME}")
@@ -1280,10 +1482,14 @@ def _manifest_from_pkg(path):
 
 
 def register(package, registry=None, source=None, description=None):
-    """把 `.ovppkg`（或包目录）登记进本地 registry.json（publish-less 分发）。
+    """Register an `.ovppkg` (or a package directory) in the local registry.json.
 
-    返回 {"name", "version", "hash", "size", "registry"}；
-    同名同版本的条目会被覆盖，其它版本保留（多版本并存）。
+    中文：把 `.ovppkg`（或包目录）登记进本地 registry.json（publish-less 分发）。
+
+    Returns {"name", "version", "hash", "size", "registry"};
+    中文：返回 {"name", "version", "hash", "size", "registry"}；
+    an entry with the same name and version is replaced, other versions stay, so several versions can coexist.
+    中文：同名同版本的条目会被覆盖，其它版本保留（多版本并存）。
     """
     package = Path(package)
     target_registry = registry_path(registry)
@@ -1332,7 +1538,10 @@ def register(package, registry=None, source=None, description=None):
 
 
 def index_directory(directory, registry=None, verbose=False):
-    """把一个目录下所有 `.ovppkg` 批量登记进 registry（`over index`）。"""
+    """Register every `.ovppkg` in a directory into the registry (`over index`).
+
+    中文：把一个目录下所有 `.ovppkg` 批量登记进 registry（`over index`）。
+    """
     directory = Path(directory)
     if not directory.is_dir():
         raise OverError(f"Not a directory: {directory}")
@@ -1348,7 +1557,10 @@ def index_directory(directory, registry=None, verbose=False):
 
 
 def registry_versions(name, registry=None):
-    """registry 里某个包的所有版本（升序）。"""
+    """Every registered version of one package, oldest first.
+
+    中文：registry 里某个包的所有版本（升序）。
+    """
     path = registry_path(registry)
     if not path.is_file():
         return []

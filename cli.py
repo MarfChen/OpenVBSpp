@@ -12,13 +12,21 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-OpenVBS++ 命令行入口（便捷脚本）。
+OpenVBS++ command line entry point, a convenience script.
 
-用法：
-    python cli.py                            # 运行内置示例
-    python cli.py examples/control1.vbs      # 运行指定脚本
-    python cli.py examples/for_loop.vbs -v   # 打印 token / AST / 生成的 Python
-    python cli.py examples/control1.vbs --save   # 额外写出 .pyc 与 .ast.txt
+中文：OpenVBS++ 命令行入口（便捷脚本）。
+
+Usage:
+
+中文：用法：
+    python cli.py                            # run the built-in demo
+                                             # 运行内置示例
+    python cli.py examples/control1.vbs      # run a given script
+                                             # 运行指定脚本
+    python cli.py examples/for_loop.vbs -v   # print tokens / AST / generated Python
+                                             # 打印 token、AST 与生成的 Python
+    python cli.py examples/control1.vbs --save   # also write .pyc and .ast.txt
+                                                # 额外写出 .pyc 与 .ast.txt
 """
 
 import sys

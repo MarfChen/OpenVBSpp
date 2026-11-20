@@ -13,24 +13,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-VBS 内置集合：Scripting.Dictionary。
+The built-in VBScript collection `Scripting.Dictionary`.
 
-VBS 里 `d("a")` 走的是默认成员 Item，这里直接用映射协议实现，
-所以 `d("a")` / `d("a") = 1` / `For Each k In d` 都能自然工作。
+`d("a")` goes through the default member Item, implemented here with the mapping
+protocol, so `d("a")`, `d("a") = 1` and `For Each k In d` all work naturally.
+
+中文：VBS 内置集合 `Scripting.Dictionary`。`d("a")` 走的是默认成员 Item，这里直接用
+the mapping protocol, so `d("a")`, `d("a") = 1` and `For Each k In d` all work naturally.
+中文：映射协议实现，所以 `d("a")`、`d("a") = 1`、`For Each k In d` 都能自然工作。
 '''
 
 from OpenVBSPP.exceptions import OVPPError
 
 
 class Dictionary:
-    """Scripting.Dictionary 的最小实现（键区分大小写，与 VBS 默认一致）。"""
+    """`Scripting.Dictionary` (keys are case sensitive, as in VBScript by default).
+
+    中文：`Scripting.Dictionary` 的实现（键区分大小写，与 VBS 默认一致）。
+    """
 
     _vbs_name = "Dictionary"
 
     def __init__(self, *args, **kwargs):
         self._data = {}
 
-    # ------------------------------------------------------------ VBS 方法
+    # VBScript members / 中文：VBS 方法
     @property
     def count(self):
         return len(self._data)
@@ -61,7 +68,7 @@ class Dictionary:
     def items(self):
         return list(self._data.values())
 
-    # ------------------------------------------------------------ 映射协议
+    # Mapping protocol / 中文：映射协议
     def __getitem__(self, key):
         return self._data[key]
 
@@ -75,7 +82,7 @@ class Dictionary:
         return key in self._data
 
     def __iter__(self):
-        # VBS 的 For Each 遍历键
+        # `For Each` walks the keys, as in VBScript. / 中文：VBS 的 For Each 遍历键。
         return iter(list(self._data.keys()))
 
     def __len__(self):

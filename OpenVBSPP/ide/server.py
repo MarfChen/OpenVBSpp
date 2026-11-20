@@ -13,17 +13,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-极简 HTTP 服务：只为内置网页 IDE 服务，只用标准库。
+A minimal HTTP server for the built-in web IDE, standard library only.
 
-  GET  /                     前端页面
-  GET  /api/capabilities     能力声明（含包管理器预留信息）
-  GET  /api/examples         内置示例
-  GET  /api/scripts          工作目录里的脚本名
-  POST /api/run              {source, filename} -> 输出/错误/耗时
-  POST /api/check            {source} -> 诊断
+  GET  /                     the frontend page
+  GET  /api/capabilities     capability declaration (including the reserved package info)
+  GET  /api/examples         the built-in examples
+  GET  /api/scripts          script names in the workspace
+  POST /api/run              {source, filename} -> output / errors / elapsed time
+  POST /api/check            {source} -> diagnostics
   POST /api/save             {name, source}
   POST /api/load             {name}
-  POST /api/packages/search  -> 501（预留）
+  POST /api/packages/search  -> 501 (reserved)
+
+中文：极简 HTTP 服务 —— 只为内置网页 IDE 服务，只用标准库。接口同上：页面、
+capabilities, built-in examples, script list, run, check, save and load; `/api/packages/search` is reserved and answers
+中文：能力声明、内置示例、脚本列表、运行、检查、保存、加载；`/api/packages/search` 预留返回
+501。
 '''
 
 import json
@@ -37,15 +42,20 @@ from OpenVBSPP.ide.packages import get_provider
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-MAX_BODY = 2 * 1024 * 1024        # 2 MB，防止误传大文件
+# 2 MB, so a huge file is not accidentally posted.
+# 中文：2 MB，防止误传大文件。
+MAX_BODY = 2 * 1024 * 1024
 
 
 class IdeHandler(BaseHTTPRequestHandler):
     workspace = service.Workspace()
     server_version = "OpenVBSPP-IDE"
 
-    # ---------------------------------------------------------------- 工具
-    def log_message(self, fmt, *args):      # 安静一点，别刷屏
+    # --------------------------------------------------------------- helpers
+    # 中文：工具函数
+    # Stay quiet: no console spam.
+    # 中文：安静一点，别刷屏。
+    def log_message(self, fmt, *args):
         pass
 
     def _send(self, status, payload, content_type="application/json; charset=utf-8"):
@@ -101,7 +111,9 @@ class IdeHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             return self._do_post()
-        except Exception as exc:                    # 兜底，避免连接被直接断开
+        # Last resort, so the connection is not dropped outright.
+        # 中文：兜底，避免连接被直接断开。
+        except Exception as exc:
             return self._send(500, {"ok": False, "message": f"{type(exc).__name__}: {exc}"})
 
     def _do_post(self):
@@ -130,7 +142,7 @@ class IdeHandler(BaseHTTPRequestHandler):
             except (ValueError, OSError) as exc:
                 return self._send(400, {"ok": False, "message": str(exc)})
 
-        # ---- 原生对话框（Windows / Linux / macOS）----
+        # ---- Native dialogs (Windows / Linux / macOS) / 中文：原生对话框 ----
         if path == "/api/dialog/open":
             chosen = dialogs.ask_open(initial_dir=data.get("initial_dir"))
             if not chosen:
@@ -153,7 +165,8 @@ class IdeHandler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "message": str(exc)})
             return self._send(200, {"ok": True, "path": saved})
 
-        # ---- 按绝对路径读写（对话框选完之后的再次保存 / 重新加载）----
+        # ---- Read and write by absolute path: saving again or reloading after a
+        # dialog pick. / 中文：按绝对路径读写（对话框选完之后的再次保存 / 重新加载）----
         if path == "/api/file/open":
             target = data.get("path") or ""
             if not target:
@@ -174,7 +187,7 @@ class IdeHandler(BaseHTTPRequestHandler):
                 return self._send(400, {"ok": False, "message": str(exc)})
             return self._send(200, {"ok": True, "path": saved})
 
-        # 预留：包管理器
+        # Reserved: the package manager. / 中文：预留 —— 包管理器。
         if path == "/api/packages/search":
             return self._send(501, {
                 "ok": False,
@@ -188,7 +201,9 @@ class IdeHandler(BaseHTTPRequestHandler):
 
 def create_server(host="127.0.0.1", port=7860, workspace=None):
     if workspace is not None and not isinstance(workspace, service.Workspace):
-        workspace = service.Workspace(workspace)     # 允许直接传目录字符串
+        # A plain directory string is accepted.
+        # 中文：允许直接传目录字符串。
+        workspace = service.Workspace(workspace)
     handler = IdeHandler
     if workspace is not None:
         handler = type("BoundIdeHandler", (IdeHandler,), {"workspace": workspace})
@@ -199,8 +214,8 @@ def create_server(host="127.0.0.1", port=7860, workspace=None):
 def serve(host="127.0.0.1", port=7860, workspace=None, open_browser=True):
     httpd = create_server(host, port, workspace)
     url = f"http://{host}:{httpd.server_address[1]}/"
-    print(f"OpenVBS++ IDE 已启动: {url}")
-    print("按 Ctrl+C 退出。")
+    print(f"OpenVBS++ IDE started at {url}")
+    print("Press Ctrl+C to quit.")
     if open_browser:
         try:
             webbrowser.open(url)
@@ -209,6 +224,6 @@ def serve(host="127.0.0.1", port=7860, workspace=None, open_browser=True):
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n已停止。")
+        print("\nStopped.")
     finally:
         httpd.server_close()

@@ -9,7 +9,7 @@ include pyproject.toml
 include mkdocs.yml
 
 recursive-include OpenVBSPP *.py py.typed
-recursive-include OpenVBSPP/vendor *.py *.json *.vbs *.md
+recursive-include OpenVBSPP/vendor *.py *.json *.vbs
 recursive-include extras *.py *.json *.md *.vbs *.js
 recursive-include examples *.vbs
 recursive-include packaging *
@@ -20,7 +20,6 @@ recursive-include dev-docs *.md
 # Pattern-based on purpose: MANIFEST.in splits paths on spaces, so
 # "include doc/OpenVBS spec.docx" would be read as two missing patterns.
 # The language spec ships in the sdist; the internal planning essay does not.
-exclude doc/plan.docx
 
 prune venv
 prune .vs

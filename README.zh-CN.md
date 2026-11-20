@@ -40,7 +40,7 @@
 **项目铁律：OpenVBS++ 必须是 VBScript 的超集。** 任何合法 VBS 程序都要能跑，
 扩展只新增语法、不改变已有语义。状态矩阵见 [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md)。
 语言规范见 [doc/OpenVBS spec.docx](doc/OpenVBS%20spec.docx)（随 PyPI 分发包一起发出）；
-设计初衷见 [doc/plan.docx](doc/plan.docx)（只在仓库里，不随包分发）。
+设计初衷见 [dev-docs/plan.docx](dev-docs/plan.docx)（只在仓库里，不随包分发）。
 
 ## 快速开始
 

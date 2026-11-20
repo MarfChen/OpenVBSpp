@@ -1,20 +1,40 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""OpenVBS++ 基准测试 / Benchmark.
+"""OpenVBS++ benchmark.
 
-两件事：
-1. **进程内**：同一份逻辑分别用 VBS 源码（编译一次、反复执行）和等价的 Python 源码跑，
-   看「编译到 CPython 字节码」本身的额外开销。这才是语言实现的开销。
-2. **端到端**（`--e2e`）：连同解释器启动一起计时，和原生 `cscript.exe` 对照。
-   这是用户实际感受到的数字。
+Two things are measured:
 
-用法：
-    python tools/bench.py              # 只跑进程内
-    python tools/bench.py --e2e        # 加跑端到端（Windows 上会自动找 cscript.exe）
-    python tools/bench.py --repeat 7   # 每个用例取几次的中位数（默认 5）
+中文：两件事：
+1. **In process**: the same logic runs once as VBS source (compiled once, executed many
+   times) and once as equivalent Python source,
 
-注意：这是**单机开发基准**，不是严谨的基准框架。数字用于发现量级问题（比如 O(n²)），
-不要拿它做跨机器的精确比较。
+中文：1. **进程内**：同一份逻辑分别用 VBS 源码（编译一次、反复执行）和等价的 Python 源码跑，
+   to show the overhead of compiling to CPython bytecode. That is the cost of this
+   implementation.
+
+中文：看「编译到 CPython 字节码」本身的额外开销。这才是语言实现的开销。
+2. **End to end** (`--e2e`): timing includes interpreter start-up, compared against
+   native `cscript.exe`.
+
+中文：2. **端到端**（`--e2e`）：连同解释器启动一起计时，和原生 `cscript.exe` 对照。
+   These are the numbers a user actually feels.
+
+中文：这是用户实际感受到的数字。
+
+Usage:
+
+中文：用法：
+    python tools/bench.py              # in-process only
+    python tools/bench.py --e2e        # add end-to-end (cscript.exe is found on Windows)
+    python tools/bench.py --repeat 7   # samples per case, median reported (default 5)
+
+Note: this is a **development benchmark on one machine**, not a rigorous framework. The
+numbers expose order-of-magnitude problems such as O(n^2);
+
+中文：注意：这是**单机开发基准**，不是严谨的基准框架。数字用于发现量级问题（比如 O(n²)），
+do not use them for precise cross-machine comparison.
+
+中文：不要拿它做跨机器的精确比较。
 """
 
 from __future__ import annotations
@@ -38,12 +58,13 @@ from OpenVBSPP.runtime import vbs_compile  # noqa: E402
 
 
 # --------------------------------------------------------------------------
-# 用例：每项包含 VBS 源码与「应该等价」的 Python 源码
+# Cases: each pairs VBS source with the Python source it should match
+# 中文：用例：每项包含 VBS 源码与「应该等价」的 Python 源码
 # --------------------------------------------------------------------------
 
 CASES = [
     (
-        "1M 算术循环（过程内）",
+        "1M arithmetic loop (in procedure) / 1M 算术循环（过程内）",
         """
 Option Explicit
 Sub Work()
@@ -64,7 +85,7 @@ work()
 """,
     ),
     (
-        "1M 算术循环（模块级）",
+        "1M arithmetic loop (module level) / 1M 算术循环（模块级）",
         """
 Option Explicit
 Dim i, s
@@ -80,7 +101,7 @@ for i in range(1, 1000001):
 """,
     ),
     (
-        "fib(24) 递归",
+        "fib(24) recursion / fib(24) 递归",
         """
 Option Explicit
 Function Fib(n)
@@ -102,7 +123,7 @@ r = fib(24)
 """,
     ),
     (
-        "20k 字符串拼接",
+        "20k string concatenation / 20k 字符串拼接",
         """
 Option Explicit
 Dim i, s
@@ -118,7 +139,7 @@ for i in range(1, 20001):
 """,
     ),
     (
-        "100k 数组读写",
+        "100k array reads and writes / 100k 数组读写",
         """
 Option Explicit
 Dim i
@@ -142,7 +163,7 @@ for i in range(100000):
 """,
     ),
     (
-        "50k Dictionary 插入",
+        "50k Dictionary insertions / 50k Dictionary 插入",
         """
 Option Explicit
 Dim i, d
@@ -158,7 +179,7 @@ for i in range(1, 50001):
 """,
     ),
     (
-        "200k 函数调用",
+        "200k function calls / 200k 函数调用",
         """
 Option Explicit
 Function Double(x)
@@ -181,14 +202,14 @@ for i in range(1, 200001):
 ]
 
 E2E_CASES = [
-    ("只 echo 一行（启动开销）", "echo 1\n"),
+    ("echo one line (start-up cost) / 只 echo 一行", "echo 1\n"),
     (
-        "1M 算术循环",
+        "1M arithmetic loop / 1M 算术循环",
         "Option Explicit\nSub Work()\n  Dim i, s\n  s = 0\n  For i = 1 To 1000000\n"
         "    s = s + i\n  Next\nEnd Sub\nWork\n",
     ),
     (
-        "fib(24) 递归",
+        "fib(24) recursion / fib(24) 递归",
         "Option Explicit\nFunction Fib(n)\n  If n < 2 Then\n    Fib = n\n  Else\n"
         "    Fib = Fib(n - 1) + Fib(n - 2)\n  End If\nEnd Function\nDim r\nr = Fib(24)\n",
     ),
@@ -205,7 +226,9 @@ def median_ms(fn, repeat: int) -> float:
 
 
 def compile_vbs(source: str):
-    """把 VBS 源码编译成 Python code object（不含执行）。"""
+    """Compile VBS source into a Python code object, without executing it.
+
+    中文：把 VBS 源码编译成 Python code object（不含执行）。"""
     compiled = vbs_compile(source)
     if isinstance(compiled, types.CodeType):
         return compiled
@@ -218,7 +241,7 @@ def compile_vbs(source: str):
         for value in compiled.values():
             if isinstance(value, str):
                 return compile(value, "<bench>", "exec")
-    raise SystemExit("无法从 vbs_compile 的返回值里取出 code object：%r" % (type(compiled),))
+    raise SystemExit("cannot get a code object out of vbs_compile: %r" % (type(compiled),))
 
 
 def run_in_process(repeat: int) -> list:
@@ -262,45 +285,50 @@ def run_e2e(repeat: int) -> list:
 
 
 def print_inproc(rows) -> None:
-    print("\n## 进程内（编译一次，反复执行；中位数）\n")
-    print("| 用例 | 编译 | OpenVBS++ | CPython | 倍数 |")
+    print("\n## In process: compiled once, run many times (median)\n")
+    print("| case | compile | OpenVBS++ | CPython | ratio |")
     print("|---|---:|---:|---:|---:|")
     for name, compile_ms, vbs_ms, py_ms, ratio in rows:
         print("| %s | %.1f ms | %.1f ms | %.1f ms | **%.2f×** |"
               % (name, compile_ms, vbs_ms, py_ms, ratio))
     worst = max(rows, key=lambda r: r[4])
-    print("\n最差的是「%s」（%.2f× CPython）。" % (worst[0], worst[4]))
+    print("\nWorst case: %s (%.2f x CPython)." % (worst[0], worst[4]))
 
 
 def print_e2e(rows) -> None:
     has_cscript = any(r[2] for r in rows)
-    print("\n## 端到端（含进程启动；中位数）\n")
+    print("\n## End to end, including process start-up (median)\n")
     if has_cscript:
-        print("| 用例 | OpenVBS++ | cscript.exe | CPython |")
+        print("| case | OpenVBS++ | cscript.exe | CPython |")
         print("|---|---:|---:|---:|")
     else:
-        print("| 用例 | OpenVBS++ | cscript.exe |")
+        print("| case | OpenVBS++ | cscript.exe |")
         print("|---|---:|---:|")
     for name, ovpp_ms, cs_ms in rows:
         if cs_ms:
             print("| %s | %.0f ms | %.0f ms | - |" % (name, ovpp_ms, cs_ms))
         else:
-            print("| %s | %.0f ms | 未安装 |" % (name, ovpp_ms))
+            print("| %s | %.0f ms | not installed |" % (name, ovpp_ms))
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="OpenVBS++ 基准测试")
-    parser.add_argument("--e2e", action="store_true", help="额外跑端到端（子进程）基准")
-    parser.add_argument("--repeat", type=int, default=5, help="每个用例取样次数，取中位数（默认 5）")
+    parser = argparse.ArgumentParser(description="OpenVBS++ benchmark / 基准测试")
+    parser.add_argument("--e2e", action="store_true",
+                        help="also run end-to-end (subprocess) cases / 额外跑端到端基准")
+    parser.add_argument("--repeat", type=int, default=5,
+                        help="samples per case, median reported (default 5) / 取样次数")
     args = parser.parse_args(argv)
 
-    print("OpenVBS++ 基准 / 平台 %s / Python %s" % (sys.platform, sys.version.split()[0]))
+    print("OpenVBS++ benchmark / platform %s / Python %s"
+          % (sys.platform, sys.version.split()[0]))
     print_inproc(run_in_process(max(1, args.repeat)))
     if args.e2e:
         print_e2e(run_e2e(max(1, args.repeat)))
-    print("\n说明：For 在“步长是常量、循环体不改计数器”时编译成 range，已和 Python 的 for 同速；"
-          "剩下的差距来自 VBS 的 & 要走类型转换、函数调用要多一层参数处理，"
-          "以及过程内（locals）与模块级（globals）的查找差异。")
+    print("\nNote: For compiles to range when the step is a constant and the body does not"
+          " touch the counter, so it matches a Python for loop;"
+          " what remains comes from & going through a conversion, function calls taking an"
+          " extra argument pass,"
+          " and the difference between locals in a procedure and globals at module level.")
     return 0
 
 

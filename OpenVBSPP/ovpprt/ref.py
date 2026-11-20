@@ -13,28 +13,41 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-ByRef 参数的支持。
+ByRef parameters.
 
-VBS 的过程参数默认是 ByRef（按引用传递）。Python 只有按值传递，
-所以编译器把 ByRef 参数包进 Ref 盒子：
+VBScript passes procedure arguments by reference by default; Python only passes by
+value, so the compiler boxes a ByRef argument in a `Ref`:
 
-    Ref 创建：_r = Ref(x)
-    过程内部：对参数 x 的读写都变成 x.v        （Attribute 访问）
-    调用之后：x = _r.v                         （写回）
+    create:  _r = Ref(x)
+    inside:  every read and write of x becomes x.v
+    after:   x = _r.v            (write the value back)
 
-这样 `Sub Swap(ByRef a, ByRef b)` 这类代码才能生效。
+That is what makes `Sub Swap(ByRef a, ByRef b)` work.
 
-性能备注：只读的 ByRef 参数（过程体里既不赋值、也不外传给别的调用）
-按值传递即可，编译器会跳过 Ref 与回写。但跨模块（namespace）和委托
-（AddressOf）这类"编译期看不到被调方签名"的调用仍然会传 Ref，所以过程
-入口用 `unwrap()` 统一拆包，两种调用约定都能接受。
+Read-only ByRef parameters are passed by value when the compiler can prove they are
+never written, but calls into `<namespace>` modules and `AddressOf` delegates have
+no visible callee signature, so a procedure entry always accepts both conventions
+(see `unwrap`).
+
+中文：VBS 的过程参数默认按引用传递，Python 只有按值传递，所以编译器把 ByRef 参数
+boxes it in a Ref: it creates `_r = Ref(x)`, reads and writes `x.v` inside the procedure, then writes back, so
+中文：包进 Ref 盒子：创建 `_r = Ref(x)`、过程内读写 `x.v`、调用后写回，这样
+`Sub Swap(ByRef a, ByRef b)` works. A read-only ByRef parameter passes by value (the compiler skips the Ref
+中文：`Sub Swap(ByRef a, ByRef b)` 才能生效。只读的 ByRef 参数会按值传（编译器跳过 Ref
+and the write-back); a `<namespace>` module or an `AddressOf` delegate cannot see the callee's signature, so every procedure entry
+中文：与回写）；但跨 `<namespace>` 模块与 `AddressOf` 委托看不到被调方签名，所以过程入口
+Every procedure entry unpacks with `unwrap()` and accepts either convention.
+中文：入口用 `unwrap()` 统一拆包，两种调用约定都能接受。
 '''
 
 from OpenVBSPP.ovpprt.empty import EMPTY
 
 
 class Ref:
-    """一个可写的盒子，用来模拟 ByRef 参数。"""
+    """A writable box that models a ByRef argument.
+
+    中文：可写盒子，用来模拟 ByRef 参数。
+    """
 
     __slots__ = ("v",)
 
@@ -46,5 +59,8 @@ class Ref:
 
 
 def unwrap(value):
-    """可能是 Ref 时取出真实值，否则原样返回。"""
+    """Return the boxed value when the argument is a `Ref`, otherwise the value itself.
+
+    中文：参数是 Ref 时取出里面的真实值，否则原样返回。
+    """
     return value.v if type(value) is Ref else value

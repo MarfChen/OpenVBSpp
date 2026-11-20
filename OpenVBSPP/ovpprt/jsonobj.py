@@ -13,22 +13,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-JSON 编解码（超集扩展）。
+JSON encoding and decoding (a superset extension).
 
   Set data = Json.Parse("{""name"": ""ann"", ""tags"": [1, 2]}")
   echo data("name")            ' ann（Dictionary）
   echo Json.Stringify(data)    ' {"name": "ann", "tags": [1, 2]}
 
-映射规则（不引入新类型，全部复用已有结构）：
+Mapping rules, reusing existing structures instead of adding new types:
+
   JSON object  ->  Dictionary
-  JSON array   ->  数组（list）
+  JSON array   ->  array (list)
   JSON string  ->  String
-  JSON number  ->  数字（整数就是整数）
+  JSON number  ->  number (integers stay integers)
   true/false   ->  Boolean
   null         ->  Null
 
-性能说明：`json` / `datetime` 只在真正用到时才 import（见 Parse / Stringify /
-_to_python），冷启动省下约 4 ms。
+`json` and `datetime` are imported only when they are used (see Parse, Stringify
+and `_to_python`).
+
+中文：JSON 编解码（超集扩展）。映射规则不引入新类型，全部复用已有结构：object →
+to a Dictionary, an array to a list, a string to String and a number to a number (integers stay integers);
+中文：Dictionary，array → 数组（list），string → String，number → 数字（整数仍是整数），
+true/false become Boolean and null becomes Null. `json` and `datetime` are imported only when used.
+中文：true/false → Boolean，null → Null。`json` / `datetime` 只在真正用到时才 import。
 '''
 
 from OpenVBSPP.exceptions import OVPPRuntimeError
@@ -39,7 +46,10 @@ from OpenVBSPP.ovpprt.null import NULL, NullType
 
 
 def _to_vb(value):
-    """Python 结构 -> VBS 结构。"""
+    """Convert a Python structure into a VBS structure.
+
+    中文：Python 结构 → VBS 结构。
+    """
     if isinstance(value, dict):
         dictionary = Dictionary()
         for key, item in value.items():
@@ -55,7 +65,10 @@ def _to_vb(value):
 
 
 def _to_python(value):
-    """VBS 结构 -> Python 结构。"""
+    """Convert a VBS structure into a Python structure.
+
+    中文：VBS 结构 → Python 结构。
+    """
     import datetime
 
     if isinstance(value, Dictionary):
@@ -72,7 +85,10 @@ def _to_python(value):
 
 
 class JsonObject:
-    """`Json.Parse` / `Json.Stringify`。"""
+    """`Json.Parse` / `Json.Stringify`.
+
+    中文：`Json.Parse` / `Json.Stringify`。
+    """
 
     def Parse(self, text):
         import json as _json

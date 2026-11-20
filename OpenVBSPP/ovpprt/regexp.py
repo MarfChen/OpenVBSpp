@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-`VBScript.RegExp` 对象（VBS 原生的正则能力）。
+The `VBScript.RegExp` object: VBScript's native regular expressions.
 
   Set re = New RegExp
   re.Pattern    = "\\d{3}-\\d{4}"
@@ -25,16 +25,23 @@ limitations under the License.
       echo m.Value & " @" & m.FirstIndex
   Next
 
-成员名一律小写存储，因为 VBS 的标识符不区分大小写（`re.Pattern` 和
-`re.pattern` 是同一个东西）。
+Member names are stored lower-case because VBScript identifiers are case
+insensitive: `re.Pattern` and `re.pattern` are the same thing. The `re` module is
+imported only when a pattern is actually compiled.
 
-性能说明：`re` 只在真正用到正则时才 import（见 `_compile`），
-冷启动时省下约 3 ms。
+中文：`VBScript.RegExp` 对象——VBS 原生的正则能力。成员名一律小写存储，因为 VBS 的
+Identifiers are case-insensitive (`re.Pattern` and `re.pattern` are the same thing). `re` is imported only when
+中文：标识符不区分大小写（`re.Pattern` 与 `re.pattern` 是同一个东西）。`re` 只在真正用到
+a regular expression is actually used.
+中文：正则时才 import。
 '''
 
 
 class Match:
-    """一次匹配：Value / FirstIndex / Length / SubMatches。"""
+    """One match: Value / FirstIndex / Length / SubMatches.
+
+    中文：一次匹配——Value / FirstIndex / Length / SubMatches。
+    """
 
     def __init__(self, match):
         self.value = match.group(0)
@@ -55,11 +62,15 @@ class Match:
 
 
 class MatchCollection(list):
-    """匹配集合：可以 For Each 遍历，也有 Count / Item。"""
+    """A collection of matches: `For Each` iterates it, and it has Count / Item.
+
+    中文：匹配集合——可以 `For Each` 遍历，也有 Count / Item。
+    """
 
     @property
     def count(self):
-        # 注意：名字必须是小写，且用 property 覆盖 list.count
+        # The name must stay lower-case and override list.count with a property.
+        # 中文：名字必须是小写，并且用 property 覆盖 list.count。
         return len(self)
 
     def item(self, index):
@@ -73,14 +84,18 @@ class MatchCollection(list):
 
 
 class RegExp:
-    """正则对象。"""
+    """A regular expression.
+
+    中文：正则对象。
+    """
 
     def __init__(self):
         self.pattern = ""
         self.global_ = False
         self.ignorecase = False
 
-    # VBS 的属性名不区分大小写，统一小写存储
+    # VBScript property names are case insensitive, so everything is stored lower-case.
+    # 中文：VBS 的属性名不区分大小写，统一小写存储。
     def __setattr__(self, name, value):
         key = name.lower()
         if key == "global":
@@ -91,9 +106,10 @@ class RegExp:
     Global = property(lambda self: self.global_)
     IgnoreCase = property(lambda self: self.ignorecase)
 
-    # ---------------------------------------------------------------- 方法
+    # Methods / 中文：方法
     def _compile(self):
-        # 延迟 import：`re` 要 3 ms 左右，而绝大多数脚本根本不用 RegExp。
+        # Imported lazily: `re` costs about 3 ms and most scripts never touch a RegExp.
+        # 中文：延迟 import——`re` 约 3 ms，而绝大多数脚本根本不用 RegExp。
         import re
 
         flags = re.IGNORECASE if self.ignorecase else 0

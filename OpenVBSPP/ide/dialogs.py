@@ -13,14 +13,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-系统原生"打开 / 另存为"对话框（Windows / Linux / macOS）。
+Native "open / save as" dialogs on Windows, Linux and macOS.
 
-浏览器出于安全限制**不能**替网页弹出系统的保存对话框，所以由本地服务端
-调用 Tk 的 filedialog 完成。因为 IDE 只监听 127.0.0.1，弹窗出现在用户自己
-的桌面上，体验和本地程序一致。
+Browsers cannot pop up the system save dialog on a page's behalf, so the local server
+calls Tk's filedialog instead. The IDE only listens on 127.0.0.1, so the dialog appears
+on the user's own desktop and feels like a local program.
 
-  * tkinter 是标准库，但不是所有 Linux 发行版都装了 python3-tk；
-  * 无图形环境（服务器/容器）时 `available()` 返回 False，前端自动退回浏览器方案。
+  * tkinter ships with Python, but some Linux distributions omit python3-tk;
+  * without a graphical environment (server, container) `available()` returns False and
+    the frontend falls back to the browser flow.
+
+中文：系统原生「打开 / 另存为」对话框（Windows / Linux / macOS）。浏览器不能替网页
+A browser cannot raise a system save dialog, so the local server calls Tk's filedialog instead. The IDE binds
+中文：弹出系统保存对话框，所以由本地服务端调用 Tk 的 filedialog 完成；IDE 只监听
+127.0.0.1 only, so the dialog appears on the user's own desktop. tkinter ships with Python, yet some Linux distributions omit
+中文：127.0.0.1，弹窗出现在用户自己的桌面上。注意 tkinter 是标准库但部分 Linux 发行版没装
+python3-tk; without a display `available()` returns False and the front end falls back to the browser.
+中文：python3-tk；无图形环境时 `available()` 返回 False，前端自动退回浏览器方案。
 '''
 
 import sys
@@ -39,13 +48,18 @@ def _import_tk():
     try:
         import tkinter
         from tkinter import filedialog
-    except Exception:            # ImportError / TclError（无显示环境）
+    # ImportError or TclError, which is what a headless environment raises.
+    # 中文：ImportError / TclError（无显示环境）。
+    except Exception:
         return None, None
     return tkinter, filedialog
 
 
 def available():
-    """本机能不能弹原生对话框（有 tkinter 且有图形环境）。"""
+    """Whether this machine can pop native dialogs (tkinter present and a display available).
+
+    中文：本机能不能弹原生对话框（有 tkinter 且有图形环境）。
+    """
     tkinter, _ = _import_tk()
     if tkinter is None:
         return False
@@ -71,7 +85,10 @@ def _hidden_root(tkinter):
 
 
 def ask_open(initial_dir=None, title="Open VBScript"):
-    """弹出"打开"对话框，返回绝对路径；取消或失败返回 None。"""
+    """Show the open dialog and return an absolute path, or None on cancel or failure.
+
+    中文：弹出"打开"对话框，返回绝对路径；取消或失败返回 None。
+    """
     tkinter, filedialog = _import_tk()
     if tkinter is None:
         return None
@@ -95,7 +112,10 @@ def ask_open(initial_dir=None, title="Open VBScript"):
 
 def ask_save(default_name="untitled.vbs", initial_dir=None,
              title="Save VBScript"):
-    """弹出"另存为"对话框，返回绝对路径；取消或失败返回 None。"""
+    """Show the save-as dialog and return an absolute path, or None on cancel or failure.
+
+    中文：弹出"另存为"对话框，返回绝对路径；取消或失败返回 None。
+    """
     tkinter, filedialog = _import_tk()
     if tkinter is None:
         return None
@@ -120,15 +140,22 @@ def ask_save(default_name="untitled.vbs", initial_dir=None,
                 pass
 
 
-# --------------------------------------------------------------------- 读写
+# ------------------------------------------------------------------- read / write
 def read_script(path):
-    """读脚本：自动去掉 BOM，换行统一成 \\n（词法器两种都能吃，统一更省心）。"""
+    """Read a script: strip a BOM and normalise newlines to \\n.
+
+    The lexer accepts both, and normalising keeps everything simpler.
+
+    中文：读脚本时自动去掉 BOM，换行统一成 \\n（词法器两种都能吃，统一更省心）。"""
     text = Path(path).read_text(encoding="utf-8-sig")
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def write_script(path, source):
-    """写脚本：固定 UTF-8 + LF，保证 Windows/Linux 下内容一致。"""
+    """Write a script as UTF-8 with LF so Windows and Linux agree byte for byte.
+
+    中文：写脚本：固定 UTF-8 + LF，保证 Windows/Linux 下内容一致。
+    """
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     with open(target, "w", encoding="utf-8", newline="\n") as handle:
@@ -137,7 +164,10 @@ def write_script(path, source):
 
 
 def platform_hint():
-    """给前端/诊断用的平台信息。"""
+    """Platform information for frontends and diagnostics.
+
+    中文：给前端/诊断用的平台信息。
+    """
     return {
         "platform": sys.platform,
         "native_dialogs": available(),

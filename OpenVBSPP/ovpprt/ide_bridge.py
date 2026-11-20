@@ -13,11 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-网页 IDE 的运行时桥：让 VBS 脚本也能启动 IDE。
+Runtime bridge to the web IDE, so a script can start it too.
 
-  Ide.Start 7860          ' 启动并阻塞（Ctrl+C 结束）
-  echo Ide.Url(7860)      ' 打印地址
-  Ide.Open 7860           ' 用默认浏览器打开
+  Ide.Start 7860          ' start and block (Ctrl+C to stop)
+  echo Ide.Url(7860)      ' print the address
+  Ide.Open 7860           ' open it in the default browser
+
+中文：网页 IDE 的运行时桥——让 VBS 脚本也能启动 IDE。
+
+  Ide.Start 7860          start and block (Ctrl+C ends it)
+  中文：Ide.Start 7860          启动并阻塞（Ctrl+C 结束）
+  echo Ide.Url(7860)      print the address
+  中文：echo Ide.Url(7860)      打印地址
+  Ide.Open 7860           open it in the default browser
+  中文：Ide.Open 7860           用默认浏览器打开
 '''
 
 import threading
@@ -25,7 +34,10 @@ import webbrowser
 
 
 class IdeBridge:
-    """`Ide` 对象：把 `openvbs ide` 的能力暴露给 VBS 脚本。"""
+    """The `Ide` object: exposes `openvbs ide` to scripts.
+
+    中文：`Ide` 对象——把 `openvbs ide` 的能力暴露给 VBS 脚本。
+    """
 
     def __init__(self):
         self.port = 7860
@@ -41,7 +53,10 @@ class IdeBridge:
         return url
 
     def Start(self, port=7860, open_browser=True):
-        """启动 IDE（阻塞直到 Ctrl+C）。"""
+        """Start the IDE and block until Ctrl+C.
+
+        中文：启动 IDE（阻塞直到 Ctrl+C）。
+        """
         from OpenVBSPP.ide.server import serve
 
         self.port = int(port)

@@ -13,10 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-把值转成 VBS 风格的文本。
+Turning values into VBScript-style text.
 
-VBS 在 Echo 与 & 拼接时都不会输出 "5.0"：整数形状的浮点会写成 "5"，
-Empty 写成空串，Null 写成 "Null"，布尔写成 True / False。
+`echo` and `&` never print "5.0": a float with an integer shape becomes "5", Empty
+becomes an empty string, Null becomes "Null", and booleans become True / False.
+
+中文：把值转成 VBS 风格的文本。`echo` 与 `&` 拼接都不会输出 "5.0"：整数形状的
+A float prints as "5", Empty as an empty string, Null as "Null" and a boolean as True / False.
+中文：浮点写成 "5"，Empty 写成空串，Null 写成 "Null"，布尔写成 True / False。
 '''
 
 from OpenVBSPP.ovpprt.empty import EMPTY, EmptyType

@@ -13,12 +13,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-IDE 的后端服务层：不依赖任何 Web 框架，前端（内置网页 / Gradio / 其它）都调这里。
+The IDE backend service layer. It depends on no web framework; every frontend (the
+built-in page, Gradio, anything else) calls into it.
 
-设计约束：
-  * 只用标准库，核心包不引入第三方依赖；
-  * 所有接口返回可 JSON 序列化的 dict，方便任何前端复用；
-  * 文件读写被限制在一个工作目录里（默认 ~/.openvbspp/scripts）。
+Design constraints:
+  * standard library only — the core package pulls in no third-party dependencies;
+  * every call returns a JSON-serialisable dict so any frontend can reuse it;
+  * file access is confined to one workspace directory (default ~/.openvbspp/scripts).
+
+中文：IDE 的后端服务层 —— 不依赖任何 Web 框架，前端（内置网页 / Gradio / 其它）
+everything goes through here. Constraints: standard library only, no third-party dependency for the core package, every entry point returns a JSON-serialisable
+中文：都调这里。约束：只用标准库，核心包不引入第三方依赖；所有接口返回可 JSON 序列化的
+dict, and file access is confined to one workspace directory (default `~/.openvbspp/scripts`).
+中文：dict；文件读写被限制在一个工作目录里（默认 `~/.openvbspp/scripts`）。
 '''
 
 import io
@@ -37,9 +44,14 @@ from OpenVBSPP.ide.packages import capabilities as package_capabilities
 DEFAULT_WORKSPACE = Path.home() / ".openvbspp" / "scripts"
 
 
-# --------------------------------------------------------------------- 结果对象
+# --------------------------------------------------------------- result objects
+# --------------------------------------------------------------- result objects
+    # 中文：结果对象
 def _error_payload(exc):
-    """把 OVPPError 变成前端能直接渲染的结构。"""
+    """Turn an OVPPError into a structure a frontend can render directly.
+
+    中文：把 OVPPError 变成前端能直接渲染的结构。
+    """
     payload = {
         "kind": type(exc).__name__,
         "number": getattr(exc, "error_number", None),
@@ -52,7 +64,10 @@ def _error_payload(exc):
 
 
 def _collect_output(source, filename):
-    """执行一段源码，捕获 stdout 与异常。"""
+    """Execute some source, capturing stdout and exceptions.
+
+    中文：执行一段源码，捕获 stdout 与异常。
+    """
     buffer = io.StringIO()
     started = time.perf_counter()
     error = None
@@ -63,7 +78,9 @@ def _collect_output(source, filename):
     except OVPPError as exc:
         ok = False
         error = _error_payload(exc)
-    except Exception as exc:                      # 兜底：不该发生，但要能看到
+    # Last resort: this should not happen, but it has to be visible.
+    # 中文：兜底 —— 不该发生，但要能看到。
+    except Exception as exc:
         ok = False
         error = {
             "kind": type(exc).__name__,
@@ -83,16 +100,24 @@ def _collect_output(source, filename):
     }
 
 
-# --------------------------------------------------------------------- 编译 / 运行
+# ------------------------------------------------------------- compile / run
+# ------------------------------------------------------------- compile / run
+    # 中文：编译 / 运行
 def run_source(source, filename="<ide>"):
-    """运行一段 VBS 源码，返回输出 + 错误 + 耗时。"""
+    """Run VBS source and return output, errors and elapsed time.
+
+    中文：运行一段 VBS 源码，返回输出 + 错误 + 耗时。
+    """
     if not source.strip():
         return {"ok": True, "output": "", "error": None, "duration_ms": 0.0}
     return _collect_output(source, filename)
 
 
 def check_source(source, filename="<ide>"):
-    """只编译不运行：拿语法/类型错误（Option Typing 的检查也在这里）。"""
+    """Compile only: collect syntax and type errors (Option Typing checks happen here too).
+
+    中文：只编译不运行：拿语法/类型错误（Option Typing 的检查也在这里）。
+    """
     started = time.perf_counter()
     try:
         vbs_compile(source, filename=filename)
@@ -109,9 +134,14 @@ def check_source(source, filename="<ide>"):
     }
 
 
-# --------------------------------------------------------------------- 文件
+# ------------------------------------------------------------------- files
+# ------------------------------------------------------------------- files
+    # 中文：文件
 class Workspace:
-    """受限的工作目录：只能读写这个目录里的 .vbs 文件。"""
+    """A confined workspace: only .vbs files inside this directory can be read or written.
+
+    中文：受限的工作目录：只能读写这个目录里的 .vbs 文件。
+    """
 
     def __init__(self, root=None):
         self.root = Path(root) if root else DEFAULT_WORKSPACE
@@ -140,10 +170,12 @@ class Workspace:
         return {"ok": True, "name": name, "path": str(path)}
 
 
-# --------------------------------------------------------------------- 示例
+# ---------------------------------------------------------------- examples
+# ---------------------------------------------------------------- examples
+    # 中文：示例
 DEMOS = {
     "hello": ('echo "Hello, VBScript!"\n'
-              'echo "运行在 " & Now()\n'),
+              'echo "running at " & Now()\n'),
     "fizzbuzz": (
         "For i = 1 To 15\n"
         "    If i Mod 15 = 0 Then\n"
@@ -184,7 +216,8 @@ DEMOS = {
         "total = Add(20, 22)\n"
         "echo total\n"
         "\n"
-        "rem 故意写错类型：把下面这行取消注释看编译期报错\n"
+        "rem Deliberate type error: uncomment the next line to see the compile-time error\n"
+        "rem 中文：故意写错类型 —— 取消注释下面这行看编译期报错\n"
         "rem total = \"not a number\"\n"),
 }
 
@@ -193,7 +226,9 @@ def examples():
     return [{"name": name, "source": source} for name, source in DEMOS.items()]
 
 
-# --------------------------------------------------------------------- 能力声明
+# ------------------------------------------------------------ capabilities
+# ------------------------------------------------------------ capabilities
+    # 中文：能力声明
 def _dialog_info():
     try:
         from OpenVBSPP.ide import dialogs
@@ -204,7 +239,10 @@ def _dialog_info():
 
 
 def capabilities():
-    """向前端/插件声明本 IDE 支持什么（包管理器相关字段预留给以后）。"""
+    """Declare to frontends and plugins what the IDE supports (package fields are reserved).
+
+    中文：向前端/插件声明本 IDE 支持什么（包管理器相关字段预留给以后）。
+    """
     dialog_info = _dialog_info()
     return {
         "project": "OpenVBS++",
@@ -216,8 +254,12 @@ def capabilities():
             "load": True,
             "examples": True,
             "native_dialogs": dialog_info.get("native_dialogs", False),
-            "packages": False,        # 预留：v0.9 的包管理器
-            "lsp": False,             # 预留：v1.0 的语言服务器
+            # Reserved: the package manager.
+            # 中文：预留 —— 包管理器。
+            "packages": False,
+            # Reserved: a language server.
+            # 中文：预留 —— 语言服务器。
+            "lsp": False,
         },
         "dialogs": dialog_info,
         "packages": package_capabilities(),

@@ -13,15 +13,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-VBS 常用内置函数。
+The VBScript built-in functions.
 
-编译器把 `Len(x)` 这样的调用翻译成 `_ovpp_builtin.Len(x)`，
-所以这里的函数名保持 VBS 的写法（首字母大写）。
-REGISTRY 用小写名字做键，从而实现 VBS 的大小写不敏感。
+中文：VBS 常用内置函数。
 
-性能说明：`datetime` / `math` / `random` / `re` 合计约 5 ms，而绝大多数脚本
-只用到 CStr/Left/IsEmpty 这类纯函数，所以这四个模块用 `_LazyModule` 代理，
-第一次真正取属性时才 import。
+The compiler turns a call such as `Len(x)` into `_ovpp_builtin.Len(x)`,
+中文：编译器把 `Len(x)` 这样的调用翻译成 `_ovpp_builtin.Len(x)`，
+so names here keep VBScript spelling with a capital first letter.
+中文：所以这里的函数名保持 VBS 的写法（首字母大写）。
+REGISTRY keys are lower-case names, which gives VBScript's case insensitivity.
+中文：REGISTRY 用小写名字做键，从而实现 VBS 的大小写不敏感。
 '''
 
 import sys
@@ -34,7 +35,10 @@ from OpenVBSPP.ovpprt.null import NULL, NullType
 
 
 class _LazyModule:
-    """按需 import 的模块代理：第一次取属性时才真正 import 目标模块。"""
+    """A module proxy: the target module is imported on first attribute access.
+
+    中文：按需 import 的模块代理 —— 第一次取属性时才真正 import 目标模块。
+    """
 
     __slots__ = ("_name", "_module")
 
@@ -60,7 +64,7 @@ random = _LazyModule("random")
 re = _LazyModule("re")
 
 
-# --------------------------------------------------------------------- 工具
+# --------------------------------------------------------------------- Helpers / 中文：工具
 def _to_str(value):
     return to_text(value)
 
@@ -85,14 +89,17 @@ def _to_list(value):
     raise TypeError("Expected an array, got " + type(value).__name__)
 
 
-# --------------------------------------------------------------------- 运算符
+# --------------------------------------------------------------------- Operators / 中文：运算符
 def _trunc_div(a, b):
     quotient = abs(a) // abs(b)
     return quotient if (a >= 0) == (b >= 0) else -quotient
 
 
 def ovpp_intdiv(a, b):
-    """VBS 的 \\（整除，向零截断）。"""
+    """VBScript `\\` (integer division, truncated toward zero).
+
+    中文：VBS 的 `\\`（整除，向零截断）。
+    """
     left = _to_number(a)
     right = _to_number(b)
     if right == 0:
@@ -101,7 +108,11 @@ def ovpp_intdiv(a, b):
 
 
 def ovpp_mod(a, b):
-    """VBS 的 Mod：余数符号与被除数一致（向零截断）。"""
+    """VBScript `Mod`: the remainder takes the sign of the dividend (truncated toward
+    zero).
+
+    中文：VBS 的 Mod —— 余数符号与被除数一致（向零截断）。
+    """
     left = _to_number(a)
     right = _to_number(b)
     if right == 0:
@@ -109,7 +120,7 @@ def ovpp_mod(a, b):
     return left - right * _trunc_div(int(left), int(right))
 
 
-# --------------------------------------------------------------------- 字符串
+# --------------------------------------------------------------------- Strings / 中文：字符串
 def Len(value):
     return len(_to_str(value))
 
@@ -185,7 +196,11 @@ def Chr(code):
 
 
 def InStr(*args):
-    """InStr([start,] string1, string2) → 1-based 位置，找不到返回 0。"""
+    """`InStr([start,] string1, string2)` returns a 1-based position, or 0 when the
+    text is not found.
+
+    中文：`InStr([start,] string1, string2)` → 1-based 位置，找不到返回 0。
+    """
     if len(args) == 2:
         start, haystack, needle = 1, args[0], args[1]
     elif len(args) == 3:
@@ -233,13 +248,16 @@ def Join(items, delimiter=None):
     return _to_str(delimiter).join(_to_str(item) for item in _to_list(items))
 
 
-# --------------------------------------------------------------------- 转换
+# --------------------------------------------------------------------- Conversions / 中文：转换
 def CStr(value):
     return _to_str(value)
 
 
 def CInt(value):
-    """VBS 的 CInt 会做四舍五入（银行家舍入）。"""
+    """VBScript `CInt` rounds to the nearest even number (banker's rounding).
+
+    中文：VBS 的 `CInt` 会做四舍五入（银行家舍入）。
+    """
     return int(round(_to_number(value)))
 
 
@@ -259,18 +277,24 @@ def CByte(value):
     return int(_to_number(value)) & 0xFF
 
 
-# --------------------------------------------------------------------- 数学
+# --------------------------------------------------------------------- Math / 中文：数学
 def Abs(value):
     return abs(_to_number(value))
 
 
 def Int(value):
-    """向负无穷取整。"""
+    """Round toward negative infinity.
+
+    中文：向负无穷取整。
+    """
     return math.floor(_to_number(value))
 
 
 def Fix(value):
-    """向零取整。"""
+    """Round toward zero.
+
+    中文：向零取整。
+    """
     number = _to_number(value)
     return int(number)
 
@@ -289,7 +313,10 @@ def Sqr(value):
 
 
 def Round(value, digits=0):
-    """VBS 的 Round 使用银行家舍入，和 Python 的 round 一致。"""
+    """VBScript `Round` uses banker's rounding, matching Python's `round`.
+
+    中文：VBS 的 `Round` 使用银行家舍入，和 Python 的 `round` 一致。
+    """
     return round(_to_number(value), int(digits))
 
 
@@ -304,7 +331,7 @@ def Randomize(*args):
     return EMPTY
 
 
-# --------------------------------------------------------------------- 数组
+# --------------------------------------------------------------------- Arrays / 中文：数组
 def Array(*items):
     return list(items)
 
@@ -318,7 +345,7 @@ def LBound(items, dimension=1):
     return lbound(items, dimension)
 
 
-# --------------------------------------------------------------------- 判断
+# --------------------------------------------------------------------- Type checks / 中文：判断
 def IsNumeric(value):
     if isinstance(value, bool):
         return True
@@ -375,7 +402,7 @@ def TypeName(value):
     return type(value).__name__
 
 
-# --------------------------------------------------------------------- 其它
+# --------------------------------------------------------------------- Miscellaneous / 中文：其它
 def Hex(value):
     number = int(_to_number(value))
     return format(number & 0xFFFFFFFF, "X") if number < 0 else format(number, "X")
@@ -408,7 +435,7 @@ def Filter(items, match, include=True, compare=None):
     return out
 
 
-# --------------------------------------------------------------------- 日期时间
+# --------------------------------------------------------------------- Date and time / 中文：日期时间
 def _to_datetime(value):
     if value is None or value is EMPTY or isinstance(value, EmptyType):
         return _datetime.datetime.now()
@@ -468,7 +495,8 @@ def Second(value=None):
 
 
 def Weekday(value=None, firstdayofweek=1):
-    # VBS：星期日 = 1，星期一 = 2 ……
+    # VBScript: Sunday = 1, Monday = 2, ...
+    # 中文：VBS —— 星期日 = 1，星期一 = 2 ……
     return _to_datetime(value).isoweekday() % 7 + 1
 
 
@@ -542,7 +570,7 @@ def DateDiff(interval, date1, date2, firstdayofweek=None, firstweekofyear=None):
     return int(delta.total_seconds())
 
 
-# --------------------------------------------------------------------- 格式化
+# --------------------------------------------------------------------- Formatting / 中文：格式化
 _MONTHS = ("January", "February", "March", "April", "May", "June", "July",
            "August", "September", "October", "November", "December")
 _MONTHS_ABBR = tuple(name[:3] for name in _MONTHS)
@@ -556,7 +584,10 @@ _NUMBER_CHARS = set("#0")
 
 
 def _vbs_weekday(moment):
-    """VBS 的 Weekday：周日 = 1。"""
+    """VBScript `Weekday`: Sunday = 1.
+
+    中文：VBS 的 `Weekday` —— 周日 = 1。
+    """
     return (moment.weekday() + 1) % 7 + 1
 
 
@@ -616,7 +647,8 @@ def _format_number_pattern(number, fmt):
         left, decimals = core, 0
     grouping = "," in left
     integer_pattern = left.replace(",", "")
-    # 整段都是 0 的格式（如 "0000"）要补前导零
+    # An all-zero format such as "0000" needs leading zeros.
+    # 中文：整段都是 0 的格式（如 "0000"）要补前导零。
     zero_pad = len(integer_pattern) if integer_pattern and "#" not in integer_pattern else 0
     if zero_pad and not grouping:
         width = zero_pad + (decimals + 1 if decimals else 0)
@@ -629,7 +661,10 @@ def _format_number_pattern(number, fmt):
 
 
 def Format(value, fmt=""):
-    """VBS 的 Format：支持日期格式串与数字格式串。"""
+    """VBScript `Format`: accepts date and number format strings.
+
+    中文：VBS 的 `Format` —— 支持日期格式串与数字格式串。
+    """
     if fmt is None or fmt == "":
         return to_text(value)
     text = str(fmt)
@@ -643,7 +678,7 @@ def Format(value, fmt=""):
     return to_text(value)
 
 
-# --------------------------------------------------------------------- 日期
+# --------------------------------------------------------------------- Date / 中文：日期
 def _fmt_digits(digits, default=2):
     try:
         value = int(digits)
@@ -689,7 +724,11 @@ def FormatDateTime(value, namedformat=0):
 
 
 def DateSerial(year, month, day):
-    """日期序列值：月份/日可以越界（13 月 = 次年 1 月）。"""
+    """A date serial value; month and day may overflow (month 13 is January of the
+    next year).
+
+    中文：日期序列值 —— 月份/日可以越界（13 月 = 次年 1 月）。
+    """
     year, month, day = int(year), int(month), int(day)
     year += (month - 1) // 12
     month = (month - 1) % 12 + 1
@@ -697,7 +736,10 @@ def DateSerial(year, month, day):
 
 
 def TimeSerial(hour, minute, second):
-    """时间序列值：分/秒可以越界。"""
+    """A time serial value; minutes and seconds may overflow.
+
+    中文：时间序列值 —— 分/秒可以越界。
+    """
     total = int(hour) * 3600 + int(minute) * 60 + int(second)
     total %= 86400
     return _datetime.datetime(1899, 12, 30) + _datetime.timedelta(seconds=total)
@@ -753,13 +795,18 @@ def WeekdayName(weekday, abbreviate=False, firstdayofweek=1):
     return _WEEKDAYS_ABBR[index] if abbreviate else _WEEKDAYS[index]
 
 
-# --------------------------------------------------------------------- 值语义
+# --------------------------------------------------------------------- Value semantics / 中文：值语义
 
 class Delegate:
-    """AddressOf 产生的"过程值"。
+    """The procedure value produced by `AddressOf`.
 
-    过程体的 ByRef 参数读的是 `参数.v`，所以这里按编译期记录的
-    ByRef 位置把实参包成 Ref；写回不传播（过程值语义下的取舍）。
+    A procedure body reads a ByRef parameter as `param.v`, so the arguments are
+    wrapped in `Ref` at the ByRef positions recorded at compile time. Assignments are
+    not propagated back, which is the trade-off made for procedure values.
+
+    中文：`AddressOf` 产生的「过程值」。过程体的 ByRef 参数读的是 `参数.v`，所以这里
+    Boxes the arguments recorded as ByRef at compile time; write-backs do not propagate, a deliberate trade-off for procedure values.
+    中文：按编译期记录的 ByRef 位置把实参包成 Ref；写回不传播（过程值语义下的取舍）。
     """
 
     def __init__(self, function, name="", byref_flags=None):
@@ -786,7 +833,10 @@ def delegate(function, name="", byref_flags=None):
 
 
 def call_value(value, args):
-    """`f(a)`：既是"数组下标"也是"调用过程值"。"""
+    """`f(a)`: either array indexing or calling a procedure value.
+
+    中文：`f(a)` —— 既是「数组下标」也是「调用过程值」。
+    """
     if isinstance(value, Delegate) or (callable(value)
                                        and not isinstance(value, (list, tuple, str))):
         return value(*args)
@@ -796,7 +846,10 @@ def call_value(value, args):
 
 
 def coalesce(left, right):
-    """`a ?? b`：左边是 Empty/Null/Nothing 时取右边。"""
+    """`a ?? b`: uses the right side when the left side is Empty, Null or Nothing.
+
+    中文：`a ?? b` —— 左边是 Empty/Null/Nothing 时取右边。
+    """
     from OpenVBSPP.ovpprt.empty import EMPTY, EmptyType
     from OpenVBSPP.ovpprt.null import NULL, NullType
     from OpenVBSPP.ovpprt.nothing import NOTHING
@@ -806,13 +859,20 @@ def coalesce(left, right):
     return left
 
 
-# --------------------------------------------------------------------- 输出
+# --------------------------------------------------------------------- Output / 中文：输出
 def _safe_write(text):
-    """写一行到 stdout；遇到控制台编码不支持的字符时降级而不是抛异常。
+    """Write one line to stdout, degrading instead of raising when the console cannot
+    encode a character.
 
-    Windows 的旧控制台默认是 GBK/CP1252，直接 print 中文/emoji 会抛
-    UnicodeEncodeError，进而在用户脚本里表现为"运行时错误"——这不合理，
-    输出失败不应该让程序失败。
+    Old Windows consoles default to GBK/CP1252, where printing Chinese text or emoji
+    raises UnicodeEncodeError and shows up in a script as a runtime error. A failed
+    write should never fail the program.
+
+    中文：写一行到 stdout；遇到控制台编码不支持的字符时降级而不是抛异常。Windows 的
+    Legacy consoles default to GBK or CP1252, where printing CJK text or emoji raises UnicodeEncodeError and then
+    中文：旧控制台默认是 GBK/CP1252，直接 print 中文/emoji 会抛 UnicodeEncodeError，进而
+    surfaces as a run-time error in the user's script. A failed write must not fail the program.
+    中文：在用户脚本里表现为「运行时错误」——输出失败不应该让程序失败。
     """
     stream = sys.stdout
     line = text + "\n"
@@ -833,7 +893,11 @@ def _safe_write(text):
 
 
 def Echo(*values):
-    """Echo 语句的实现：按 VBS 的习惯输出（3.0 打印成 3，Empty 打印成空）。"""
+    """The implementation of the Echo statement: VBScript-style output, so 3.0 prints
+    as 3 and Empty prints as nothing.
+
+    中文：Echo 语句的实现 —— 按 VBS 的习惯输出（3.0 打印成 3，Empty 打印成空）。
+    """
     _safe_write(" ".join(to_text(value) for value in values))
 
 
@@ -841,21 +905,30 @@ def _echo_text(value):
     return to_text(value)
 
 
-# --------------------------------------------------------------------- 交互
+# --------------------------------------------------------------------- Interaction / 中文：交互
 def MsgBox(message="", *args):
-    """无 GUI：把消息打印到标准输出，返回 1（相当于点了"确定"）。"""
+    """No GUI here: the message goes to stdout and 1 is returned (as if OK was
+    clicked).
+
+    中文：无 GUI —— 把消息打印到标准输出，返回 1（相当于点了「确定」）。
+    """
     print(_to_str(message))
     return 1
 
 
 def InputBox(prompt="", *args):
-    """从标准输入读一行（命令行环境下的替代实现）。"""
+    """Read one line from stdin (the command-line stand-in for a dialog).
+
+    中文：从标准输入读一行（命令行环境下的替代实现）。
+    """
     print(_to_str(prompt))
     return input()
 
 
-# --------------------------------------------------------------------- 注册表
-# 显式列出暴露给 VBS 的内置函数，避免把模块内部的辅助函数混进去。
+# --------------------------------------------------------------------- Function registry / 中文：注册表
+# The functions exposed to scripts are listed explicitly so internal helpers never
+# leak into the language.
+# 中文：显式列出暴露给 VBS 的内置函数，避免把模块内部的辅助函数混进去。
 _BUILTIN_NAMES = (
     "Len Left Right Mid UCase LCase LTrim RTrim Trim StrReverse Space String "
     "Asc Chr InStr InStrRev Replace Split Join "

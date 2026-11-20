@@ -37,9 +37,13 @@ class DoLoop(AST):
     def __init__(self, body, pre_cond=None, pre_cond_type=None,
                  post_cond=None, post_cond_type=None):
         self.body = body                    # list[AST]
-        self.pre_cond = pre_cond            # 表达式或 None
+        # An expression, or None.
+        # 中文：表达式或 None。
+        self.pre_cond = pre_cond
         self.pre_cond_type = pre_cond_type  # "WHILE" / "UNTIL" / None
-        self.post_cond = post_cond          # Loop While/Until 之后的表达式
+        # The expression after Loop While / Loop Until.
+        # 中文：Loop While/Until 之后的表达式。
+        self.post_cond = post_cond
         self.post_cond_type = post_cond_type
     def __repr__(self):
         return (f"DoLoop({self.body}, {self.pre_cond}, {self.pre_cond_type}, "
@@ -51,7 +55,10 @@ class ExitFor(Break):
 
 
 class ExitProcedure(AST):
-    """Exit Sub / Exit Function：提前从过程返回。"""
+    """Exit Sub / Exit Function: leave a procedure early.
+
+    中文：Exit Sub / Exit Function：提前从过程返回。
+    """
     pass
 class ExitSub(ExitProcedure):
     pass
@@ -76,7 +83,9 @@ class ForEach(AST):
         return f"ForEach({self.var}, {self.iterable}, {self.body})"
 class SelectCase(AST):
     def __init__(self, expr, cases, else_body):
-        self.expr = expr                # 表达式
+        # An expression.
+        # 中文：表达式。
+        self.expr = expr
         self.cases = cases              # list of ( [CaseCond,...], [stmts...] )
         self.else_body = else_body      # list of stmts
     def __repr__(self):
@@ -99,7 +108,10 @@ class For(AST):
 
 
 class TryStmt(AST):
-    """Try ... Catch e [When 条件] ... Finally ... End Try（超集扩展）。"""
+    """Try ... Catch e [When condition] ... Finally ... End Try (a superset extension).
+
+    中文：Try ... Catch e [When 条件] ... Finally ... End Try（超集扩展）。
+    """
     def __init__(self, body, handlers, finally_body):
         self.body = body                  # list[AST]
         self.handlers = handlers          # [(var_name|None, when_expr|None, body)]
@@ -109,14 +121,20 @@ class TryStmt(AST):
 
 
 class LabelStmt(AST):
-    """行标签：handler: （VBS 原生，配合 On Error GoTo 使用）。"""
+    """A line label, as in `handler:` — native VBScript, used with On Error GoTo.
+
+    中文：行标签：handler: （VBS 原生，配合 On Error GoTo 使用）。
+    """
     def __init__(self, name):
         self.name = name
     def __repr__(self): return f"LabelStmt({self.name})"
 
 
 class GoToStmt(AST):
-    """GoTo label（错误处理路径用）。"""
+    """GoTo label (used on error-handling paths).
+
+    中文：GoTo label（错误处理路径用）。
+    """
     def __init__(self, label):
         self.label = label
     def __repr__(self): return f"GoToStmt({self.label})"

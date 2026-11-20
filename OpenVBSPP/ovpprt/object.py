@@ -13,17 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-对象运行时支持。
+Object runtime support for VBScript objects.
 
-VBS 的对象来自 COM（IDispatch）；本项目不模拟 COM，只提供两种对象：
-  1. 脚本里用 `Class ... End Class` 定义的类；
-  2. 内置类（目前是 Scripting.Dictionary）。
+中文：对象运行时支持。
 
-`CreateObject` 的 ProgID 解析就发生在这里。
+VBScript objects come from COM (IDispatch); this project does not emulate COM and offers two kinds of objects:
 
-性能说明：内置对象各自的模块（collections / filesystem / regexp）都在
-`create_object` 里延迟 import——`filesystem` 会拉起 os/tempfile/pathlib，
-`regexp` 会拉起 re，只有真正构造这些对象时才需要付这份钱。
+中文：VBS 的对象来自 COM（IDispatch）；本项目不模拟 COM，只提供两种对象：
+  1. classes a script defines with `Class ... End Class`;
+中文：脚本里用 `Class ... End Class` 定义的类；
+  2. built-in classes, currently Scripting.Dictionary.
+中文：内置类（目前是 Scripting.Dictionary）。
+
+ProgID resolution for CreateObject happens here.
+中文：`CreateObject` 的 ProgID 解析就发生在这里。
 '''
 
 from OpenVBSPP.exceptions import OVPPObjectNotSupportedError
@@ -33,9 +36,16 @@ _DEFAULT_MEMBER = "_default_member"
 
 
 def create_object(progid, registry, *args):
-    """CreateObject("ProgID") 的运行时实现。
+    """The runtime implementation of `CreateObject("ProgID")`.
 
-    VBS 的第二个参数是 servername（远程激活），本地无法实现，所以带参数时报错。
+    The second VBScript argument names a remote server; remote activation is not
+    supported locally, so passing it is an error.
+
+    中文：`CreateObject("ProgID")` 的运行时实现。VBS 的第二个参数是 servername
+    VBScript's second argument is servername, for remote activation, which a local
+    implementation cannot do, so an argument raises an error.
+
+    中文：VBS 的第二个参数是 servername（远程激活），本地无法实现，所以带参数时报错。
     """
     if args:
         raise OVPPObjectNotSupportedError(
@@ -58,8 +68,11 @@ def create_object(progid, registry, *args):
     if cls is not None:
         return cls(*args)
 
-    # 未知 ProgID：交给 COM 桥接（Windows 上的 com-support over 包）。
-    # 脚本里不需要 import 任何东西，CreateObject 本身就会走到这里。
+    # Unknown ProgID: hand it to the COM bridge (the com-support over package on
+    # Windows). Scripts import nothing; CreateObject itself reaches this point.
+    # 中文：未知 ProgID 交给 COM 桥接（Windows 上的 com-support over 包）。
+    # A script imports nothing: CreateObject reaches this point on its own.
+    # 中文：脚本里不需要 import 任何东西，CreateObject 本身就会走到这里。
     from OpenVBSPP.ovpprt import com as _com
     active = _com.provider()
     if active is not None:
@@ -72,7 +85,10 @@ def create_object(progid, registry, *args):
 
 
 def type_name(value):
-    """对象返回 VBS 类名；不是对象时返回 None。"""
+    """The VBS class name of an object, or None when the value is not an object.
+
+    中文：对象返回 VBS 类名；不是对象时返回 None。
+    """
     return getattr(value, "_vbs_name", None)
 
 
@@ -85,7 +101,11 @@ def default_member_name(value):
 
 
 def default_value(value):
-    """`x = obj` 的取值：对象有默认成员时取它，否则原样返回。"""
+    """The value of `x = obj`: the default member when the object has one, else the
+    object itself.
+
+    中文：`x = obj` 的取值——对象有默认成员时取它，否则原样返回。
+    """
     if not is_object(value):
         return value
     member = getattr(value, _DEFAULT_MEMBER, None)
@@ -95,7 +115,11 @@ def default_value(value):
 
 
 def get_object(progid, registry, *args):
-    """GetObject：本项目不做对象持久化，按 CreateObject 处理（见文档）。"""
+    """`GetObject`: this project does not persist objects, so it behaves like
+    CreateObject (see the documentation).
+
+    中文：`GetObject` —— 本项目不做对象持久化，按 CreateObject 处理（见文档）。
+    """
     return create_object(progid, registry, *args)
 
 
@@ -103,10 +127,15 @@ _MISSING = object()
 
 
 def _lookup(obj, name):
-    """大小写不敏感地取成员（VBS 的标识符不区分大小写）。
+    """Look a member up case insensitively, since VBScript identifiers are not
+    case sensitive.
 
-    内置对象的 Python 方法名是 CamelCase（CreateTextFile），
-    而 VBS 里写的是任意大小写，所以这里做一次回退查找。
+    Built-in objects expose CamelCase Python names (`CreateTextFile`), while scripts
+    may write any casing, so a fallback lookup happens here.
+
+    中文：大小写不敏感地取成员。内置对象的 Python 方法名是 CamelCase
+    (CreateTextFile) while a script may use any casing, so fall back to a case-insensitive lookup.
+    中文：（CreateTextFile），而 VBS 里写的是任意大小写，所以这里做一次回退查找。
     """
     target = getattr(obj, name, _MISSING)
     if target is not _MISSING:
@@ -119,15 +148,22 @@ def _lookup(obj, name):
 
 
 def arity_error(name, count, arities):
-    """重载分派失败时的错误（给出可用的参数个数）。"""
+    """The error raised when overload dispatch fails; it lists the accepted arities.
+
+    中文：重载分派失败时的错误（给出可用的参数个数）。
+    """
     from OpenVBSPP.exceptions import OVPPArgumentError
     options = ", ".join(str(item) for item in arities)
     raise OVPPArgumentError(
         f"'{name}' has no overload taking {count} argument(s) (available: {options})")
 
 
-#: Dictionary 自身的成员名（小写）。真实 VBS 里 `d.Add` 永远解析成方法，
-#: 数据键要用 `d("Add")` 访问；因此这些名字不需要、也不应该去扫描键。
+#: Member names of Dictionary itself (lower case). In real VBScript `d.Add` always
+#: resolves to the method and a data key has to be read as `d("Add")`, so these names
+#: never need to scan the keys.
+#: 中文：Dictionary 自身的成员名（小写）。真实 VBS 里 `d.Add` 永远解析成方法，
+#: Data keys are reached as `d("Add")`, so these names need no key scan at all.
+#: 中文：数据键要用 `d("Add")` 访问；因此这些名字不需要、也不应该去扫描键。
 _DICT_MEMBER_NAMES = frozenset({
     "add", "comparemode", "count", "exists", "hashval", "item", "items",
     "key", "keys", "remove", "removeall",
@@ -135,10 +171,15 @@ _DICT_MEMBER_NAMES = frozenset({
 
 
 def _dict_key(dictionary, name):
-    """大小写不敏感地在 Dictionary 里找用户数据键。
+    """Find a user data key in a Dictionary, case insensitively.
 
-    注意：方法名一律返回 None（交给常规成员解析），否则每次 `d.Add(...)`
-    都要线性扫描全部键，字典一大就退化成 O(n²)。
+    Method names always return None so normal member resolution handles them;
+    otherwise every `d.Add(...)` would scan all keys and large dictionaries would
+    degrade to O(n²).
+
+    中文：大小写不敏感地在 Dictionary 里找用户数据键。方法名一律返回 None
+    and falls through to normal member resolution, or every `d.Add(...)` would scan every key.
+    中文：（交给常规成员解析），否则每次 `d.Add(...)` 都要线性扫描全部键。
     """
     lowered = name.lower()
     if lowered in _DICT_MEMBER_NAMES:
@@ -150,10 +191,15 @@ def _dict_key(dictionary, name):
 
 
 def call_method(obj, name, refs):
-    """统一的方法调用协议。
+    """The shared method-call protocol.
 
-    VBS 类的方法参数一律通过 `Ref` 传：ByRef 直接改 `.v`，ByVal 在方法入口解包，
-    因此对内置对象（Dictionary 等）就是把 `.v` 取出来按值调用。
+    VBScript class methods always take `Ref` arguments: ByRef writes straight to `.v`
+    and ByVal unwraps at the method entry. For built-in objects (Dictionary and
+    friends) that means taking `.v` and calling by value.
+
+    中文：统一的方法调用协议。VBS 类的方法参数一律通过 `Ref` 传——ByRef 直接改
+    `.v` and ByVal unpacks at the method entry, so a built-in object simply gets the unpacked value by value.
+    中文：`.v`，ByVal 在方法入口解包，因此对内置对象就是把 `.v` 取出来按值调用。
     """
     from OpenVBSPP.ovpprt.collections import Dictionary
     if isinstance(obj, Dictionary):
@@ -179,7 +225,8 @@ def call_method(obj, name, refs):
             return target(*refs)
         return target(*[ref.v for ref in refs])
 
-    # 不是方法：按数组下标处理
+    # Not a method: treat it as array indexing.
+    # 中文：不是方法——按数组下标处理。
     values = [ref.v for ref in refs]
     if not values:
         return target
@@ -194,7 +241,10 @@ def _is_nothing(value):
 
 
 def safe_member(obj, name):
-    """`a?.b`：a 是 Nothing 时结果是 Nothing，不报错。"""
+    """`a?.b`: when `a` is Nothing the result is Nothing instead of an error.
+
+    中文：`a?.b` —— a 是 Nothing 时结果是 Nothing，不报错。
+    """
     if _is_nothing(obj):
         from OpenVBSPP.ovpprt.nothing import NOTHING
         return NOTHING
@@ -202,7 +252,10 @@ def safe_member(obj, name):
 
 
 def safe_call(obj, name, refs):
-    """`a?.b(args)`：a 是 Nothing 时直接返回 Nothing。"""
+    """`a?.b(args)`: when `a` is Nothing the result is Nothing.
+
+    中文：`a?.b(args)` —— a 是 Nothing 时直接返回 Nothing。
+    """
     if _is_nothing(obj):
         from OpenVBSPP.ovpprt.nothing import NOTHING
         return NOTHING
@@ -210,13 +263,20 @@ def safe_call(obj, name, refs):
 
 
 def write_only_error(message):
-    """读取只写属性时的错误。"""
+    """The error raised when a write-only property is read.
+
+    中文：读取只写属性时的错误。
+    """
     from OpenVBSPP.exceptions import OVPPObjectNotSupportedError
     raise OVPPObjectNotSupportedError(str(message))
 
 
 def set_member(obj, name, value, is_set=False):
-    """成员赋值：`Set obj.P = x` 走 Property Set，其余走 setter / 属性。"""
+    """Member assignment: `Set obj.P = x` uses Property Set, everything else uses a
+    setter or a plain attribute.
+
+    中文：成员赋值 —— `Set obj.P = x` 走 Property Set，其余走 setter / 属性。
+    """
     if is_set:
         writer = getattr(obj, "_ovpp_pset_" + name, None)
         if writer is not None:
@@ -226,7 +286,11 @@ def set_member(obj, name, value, is_set=False):
 
 
 def member_get(obj, name):
-    """obj.name 取值：字段/属性直接返回，无参方法则调用（VBS 允许省略括号）。"""
+    """`obj.name`: fields and properties are returned directly, while a zero-argument
+    method is called (VBScript allows omitting the parentheses).
+
+    中文：`obj.name` 取值 —— 字段/属性直接返回，无参方法则调用（VBS 允许省略括号）。
+    """
     from OpenVBSPP.ovpprt.collections import Dictionary
     if isinstance(obj, Dictionary):
         key = _dict_key(obj, name)
@@ -244,7 +308,10 @@ def member_get(obj, name):
 
 
 def member_call(obj, name, *args):
-    """obj.name(args...)：既可能是方法调用，也可能是数组字段的下标访问。"""
+    """`obj.name(args...)`: either a method call or indexing into an array field.
+
+    中文：`obj.name(args...)` —— 既可能是方法调用，也可能是数组字段的下标访问。
+    """
     from OpenVBSPP.ovpprt.collections import Dictionary
     if isinstance(obj, Dictionary):
         key = _dict_key(obj, name)
@@ -267,7 +334,8 @@ def member_call(obj, name, *args):
     if callable(target):
         return target(*args)
 
-    # 不是方法：按数组下标处理
+    # Not a method: treat it as array indexing.
+    # 中文：不是方法——按数组下标处理。
     if not args:
         return target
     for index in args[:-1]:
@@ -276,7 +344,10 @@ def member_call(obj, name, *args):
 
 
 def set_member_index(obj, name, args, value):
-    """obj.name(i, j) = value —— 数组字段的元素赋值。"""
+    """`obj.name(i, j) = value`: assign one element of an array field.
+
+    中文：`obj.name(i, j) = value` —— 数组字段的元素赋值。
+    """
     from OpenVBSPP.ovpprt.collections import Dictionary
     if isinstance(obj, Dictionary):
         key = _dict_key(obj, name)

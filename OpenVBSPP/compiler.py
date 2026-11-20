@@ -13,17 +13,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-模块编译（v0.9.4）：真正的模块隔离。
+Module compilation and real module isolation.
 
-模型：
-  * 一个 **模块** = 入口文件 + 它用 `<script src>` 合并进来的所有文件
-    （合并进来的文件与入口共享同一个命名空间，所以同名过程仍然会冲突——这是"合并"的本意）；
-  * `<namespace src alias>` 引入的是**另一个模块**，有自己独立的 globals，
-    只有 `Public` 过程通过别名对象暴露出来；
-  * 模块按依赖图**拓扑执行**（记忆化），所以"库文件自己也用 namespace"没问题，
-    唯一的错误是循环依赖。
+中文：模块编译与真正的模块隔离。
 
-每个文件独立编译成 code object（各自的文件名与行号），模块内按声明顺序执行。
+Model:
+
+中文：模型：
+  * a **module** = the entry file plus every file merged in through `<script src>`
+    中文：一个模块 = 入口文件 + 它用 `<script src>` 合并进来的所有文件
+    (a merged file shares the entry's namespace, so procedures with the same name still
+    collide, which is exactly what merging means);
+    中文：（合并进来的文件与入口共享同一个命名空间，所以同名过程仍然会冲突——这是「合并」的本意）；
+  * `<namespace src alias>` pulls in **another module** with its own globals; only
+    中文：`<namespace src alias>` 引入的是另一个模块，有自己独立的 globals，
+    only `Public` procedures surface through the alias object;
+    中文：只有 `Public` 过程通过别名对象暴露出来；
+  * modules run in **topological order** (memoised), so a library may use namespaces
+    itself;
+    中文：模块按依赖图拓扑执行（记忆化），所以「库文件自己也用 namespace」没问题，
+    a cycle is the only error.
+    中文：唯一的错误是循环依赖。
+
+Each file compiles to its own code object (with its own filename and line numbers),
+and modules execute in declaration order.
+中文：每个文件独立编译成 code object（各自的文件名与行号），模块内按声明顺序执行。
 '''
 
 import ast
@@ -51,7 +65,10 @@ PYTHON_IMPORT = '<script src="python-embed" />'
 
 
 def _capabilities(path):
-    """入口文件所属 over 包声明的能力（over.json 的 capabilities 字段）。"""
+    """Capabilities declared by the over package owning the entry file (`capabilities`
+    in over.json).
+
+    中文：入口文件所属 over 包声明的能力（over.json 的 `capabilities` 字段）。"""
     from OpenVBSPP import over as _over
 
     directory = Path(path).parent
@@ -72,7 +89,10 @@ def _python_block_line(cleaned):
 
 
 def _require_python_feature(features, cleaned):
-    """用了 #python 块却没导入 python-embed 时给出明确的迁移提示。"""
+    """Explain how to import Python interop when `#python` blocks are used without it.
+
+    中文：用了 `#python` 块却没导入 python-embed 时给出明确的迁移提示。
+    """
     if PYTHON_FEATURE in features or "__ovpp_python_block_" not in cleaned:
         return
     raise OVPPSyntaxError(
@@ -83,7 +103,10 @@ def _require_python_feature(features, cleaned):
 
 
 class ModuleUnit:
-    """一个模块：若干 code object + 它依赖的命名空间模块 + 导出表。"""
+    """One module: its code objects, the namespace modules it needs, and its exports.
+
+    中文：一个模块 —— 若干 code object + 它依赖的命名空间模块 + 导出表。
+    """
 
     def __init__(self, name):
         self.name = name
@@ -94,9 +117,13 @@ class ModuleUnit:
         self.globals = {}
         self._done = False
 
-    # ---------------------------------------------------------------- 执行
+    # ------------------------------------------------------------------ execute
+    # 中文：---------------------------------------------------------------- 执行
     def ensure(self):
-        """按依赖顺序执行本模块（只执行一次）。"""
+        """Execute this module in dependency order, exactly once.
+
+    中文：按依赖顺序执行本模块（只执行一次）。
+    """
         if self._done:
             return self.globals
         self._done = True
@@ -122,13 +149,19 @@ class ModuleUnit:
 
 
 class ProgramBundle:
-    """整个程序的执行单元：入口模块 + 它的依赖。"""
+    """The execution unit of a whole program: the entry module plus its dependencies.
+
+    中文：整个程序的执行单元 —— 入口模块 + 它的依赖。
+    """
 
     def __init__(self, root):
         self.root = root
 
     def exec(self, globals_dict):
-        """执行整个程序：先按依赖初始化各模块，再把入口模块的全局合并进外层字典。"""
+        """Run the program: initialise modules in dependency order, then merge the entry
+    module globals into the outer dict.
+
+    中文：执行整个程序 —— 先按依赖初始化各模块，再把入口模块的全局合并进外层字典。"""
         root_globals = self.root.ensure()
         globals_dict.update(root_globals)
 
@@ -136,9 +169,12 @@ class ProgramBundle:
         return f"ProgramBundle({self.root.name})"
 
 
-# --------------------------------------------------------------------- 编译
+# --------------------------------------------------------------------- compile
 def _normalize_positions(py_ast):
-    """Python 3.13 起 compile() 会校验位置区间，必须保证 end >= start。"""
+    """Since Python 3.13 `compile()` validates position ranges, so end must be >= start.
+
+    中文：Python 3.13 起 `compile()` 会校验位置区间，必须保证 end >= start。
+    """
     for node in ast.walk(py_ast):
         lineno = getattr(node, "lineno", None)
         if lineno is None:
@@ -172,7 +208,8 @@ def _parse(source, filename, verbose=False):
 
 
 def _resolve(source_path, base_dir):
-    # 先按“包名”解析（over 安装到 ./packages/<name>/）
+    # First resolve as a package name: over installs into ./packages/<name>/.
+    # 中文：先按「包名」解析（over 安装到 ./packages/<name>/）。
     from OpenVBSPP import over
     packaged = over.resolve_source(str(source_path), base_dir)
     if packaged is not None and packaged.is_file():
@@ -189,7 +226,10 @@ def _resolve(source_path, base_dir):
 
 
 def _exports(vbs_asts):
-    """模块导出：所有合并文件里的 `Public` 过程。"""
+    """Module exports: every `Public` procedure from all merged files.
+
+    中文：模块导出 —— 所有合并文件里的 `Public` 过程。
+    """
     entries = []
     for vbs_ast in vbs_asts:
         for stmt in vbs_ast.body:
@@ -206,7 +246,10 @@ def _exports(vbs_asts):
 
 
 def _merge_source(unit, source, filename, stack, verbose=False):
-    """把 `source`（以及它 <script> 合并的文件）收进 unit。"""
+    """Collect `source` (and the files it merges with `<script>`) into the unit.
+
+    中文：把 `source`（以及它 `<script>` 合并的文件）收进 unit。
+    """
     cleaned, python_blocks = extract_python_blocks(source)
     cleaned, directives = extract_modules(cleaned)
 
@@ -248,14 +291,18 @@ _CACHE = {}
 
 
 def _build_module(path, stack, verbose=False):
-    """编译一个模块（路径 -> ModuleUnit），带缓存。"""
+    """Compile one module from a path into a ModuleUnit, with a cache.
+
+    中文：编译一个模块（路径 → ModuleUnit），带缓存。
+    """
     key = str(path)
     if key in _CACHE:
         return _CACHE[key]
 
     source = Path(path).read_text(encoding="utf-8-sig")
     unit = ModuleUnit(Path(path).stem)
-    _CACHE[key] = unit            # 先占位，重复引用同一个模块时复用
+    _CACHE[key] = unit            # placeholder, reused on repeated imports
+    # 中文：先占位，重复引用同一个模块时复用。
 
     parts = _merge_source(unit, source, path, stack + [key], verbose)
 
@@ -273,10 +320,14 @@ def _build_module(path, stack, verbose=False):
 
 
 def vbs_compile(code, mode="exec", filename=None, save_dir=None, verbose=False):
-    """编译 OpenVBS++ 源码。
+    """Compile OpenVBS++ source.
 
-    没有多文件声明时返回单个 code object（保持原有行为）；
-    否则返回 ProgramBundle（由 runtime 依次执行）。
+    Returns a single code object when there are no multi-file declarations (the
+    original behaviour), otherwise a ProgramBundle that the runtime executes.
+
+    中文：编译 OpenVBS++ 源码。没有多文件声明时返回单个 code object（保持原有行为）；
+    otherwise it returns a ProgramBundle, which runtime executes in order.
+    中文：否则返回 ProgramBundle（由 runtime 依次执行）。
     """
     if mode not in ("exec", "save"):
         raise ValueError(f"Invalid mode: {mode!r} (expected 'exec' or 'save')")
@@ -300,7 +351,7 @@ def vbs_compile(code, mode="exec", filename=None, save_dir=None, verbose=False):
         _save(py_ast, code_obj, filename, save_dir, python_cleaned)
         return code_obj
 
-    # ---------------- 多文件 ----------------
+    # ---------------- Multi-file / 中文：多文件 ----------------
     _CACHE.clear()
     entry_key = str(Path(filename).resolve()) if filename else COMPILED_FILENAME
     unit = ModuleUnit(Path(filename).stem if filename else "main")

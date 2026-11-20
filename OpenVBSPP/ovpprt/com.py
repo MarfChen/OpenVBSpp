@@ -13,18 +13,29 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-COM 桥接：把 over 包 `com-support` 接到对象层上。
+COM bridge: connects the `com-support` over package to the object layer.
 
-脚本里 **不需要** import —— `CreateObject` 在遇到未知 ProgID 时会自动
-问这里要一个 COM 对象。查找顺序：
+Scripts **never import anything**: `CreateObject` asks this module for an object
+when it meets an unknown ProgID. Order of preference:
 
-  1. 环境变量 `OVPP_COM_PATH` 指向的目录（测试 / 高级用法）；
-  2. 项目里的 `./packages/com-support/`（显式装过就以它为准，可用来钉版本）；
-  3. 随包分发的 vendor 副本（Windows 版自带，零配置可用）。
+  1. the directory named by `OVPP_COM_PATH` (tests and advanced setups);
+  2. `./packages/com-support/` inside the project (a project install wins, so it
+     can pin a version or ship a different implementation);
+  3. the copy bundled with the distribution (Windows wheels and the exe carry it,
+     so it works with no setup).
 
-因此 Windows 上**开箱即用**；想换实现或钉版本，就用 over 装一份到项目里；
-`openvbs over remove com-support` 会退回随包副本；
-设置 `OPENVBS_COM=0` 可以彻底关闭 COM 支持。
+That makes COM usable out of the box on Windows. `openvbs over remove com-support`
+falls back to the bundled copy, and `OPENVBS_COM=0` turns COM support off.
+
+中文：COM 桥接——把 over 包 `com-support` 接到对象层上。脚本里不需要 import：
+CreateObject asks this module for a COM object when a ProgID is unknown. Lookup order:
+中文：`CreateObject` 遇到未知 ProgID 时会自动问这里要一个 COM 对象。查找顺序是
+the `OVPP_COM_PATH` environment variable, then `./packages/com-support/` in the project (an explicit install wins,
+中文：`OVPP_COM_PATH` 环境变量 → 项目里的 `./packages/com-support/`（显式装过就以它为准，
+so you can pin a version), then the vendor copy shipped with the package. It therefore works out of the box on Windows;
+中文：可钉版本）→ 随包分发的 vendor 副本。因此 Windows 上开箱即用；
+`openvbs over remove com-support` falls back to the bundled copy and `OPENVBS_COM=0` turns the bridge off entirely.
+中文：`openvbs over remove com-support` 会退回随包副本；`OPENVBS_COM=0` 可以彻底关闭。
 '''
 
 import importlib.util
@@ -42,21 +53,31 @@ PACKAGES_DIR = "packages"
 
 _DISABLED_VALUES = {"0", "off", "false", "no", "disable", "disabled"}
 
-#: 已加载的 com_support 模块：{解析后的路径: (mtime, module)}
+#: Loaded com_support modules: {resolved path: (mtime, module)}
+#: 中文：已加载的 com_support 模块缓存，键是解析后的路径。
 _MODULES = {}
 
 
 class ComBridgeError(OVPPObjectNotSupportedError):
-    """COM 支持不可用 / 加载失败。"""
+    """COM support is unavailable or failed to load.
+
+    中文：COM 支持不可用或加载失败。
+    """
 
 
 def _bundled_dir():
-    """随包分发的副本：OpenVBSPP/vendor/com-support/。"""
+    """The bundled copy: `OpenVBSPP/vendor/com-support/`.
+
+    中文：随包分发的副本 `OpenVBSPP/vendor/com-support/`。
+    """
     return Path(__file__).resolve().parent.parent / "vendor" / PACKAGE_NAME
 
 
 def _project_dir(start=None):
-    """从 start（默认 cwd）向上找一个带 over.json 的项目根。"""
+    """Walk up from `start` (default: cwd) to the nearest project root with `over.json`.
+
+    中文：从 `start`（默认当前目录）向上找一个带 `over.json` 的项目根。
+    """
     current = Path(start or Path.cwd()).resolve()
     for candidate in (current, *current.parents):
         if (candidate / MANIFEST_NAME).is_file():
@@ -70,7 +91,10 @@ def _disabled_by_env():
 
 
 def candidates():
-    """返回 [(目录, 来源标签)]，按优先级排列。"""
+    """Return `[(directory, origin)]` in priority order.
+
+    中文：按优先级返回 [(目录, 来源标签)]。
+    """
     found = []
     explicit = os.environ.get(ENV_PATH)
     if explicit:
@@ -84,7 +108,11 @@ def candidates():
 
 
 def resolve():
-    """返回实际生效的 com-support 目录：(目录, 来源) 或 (None, 原因)。"""
+    """Return the effective com-support directory: `(directory, origin)` or
+    `(None, reason)`.
+
+    中文：返回实际生效的 com-support 目录 —— (目录, 来源) 或 (None, 原因)。
+    """
     if _disabled_by_env():
         return None, f"disabled by {ENV_DISABLE}"
     if sys.platform != "win32":
@@ -103,7 +131,10 @@ def resolve():
 
 
 def _load(directory):
-    """从目录加载 com_support.py（按 mtime 缓存）。"""
+    """Load `com_support.py` from a directory, cached by modification time.
+
+    中文：从目录加载 `com_support.py`（按 mtime 缓存）。
+    """
     script = Path(directory) / "com_support.py"
     key = str(script.resolve())
     try:
@@ -133,7 +164,10 @@ def _load(directory):
 
 
 def reset_cache():
-    """清空已加载模块缓存（测试用）。"""
+    """Clear the loaded-module cache (used by tests).
+
+    中文：清空已加载的模块缓存（测试用）。
+    """
     for name in [item for item in sys.modules
                  if item.startswith("openvbspp_com_support_")]:
         sys.modules.pop(name, None)
@@ -141,7 +175,10 @@ def reset_cache():
 
 
 class Provider:
-    """包着一个已加载的 com_support 模块。"""
+    """Wraps one loaded com_support module.
+
+    中文：包着一个已加载的 com_support 模块。
+    """
 
     def __init__(self, directory, origin, module):
         self.directory = Path(directory)
@@ -153,7 +190,10 @@ class Provider:
         return getattr(self.module, "VERSION", "")
 
     def create(self, progid, args=()):
-        """CreateObject(progid) 的真实实现。"""
+        """The implementation behind `CreateObject(progid)`.
+
+        中文：`CreateObject(progid)` 的真实实现。
+        """
         try:
             return self.module.create(str(progid), *args)
         except OVPPObjectNotSupportedError:
@@ -162,7 +202,10 @@ class Provider:
             raise self._translate(progid, exc, "create") from exc
 
     def get(self, progid, args=()):
-        """GetObject(progid)：拿已运行的实例。"""
+        """`GetObject(progid)`: attach to a running instance.
+
+        中文：`GetObject(progid)`——拿到已运行的实例。
+        """
         getter = getattr(self.module, "get", None)
         if getter is None:
             raise ComBridgeError(
@@ -187,7 +230,10 @@ class Provider:
 
 
 def provider():
-    """拿到 COM provider；不可用时返回 None。"""
+    """Return the COM provider, or None when COM is unavailable.
+
+    中文：拿到 COM provider；不可用时返回 None。
+    """
     if _disabled_by_env() or sys.platform != "win32":
         return None
     directory, origin = resolve()
@@ -203,7 +249,10 @@ def provider():
 
 
 def describe():
-    """给诊断/CLI 用的一句话说明。"""
+    """A one-line status for diagnostics and the CLI.
+
+    中文：给诊断与 CLI 用的一句话状态说明。
+    """
     directory, reason = resolve()
     if directory is None:
         return f"unavailable: {reason}"
@@ -217,7 +266,11 @@ def describe():
 
 
 def create(progid, args=()):
-    """对象层调用：创建一个 COM 对象，失败时抛出带 COM 字样的错误。"""
+    """Called by the object layer: create a COM object, raising an error that names COM
+    when that is impossible.
+
+    中文：对象层调用——创建一个 COM 对象，失败时抛出带 COM 字样的错误。
+    """
     active = provider()
     if active is None:
         raise OVPPObjectNotSupportedError(_unavailable_message(progid))

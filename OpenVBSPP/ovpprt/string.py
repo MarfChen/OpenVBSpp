@@ -19,10 +19,17 @@ from OpenVBSPP.ovpprt.format import to_text
 
 
 def ovpp_str_concat(a, b):
-    """& 运算符：按 VBS 的文本规则拼接（5.0 拼成 "5"，Empty 拼成 ""）。
+    """The `&` operator: concatenate using VBScript text rules (5.0 becomes "5",
+    Empty becomes "").
 
-    两边都是 str 时直接相加：这是 `s = s & "x"` 这类循环里绝对的主流，
-    可以省掉两次 `to_text` 变体转换。
+    When both sides are already `str` they are simply added, which is the common
+    case in `s = s & "x"` loops and skips two `to_text` conversions.
+
+    中文：`&` 运算符按 VBS 的文本规则拼接（5.0 拼成 "5"，Empty 拼成空串）。
+    When both sides are strings it just adds them; `s = s & "x"` in a loop is the common case,
+    中文：两边都是字符串时直接相加——`s = s & "x"` 这类循环里这是主流写法，
+    and skipping both text conversions pays off.
+    中文：可以省掉两次文本转换。
     """
     if type(a) is str and type(b) is str:
         return a + b
@@ -40,7 +47,11 @@ _ORDER = {
 
 
 def vb_compare(op, a, b):
-    """Option Compare Text 下的比较：字符串按不区分大小写比较，其余照常。"""
+    """Comparison under `Option Compare Text`: strings compare case-insensitively,
+    every other value compares as usual.
+
+    中文：`Option Compare Text` 下的比较——字符串不区分大小写，其余值照常比较。
+    """
     if isinstance(a, str) and isinstance(b, str):
         left = a.lower()
         right = b.lower()

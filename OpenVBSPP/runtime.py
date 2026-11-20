@@ -13,7 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-OpenVBS++ 运行时：编译 + 执行，并把 Python 异常翻译成 VBS 风格的错误。
+OpenVBS++ runtime: compile, execute, and translate Python exceptions into
+VBScript-style errors.
+
+中文：OpenVBS++ 运行时 —— 编译 + 执行，并把 Python 异常翻译成 VBS 风格的错误。
 '''
 
 
@@ -28,7 +31,8 @@ from OpenVBSPP.exceptions import (OVPPError, OVPPRuntimeError, OVPPTypeError,
                                   OVPPOutOfRangeError, OVPPInvalidProcedureCallError)
 
 
-# 顺序有意义：子类要排在父类前面
+# Order matters: subclasses must come before their base classes.
+# 中文：顺序有意义 —— 子类要排在父类前面。
 _ERROR_MAP = [
     (ZeroDivisionError,       OVPPDivisionByZeroError),
     (NameError,               OVPPVariableNotDefinedError),
@@ -48,7 +52,10 @@ _NAME_RE = re.compile(r"name '([^']+)' is not defined")
 
 
 def _error_location(exc: BaseException, filename: str):
-    """找到异常在 .vbs 源码里对应的行号（取最深的一帧）。"""
+    """Find the .vbs line an exception maps to (the deepest frame).
+
+    中文：找到异常在 .vbs 源码里对应的行号（取最深的一帧）。
+    """
     line = None
     tb = exc.__traceback__
     while tb is not None:
@@ -71,7 +78,10 @@ def _error_message(exc: BaseException) -> str:
 
 
 def wrap_runtime_error(exc: BaseException, filename: str, source: str) -> OVPPError:
-    """把 Python 运行时异常包装成带行号的 VBS 风格错误。"""
+    """Wrap a Python runtime exception into a VBScript-style error with a line number.
+
+    中文：把 Python 运行时异常包装成带行号的 VBS 风格错误。
+    """
     error_type = OVPPRuntimeError
     for py_type, mapped in _ERROR_MAP:
         if isinstance(exc, py_type):
@@ -94,7 +104,10 @@ def wrap_runtime_error(exc: BaseException, filename: str, source: str) -> OVPPEr
 
 
 def _bundle_line(code_obj, exc):
-    """多文件程序：从 traceback 里取"用户脚本"那一行。"""
+    """Multi-file programs: take the user script line out of the traceback.
+
+    中文：多文件程序 —— 从 traceback 里取「用户脚本」那一行。
+    """
     line = None
     tb = exc.__traceback__
     while tb is not None:
@@ -107,10 +120,15 @@ def _bundle_line(code_obj, exc):
 
 def vbs_run(code: str, globals: dict = None, filename: str = None,
             mode: str = "exec", save_dir: str = None, verbose: bool = False):
-    """编译并执行 OpenVBS++ 源码。
+    """Compile and execute OpenVBS++ source.
 
-    :returns: 执行所用的 globals 字典
-    :raises OVPPError: 语法错误或运行期错误（带行号与源码行）
+    :returns: the globals dict the code ran in
+    :raises OVPPError: on syntax or runtime errors, carrying the line number and the
+        offending source line
+
+    中文：编译并执行 OpenVBS++ 源码。返回执行所用的 globals 字典；语法错误或运行期
+    an error raises OVPPError with a line number and the source line.
+    中文：错误会抛 OVPPError（带行号与源码行）。
     """
     code_obj = vbs_compile(code, mode=mode, filename=filename,
                            save_dir=save_dir, verbose=verbose)

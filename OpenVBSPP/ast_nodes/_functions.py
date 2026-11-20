@@ -19,17 +19,29 @@ from OpenVBSPP.ast_nodes._base import AST
 
 
 class Param(AST):
-    """过程参数。VBS 默认按引用传递（ByRef）。"""
+    """One procedure parameter. VBScript passes by reference (ByRef) by default.
+
+    中文：过程参数。VBS 默认按引用传递（ByRef）。
+    """
     def __init__(self, name, byref=True, is_array=False, type_name=None,
                  optional=False, default=None, paramarray=False):
         self.name = name
-        # ParamArray 必须按值（VBS 规定）
+        # ParamArray is always by value, as VBScript requires.
+        # 中文：ParamArray 必须按值（VBS 规定）。
         self.byref = False if paramarray else byref
         self.is_array = is_array
-        self.type_name = type_name      # Option Typing 下的类型注解
-        self.optional = optional        # Optional 参数
-        self.default = default          # Optional 的默认值表达式
-        self.paramarray = paramarray    # ParamArray：吸收剩余实参
+        # The type annotation used under Option Typing.
+        # 中文：Option Typing 下的类型注解。
+        self.type_name = type_name
+        # Whether the parameter is Optional.
+        # 中文：Optional 参数。
+        self.optional = optional
+        # The default-value expression of an Optional parameter.
+        # 中文：Optional 的默认值表达式。
+        self.default = default
+        # ParamArray absorbs the remaining arguments.
+        # 中文：ParamArray —— 吸收剩余实参。
+        self.paramarray = paramarray
     @property
     def min_arity(self):
         return 0 if (self.optional or self.paramarray) else 1
@@ -41,7 +53,10 @@ class Param(AST):
 
 
 class ProcedureDef(AST):
-    """Sub / Function 的公共部分。"""
+    """What Sub and Function share.
+
+    中文：Sub / Function 的公共部分。
+    """
     def __init__(self, name, params, body, return_type=None):
         self.name = name
         self.params = params    # list[Param]
@@ -62,17 +77,24 @@ class SubDef(ProcedureDef):
 
 
 class FunctionDef(ProcedureDef):
-    """Function name(params) ... End Function（用函数名赋值作为返回值）"""
+    """Function name(params) ... End Function — the return value is assigned to the name.
+
+    中文：Function name(params) ... End Function（用函数名赋值作为返回值）
+    """
     @property
     def kind(self):
         return "function"
 
 
 class CallStmt(AST):
-    """把过程/方法当作语句调用：Call Foo(1) / Foo 1 / .Method 1
+    """Call a procedure or method as a statement: Call Foo(1) / Foo 1 / .Method 1
 
-    callee 是一个表达式节点（Var 或 Member），由 Transformer 决定
-    它是过程、内置函数还是对象成员。
+    callee is an expression node (a Var or a Member); the Transformer decides whether
+    it is a procedure, a built-in function or an object member.
+
+    中文：把过程 / 方法当作语句调用 —— `Call Foo(1)`、`Foo 1`、`.Method 1`。callee 是一个
+    The expression node (Var or Member); the transformer decides whether it is a procedure, a built-in function or an object member.
+    中文：表达式节点（Var 或 Member），由 Transformer 判定它是过程、内置函数还是对象成员。
     """
     def __init__(self, callee, args):
         self.callee = callee

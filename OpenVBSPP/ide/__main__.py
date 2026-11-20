@@ -24,13 +24,13 @@ from OpenVBSPP.ide.server import serve
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="openvbs ide",
-                                     description="启动 OpenVBS++ 网页 IDE")
+                                     description="Start the OpenVBS++ web IDE / 启动 OpenVBS++ 网页 IDE")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--workspace", default=None,
-                        help="脚本存放目录，默认为 ~/.openvbspp/scripts")
+                        help="Script directory, default ~/.openvbspp/scripts / 脚本存放目录")
     parser.add_argument("--no-browser", action="store_true",
-                        help="不自动打开浏览器")
+                        help="Do not open a browser automatically / 不自动打开浏览器")
     args = parser.parse_args(argv)
     serve(host=args.host, port=args.port, workspace=args.workspace,
           open_browser=not args.no_browser)

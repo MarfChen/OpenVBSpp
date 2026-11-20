@@ -13,26 +13,33 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-VBS 的 Empty 值。
+VBScript `Empty`.
 
-`Dim x` 之后 x 是 Empty：打印为空行、参与算术时当 0、参与字符串连接时当 ""，
-和 VBScript 的行为一致。
+After `Dim x`, x is Empty: it prints as an empty line, counts as 0 in arithmetic
+and as "" when concatenated, exactly like VBScript.
+
+中文：VBS 的 Empty 值。`Dim x` 之后 x 就是 Empty——打印为空行、参与算术时当 0、
+It joins a string concatenation as an empty string, matching VBScript.
+中文：参与字符串连接时当空串，与 VBScript 行为一致。
 '''
 
 
 class EmptyType:
-    """空值哨兵。数值上等价于 0，字符串上等价于 ""。"""
+    """The empty-value sentinel: 0 in arithmetic, "" as text.
+
+    中文：空值哨兵——数值上等价于 0，字符串上等价于空串。
+    """
 
     __slots__ = ()
 
-    # ---------------------------------------------------------------- 显示
+    # Display / 中文：显示
     def __str__(self):
         return ""
 
     def __repr__(self):
         return "Empty"
 
-    # ---------------------------------------------------------------- 转换
+    # Conversion / 中文：转换
     def __bool__(self):
         return False
 
@@ -48,7 +55,7 @@ class EmptyType:
     def __hash__(self):
         return hash(0)
 
-    # ---------------------------------------------------------------- 比较
+    # Comparison / 中文：比较
     def __eq__(self, other):
         if other is self:
             return True
@@ -78,8 +85,8 @@ class EmptyType:
     def __ge__(self, other):
         return 0 >= _as_number(other)
 
-    # ---------------------------------------------------------------- 算术
-    # Empty 参与四则运算时按 0 处理
+    # Arithmetic: Empty counts as 0 in the four basic operations.
+    # 中文：算术——Empty 参与四则运算时按 0 处理。
     def __add__(self, other):
         return 0 + other
 

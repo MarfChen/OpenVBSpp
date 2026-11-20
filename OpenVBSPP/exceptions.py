@@ -46,12 +46,13 @@ class OVPPError(Exception):
             parts.append(f"\nSource: {self.source_line}")
         return "".join(parts)
 
-'''
-VBScript-compatible error classes
-VBS错误类型有460多种，这里只实现了一部分常用的。
-如果有必要，我希望能够建议我补充。
-但这是一个VBS编译器项目，不是标准VBS解释器，需要的错误类型可能和标准VBS不完全一样。
-'''
+# VBScript-compatible error classes. VBScript has more than 460 error numbers and only
+# the common ones are modelled here. This is a VBScript compiler, not a full interpreter,
+# so the set of needed error types may differ from VBScript proper.
+# 中文：VBScript 兼容的错误类型。VBS 错误类型有 460 多种，这里只实现了一部分常用的。
+# This is a VBS compiler, not the standard VBS interpreter, so the error types it needs
+# may not match the standard ones exactly.
+# 中文：这是 VBS 编译器项目，不是标准 VBS 解释器，需要的错误类型可能和标准 VBS 不完全一样。
 
 class OVPPSyntaxError(OVPPError):
     number = 1002

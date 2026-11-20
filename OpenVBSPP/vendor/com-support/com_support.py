@@ -13,39 +13,64 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-com-support —— OpenVBS++ 的 Windows COM/DCOM 适配层。
+com-support is the Windows COM/DCOM adapter for OpenVBS++.
 
-它是一个 **独立的 over 包**：包内只有 `over.json` 与这个文件，不 import
+中文：com-support 是 OpenVBS++ 的 Windows COM/DCOM 适配层。
+
+It is a **standalone over package**: the directory holds only `over.json` and this
+file, it imports nothing from `OpenVBSPP`, and it can be copied, packed or removed
+on its own.
+
+中文：它是一个独立的 over 包：包内只有 `over.json` 与这个文件，不 import
 `OpenVBSPP` 的任何模块，因此可以被单独复制、打包、卸载。
 
-使用方式（脚本里不需要 import）：
+Usage, with no import inside the script:
+
+中文：使用方式（脚本里不需要 import）：
+
     Set shell = CreateObject("WScript.Shell")
     shell.Run "cmd /c echo hi"
-    Set fso = CreateObject("Scripting.FileSystemObject")   ' 内置实现优先
+    Set fso = CreateObject("Scripting.FileSystemObject")   ' built-in wins
+                                                           ' 内置实现优先
 
-约定
-----
-`create(progid, *args)` 是唯一入口，返回一个「假对象」：`OpenVBSPP` 的
-对象层通过 `_vbs_name` 认出它，成员访问走 `__getattr__`，属性赋值走
-`__setattr__`，因此 VBS 侧的 `obj.Prop` / `obj.Method(a, b)` 都能自然工作。
+Conventions
 
-已知限制：`ByRef` 参数的写回（COM 侧改值后回写 VBS 变量）不支持。
+中文：约定
+
+`create(progid, *args)` is the only entry point and returns a fake object: the
+OpenVBSPP object layer recognises it through `_vbs_name`, member access goes through
+`__getattr__` and member assignment through `__setattr__`, so `obj.Prop` and
+`obj.Method(a, b)` both work from VBS.
+
+中文：`create(progid, *args)` 是唯一入口，返回一个「假对象」；对象层通过
+`_vbs_name` 认出它，成员访问走 `__getattr__`，属性赋值走 `__setattr__`，
+因此 VBS 侧的 `obj.Prop` / `obj.Method(a, b)` 都能自然工作。
+
+Known limit: ByRef write-back is not supported, so a value COM changes is not
+written back into the VBS variable.
+
+中文：已知限制：`ByRef` 参数的写回（COM 侧改值后回写 VBS 变量）不支持。
 '''
 
 import sys
 
 VERSION = "1.0.0"
 
-#: 允许 VBS 侧 `TypeName(obj)` 看到的名字
+#: The name a script sees from `TypeName(obj)`
+#: 中文：允许 VBS 侧 `TypeName(obj)` 看到的名字
 VBS_TYPE_NAME = "Object"
 
 
 class ComSupportError(Exception):
-    """COM 支持相关的错误（ProgID 不存在、pywin32 缺失等）。"""
+    """A COM support error: unknown ProgID, pywin32 missing and so on.
+
+    中文：COM 支持相关的错误，例如 ProgID 不存在、pywin32 缺失。"""
 
 
 def is_available():
-    """当前解释器是否具备 COM 能力（能 import pywin32 即为真）。"""
+    """Whether this interpreter can do COM: true when pywin32 imports.
+
+    中文：当前解释器是否具备 COM 能力，能 import pywin32 即为真。"""
     if sys.platform != "win32":
         return False
     try:
@@ -64,16 +89,21 @@ def _require_pywin32():
     try:
         import pythoncom
         import win32com.client as win32client
-    except ImportError as exc:      # pragma: no cover - 取决于环境
+    # Not covered by tests: it depends on the machine's Python setup
+    # 中文：不纳入覆盖率，取决于环境
+    except ImportError as exc:      # pragma: no cover
         raise ComSupportError(
             "COM support needs pywin32: run 'pip install pywin32' "
             "(or 'openvbs over install' inside a project)") from exc
     return pythoncom, win32client
 
 
-# --------------------------------------------------------------------- 值转换
+# ------------------------------------------------------------ value conversion
+# 中文：值转换
 def _unwrap(value):
-    """把 VBS 侧的值翻译成 COM 能接受的 Python 值。"""
+    """Translate a script-side value into something COM accepts.
+
+    中文：把脚本侧的值翻译成 COM 能接受的 Python 值。"""
     if isinstance(value, COMProxy):
         return object.__getattribute__(value, "_com_dispatch")
     return value
@@ -85,7 +115,9 @@ def _is_dispatch(value):
 
 
 def _wrap(value, progid=""):
-    """把 COM 返回值翻译成 VBS 侧的值（IDispatch -> COMProxy）。"""
+    """Translate a COM return value back, wrapping IDispatch in a COMProxy.
+
+    中文：把 COM 返回值翻译成脚本侧的值，IDispatch 包成 COMProxy。"""
     if isinstance(value, (tuple, list)):
         return type(value)(_wrap(item, progid) for item in value)
     if _is_dispatch(value):
@@ -94,14 +126,19 @@ def _wrap(value, progid=""):
 
 
 def _convert_error(exc):
-    """把 pywin32 的 com_error 变成一条对 VBS 用户友好的消息。"""
+    """Turn a pywin32 com_error into a message a script author can act on.
+
+    中文：把 pywin32 的 com_error 变成一条对脚本作者友好的消息。"""
     text = str(exc).strip() or exc.__class__.__name__
     return ComSupportError(f"COM automation failed: {text}")
 
 
-# --------------------------------------------------------------------- 代理
+# --------------------------------------------------------------------- proxy
+# 中文：代理
 class COMProxy:
-    """一个 COM 对象的 Python 侧外壳（`_vbs_name` 让对象层认得出它）。"""
+    """A Python-side shell around one COM object; `_vbs_name` makes it recognisable.
+
+    中文：一个 COM 对象的 Python 侧外壳，`_vbs_name` 让对象层认得出它。"""
 
     _vbs_name = VBS_TYPE_NAME
 
@@ -109,7 +146,8 @@ class COMProxy:
         object.__setattr__(self, "_com_dispatch", dispatch)
         object.__setattr__(self, "_com_progid", progid)
 
-    # -- 成员 ----------------------------------------------------------
+    # -- members -------------------------------------------------------
+    # 中文：成员
     def __getattr__(self, name):
         if name.startswith("_"):
             raise AttributeError(name)
@@ -125,7 +163,8 @@ class COMProxy:
         except Exception as exc:
             raise _convert_error(exc) from exc
 
-    # -- 集合行为（For Each / obj(i)） ----------------------------------
+    # -- collection behaviour (For Each / obj(i)) -----------------------
+    # 中文：集合行为（For Each / obj(i)）
     def __iter__(self):
         dispatch = object.__getattribute__(self, "_com_dispatch")
         try:
@@ -148,14 +187,17 @@ class COMProxy:
             raise _convert_error(exc) from exc
 
     def __call__(self, *args):
-        """`obj(args)` —— 调用 COM 的默认成员。"""
+        """`obj(args)` calls COM's default member.
+
+        中文：调用 COM 的默认成员。"""
         dispatch = object.__getattribute__(self, "_com_dispatch")
         try:
             return _wrap(dispatch(*[_unwrap(item) for item in args]))
         except Exception as exc:
             raise _convert_error(exc) from exc
 
-    # -- 显示 ----------------------------------------------------------
+    # -- display -------------------------------------------------------
+    # 中文：显示
     def __repr__(self):
         progid = object.__getattribute__(self, "_com_progid")
         return f"<COM {progid or 'object'}>"
@@ -168,10 +210,13 @@ class COMProxy:
 
 
 class _ComMember:
-    """延迟到调用时才真正访问 COM 成员的中间层。
+    """An intermediate layer that only touches COM when it is called.
 
-    `obj.Text`  —— `member_get` 看到可调用对象会以 0 参调用 -> 读属性；
-    `obj.Run "x"` —— `call_method` 以实参调用 -> 调方法。
+    `obj.Text`   -- member_get sees a callable and calls it with no argument, so it reads
+                    the property;
+    中文：`obj.Text` —— member_get 看到可调用对象会以 0 参调用，即读属性；
+    `obj.Run "x"` -- call_method calls it with the arguments, so it invokes the method.
+    中文：`obj.Run "x"` —— call_method 以实参调用，即调方法。
     """
 
     __slots__ = ("_owner", "_name")
@@ -202,9 +247,12 @@ class _ComMember:
         return f"<COM member {self._name}>"
 
 
-# --------------------------------------------------------------------- 入口
+# --------------------------------------------------------------------- entry
+# 中文：入口
 def create(progid, *args):
-    """CreateObject(progid) 的 COM 实现。"""
+    """The COM implementation behind CreateObject(progid).
+
+    中文：CreateObject(progid) 的 COM 实现。"""
     if args:
         raise ComSupportError(
             "CreateObject(class, servername) is not supported by com-support")
@@ -214,7 +262,9 @@ def create(progid, *args):
     pythoncom, win32client = _require_pywin32()
     try:
         pythoncom.CoInitialize()
-    except Exception:               # 已在其它线程初始化 / 已初始化
+    # Already initialised, possibly on another thread
+    # 中文：已在其它线程初始化 / 已初始化
+    except Exception:
         pass
 
     factory = getattr(win32client, "DispatchEx", win32client.Dispatch)
@@ -229,7 +279,9 @@ def create(progid, *args):
 
 
 def get(progid, *args):
-    """GetObject(progid) 的近似实现（拿到已运行实例）。"""
+    """An approximation of GetObject(progid): attach to a running instance.
+
+    中文：GetObject(progid) 的近似实现，拿到已运行实例。"""
     pythoncom, win32client = _require_pywin32()
     try:
         pythoncom.CoInitialize()

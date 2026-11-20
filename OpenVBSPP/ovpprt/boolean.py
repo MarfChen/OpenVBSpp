@@ -16,13 +16,18 @@ limitations under the License.
 
 
 class VBool(int):
-    """VBS 风格的布尔值。
+    """A VBScript-style boolean.
 
-    数值上 True = -1、False = 0（VBScript 的约定），所以
-    `(1 < 2) + 0` 得到 -1；但它打印出来仍然是 True / False，
-    这样 echo 的输出对初学者更自然。
+    Numerically True is -1 and False is 0 (the VBScript convention), so
+    `(1 < 2) + 0` gives -1, while printing still shows True / False, which keeps
+    `echo` output readable. `VBool` subclasses `int`, so it takes part in
+    arithmetic, comparison and concatenation directly.
 
-    VBool 是 int 的子类，可以直接参与算术、比较和字符串拼接。
+    中文：VBS 风格的布尔值。数值上 True = -1、False = 0（VBScript 的约定），
+    so `(1 < 2) + 0` yields -1, while printing still shows True / False and `echo` output
+    中文：所以 `(1 < 2) + 0` 得到 -1；但打印出来仍然是 True / False，`echo` 的输出
+    reads more naturally. `VBool` subclasses int, so arithmetic, comparison and concatenation all work.
+    中文：更自然。`VBool` 是 int 的子类，可直接参与算术、比较与字符串拼接。
     """
 
     def __new__(cls, value=False):
@@ -42,12 +47,18 @@ FALSE = VBool(False)
 
 
 def to_bool(value):
-    """把任意值转成 VBS 布尔（-1 / 0）。"""
+    """Convert any value to a VBScript boolean (-1 / 0).
+
+    中文：把任意值转成 VBS 布尔（-1 / 0）。
+    """
     return TRUE if value else FALSE
 
 
-# VBS 的逻辑运算符是**按位**的：对整数做位运算，对布尔保持布尔。
-# 由于 True 就是 -1、False 就是 0，这两套语义天然统一。
+# VBScript logical operators are bitwise: they do bit operations on integers and stay
+# boolean on booleans. Because True is -1 and False is 0, both readings agree.
+# 中文：VBS 的逻辑运算符是按位的——对整数做位运算、对布尔保持布尔；
+# True is -1 and False is 0, so both meanings agree by construction.
+# 中文：因为 True 就是 -1、False 就是 0，这两套语义天然统一。
 def _both_boolean(a, b):
     return isinstance(a, VBool) and isinstance(b, VBool)
 

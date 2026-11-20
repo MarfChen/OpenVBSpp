@@ -13,13 +13,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-`Option Typing` 打开时的编译期静态类型检查。
+Compile-time static checking, active only when `Option Typing` is declared.
 
-设计原则：
-  * 只在 `Option Typing` 出现时才运行 —— 不开启时行为与普通 VBS 完全一致；
-  * 类型注释用 `->`（冒号已被语句分隔符占用）；
-  * 只做"能确定就报错、不确定就放过"的保守检查，
-    不会因为类型推断能力不足而拒绝合法程序（`Variant` 通配一切）。
+Design principles:
+  * it runs only when `Option Typing` appears; without it behaviour is plain VBScript;
+  * type annotations use `->`, because the colon already separates statements;
+  * the checks are conservative: report what is certain and let the rest pass, so a
+    weak inference engine never rejects a legal program (`Variant` matches everything).
+
+中文：`Option Typing` 打开时的编译期静态类型检查。只在它出现时才运行（不开启时行为与
+plain VBScript. Type annotations use `->` because the colon already separates statements,
+and the check is conservative: complain only when certain.
+中文：普通 VBS 完全一致）；类型注释用 `->`（冒号已被语句分隔符占用）；只做「能确定就报错、
+Uncertain programs pass, so a weak inference never rejects a valid script where `Variant`
+matches anything.
+中文：不确定就放过」的保守检查，不会因为类型推断能力不足而拒绝合法程序（`Variant` 通配一切）。
 '''
 
 from OpenVBSPP.ast_nodes import (TryStmt,Program, Assign, MemberAssign, AssignIndex, Print,
@@ -50,7 +58,7 @@ NUMERIC_RANK = {
 NUMERIC = frozenset(NUMERIC_RANK)
 VAGUE = frozenset({"", "Variant", "Empty", "Null", "Object", "Array"})
 
-# 内置函数的返回类型
+# Return types of the built-in functions. / 中文：内置函数的返回类型。
 BUILTIN_RETURN = {
     "len": "Integer", "instr": "Integer", "instrrev": "Integer", "asc": "Integer",
     "ubound": "Integer", "lbound": "Integer", "clng": "Long", "cint": "Integer",
@@ -73,7 +81,8 @@ BUILTIN_RETURN = {
     "createobject": "Object",
 }
 
-# `a(1) = ...` 这类下标的元素类型：默认 Variant
+# Element type of a subscripted assignment like `a(1) = ...`: Variant by default.
+# 中文：`a(1) = ...` 这类下标的元素类型，默认 Variant。
 ELEMENT_TYPE = "Variant"
 
 
@@ -82,7 +91,10 @@ def _type_of(node):
 
 
 def _array_type(dims, element_type):
-    """Dim 的数组类型：`Array(Integer)`；没写元素类型就是 `Array`。"""
+    """The type of a Dim'd array: `Array(Integer)`; without an element type it is `Array`.
+
+    中文：Dim 的数组类型：`Array(Integer)`；没写元素类型就是 `Array`。
+    """
     if dims is None:
         return element_type or "Variant"
     if element_type:
@@ -91,14 +103,20 @@ def _array_type(dims, element_type):
 
 
 def _element_of(type_name):
-    """从 `Array(Integer)` 里取出 Integer。"""
+    """Pull the element type out of `Array(Integer)`.
+
+    中文：从 `Array(Integer)` 里取出 Integer。
+    """
     if type_name and type_name.startswith("Array(") and type_name.endswith(")"):
         return type_name[6:-1]
     return ELEMENT_TYPE
 
 
 class TypeInfo:
-    """一个过程 / 属性 / 方法的签名。"""
+    """The signature of one procedure, property or method.
+
+    中文：一个过程 / 属性 / 方法的签名。
+    """
 
     __slots__ = ("params", "return_type", "name")
 
@@ -166,7 +184,7 @@ class TypeChecker:
         self.classes = {}
         self.option_typing = False
 
-    # ------------------------------------------------------------------ 入口
+    # ------------------------------------------------------------------ entry / 中文：入口
     def check(self):
         self._collect(self.program.body)
         if not self.option_typing:
@@ -183,7 +201,7 @@ class TypeChecker:
         for stmt in self.program.body:
             self._check_stmt(stmt, module_scope)
 
-    # ------------------------------------------------------------------ 收集
+    # ------------------------------------------------------------------ collection / 中文：收集
     def _collect(self, body):
         for stmt in body:
             if isinstance(stmt, OptionTyping):
@@ -225,7 +243,7 @@ class TypeChecker:
                     member.return_type if isinstance(member, FunctionDef) else None)
         self.classes[_canon(node.name)] = info
 
-    # ------------------------------------------------------------------ 语句
+    # ------------------------------------------------------------------ statements / 中文：语句
     def _check_stmt(self, node, scope):
         if isinstance(node, (SubDef, FunctionDef)):
             self._check_procedure(node, scope)
@@ -329,7 +347,7 @@ class TypeChecker:
         if isinstance(node, CallStmt):
             self._check_call(node, scope)
 
-    # ------------------------------------------------------------------ 过程
+    # ------------------------------------------------------------------ procedures / 中文：过程
     def _check_procedure(self, node, parent_scope, owner=None):
         scope = _Scope(parent_scope)
         for param in node.params:
@@ -356,7 +374,7 @@ class TypeChecker:
                 f"{scope.return_type} but never assigns '{node.name}'",
                 line_number=getattr(node, "line", None))
 
-    # ------------------------------------------------------------------ 赋值
+    # ------------------------------------------------------------------ assignment / 中文：赋值
     def _check_try(self, node, scope):
         for stmt in node.body:
             self._check_stmt(stmt, scope)
@@ -391,7 +409,7 @@ class TypeChecker:
         raise OVPPTypeError(
             f"Type mismatch in {what}: expected {target}, got {actual}",
             line_number=getattr(node, "line", None),
-            description="Option Typing 打开了编译期类型检查")
+            description="Option Typing turns on compile-time type checking")
 
     @staticmethod
     def _compatible(target, actual):
@@ -414,12 +432,13 @@ class TypeChecker:
             return False
         if actual == "Array" or target == "Array":
             return target == actual
-        # 类名：允许同类、Object、Nothing
+        # A class name: the same class, Object and Nothing are allowed.
+        # 中文：类名 —— 允许同类、Object、Nothing。
         if target in ("Object",) or actual in ("Object",):
             return True
         return False
 
-    # ------------------------------------------------------------------ 调用
+    # ------------------------------------------------------------------ calls / 中文：调用
     def _check_call(self, node, scope):
         callee = node.callee
         if not isinstance(callee, Var):
@@ -438,11 +457,12 @@ class TypeChecker:
                 self.infer(arg, scope)
             return
 
-        # 未知：可能是类方法或数组
+        # Unknown: it may be a class method or an array.
+        # 中文：未知 —— 可能是类方法或数组。
         for arg in node.args:
             self.infer(arg, scope)
 
-    # ------------------------------------------------------------------ 推断
+    # ------------------------------------------------------------------ inference / 中文：推断
     def infer(self, node, scope):
         if node is None:
             return "Variant"
@@ -533,7 +553,8 @@ class TypeChecker:
                 self.infer(arg, scope)
             return BUILTIN_RETURN[key]
 
-        # 数组下标：a(i) → 元素类型（声明过就精确，否则 Variant）
+        # Array subscript: a(i) yields the element type, exact if declared, else Variant.
+        # 中文：数组下标 a(i) → 元素类型（声明过就精确，否则 Variant）。
         for arg in node.args:
             self.infer(arg, scope)
         return _element_of(scope.lookup(func.name) or "")
@@ -579,7 +600,10 @@ class TypeChecker:
 
 
 def _assigns_name(body, target):
-    """函数体里是否给 target（函数名）赋过值。"""
+    """Whether the body assigns to target, the function name.
+
+    中文：函数体里是否给 target（函数名）赋过值。
+    """
     def walk(nodes):
         for node in nodes:
             if isinstance(node, Assign) and _canon(node.name) == target:
@@ -602,7 +626,10 @@ def _assigns_name(body, target):
 
 
 def _iter_dims(body):
-    """递归收集过程（或类）里的 Dim 声明，供作用域预声明使用。"""
+    """Collect Dim declarations of a procedure (or class) recursively, for pre-declaring scopes.
+
+    中文：递归收集过程（或类）里的 Dim 声明，供作用域预声明使用。
+    """
     def walk(nodes):
         for node in nodes:
             if isinstance(node, DimDecl):
@@ -622,7 +649,10 @@ def _iter_dims(body):
 
 
 def check(program, source=None):
-    """对 Program 做静态类型检查；只在 Option Typing 打开时生效。"""
+    """Type-check a Program; it only takes effect when Option Typing is on.
+
+    中文：对 Program 做静态类型检查；只在 Option Typing 打开时生效。
+    """
     checker = TypeChecker(program)
     checker.check()
     return checker

@@ -13,9 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-PyInstaller 打包入口。
+PyInstaller entry point.
 
-单独放一个脚本，避免把 __main__.py 里的 `sys.exit` 带进 exe 的分析流程。
+中文：PyInstaller 打包入口。
+
+It lives in its own script so the `sys.exit` in __main__.py stays out of the exe analysis pass.
+
+中文：单独放一个脚本，避免把 __main__.py 里的 `sys.exit` 带进 exe 的分析流程。
 """
 
 import sys

@@ -32,15 +32,19 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Pri
 from OpenVBSPP.exceptions import OVPPSyntaxError
 
 
-# 这些关键字表示"当前语句块结束"，正常不应出现在语句起始位置。
+# These keywords close a block and should never start a statement.
+# 中文：这些关键字表示「当前语句块结束」，正常不应出现在语句起始位置。
 BLOCK_END_WORDS = ("end", "elseif", "else", "wend", "loop", "next", "case")
 
-# 语句分隔符：换行与冒号
+# Statement separators: a newline or a colon.
+# 中文：语句分隔符 —— 换行与冒号。
 SEPARATORS = ("NEWLINE", "COLON")
 
 CMP_OPS = ("EQ", "NE", "LT", "GT", "LE", "GE")
 
-# 关键字起始的语句。遇到它们时，通用"赋值 / 过程调用"分支不会再往下猜。
+# Keyword-led statements: the generic assignment / call branch never second-guesses
+# them once one of these keywords is seen.
+# 中文：关键字起始的语句 —— 遇到它们时，通用的「赋值 / 过程调用」分支不会再往下猜。
 KEYWORD_STARTERS = (
     "if", "select", "for", "do", "while", "echo", "exit", "call",
     "option", "dim", "redim", "const", "sub", "function", "private", "public",
@@ -54,14 +58,20 @@ class Parser:
         self.pos = 0
         self.filename = filename
         self.source_lines = source.splitlines() if source is not None else None
-        self.proc_stack = []          # 当前所在过程：'sub' / 'function'
-        self.class_stack = []         # 当前所在类名
+        # The enclosing procedure: 'sub' or 'function'.
+        # 中文：当前所在过程 —— 'sub' / 'function'。
+        self.proc_stack = []
+        # The names of the enclosing classes.
+        # 中文：当前所在类名。
+        self.class_stack = []
 
-    # ------------------------------------------------------------ 基础设施
+    # ------------------------------------------------------------ infrastructure / 中文：基础设施
     def peek(self):
         if self.pos < len(self.tokens):
             return self.tokens[self.pos]
-        # 没有 token 时返回 EOF 哨兵（行号取最后一行，便于报错）
+        # At the end of input return an EOF sentinel; its line is the last line, which
+        # makes the error message point at something sensible.
+        # 中文：没有 token 时返回 EOF 哨兵（行号取最后一行，便于报错）。
         line = self.tokens[-1][2] if self.tokens else 1
         return ("EOF", "", line, 1)
 
@@ -79,12 +89,18 @@ class Parser:
         return f"Parser(pos={self.pos}, tokens={self.tokens})"
 
     def skip_newlines(self):
-        """只跳过换行（表达式内部用）。"""
+        """Skip newlines only, as used inside expressions.
+
+        中文：只跳过换行（表达式内部用）。
+        """
         while self.pos < len(self.tokens) and self.tokens[self.pos][0] == "NEWLINE":
             self.pos += 1
 
     def skip_separators(self):
-        """跳过语句分隔符：换行与冒号。"""
+        """Skip statement separators: newlines and colons.
+
+        中文：跳过语句分隔符：换行与冒号。
+        """
         while self.pos < len(self.tokens) and self.tokens[self.pos][0] in SEPARATORS:
             self.pos += 1
 
@@ -119,12 +135,19 @@ class Parser:
             source_line = self.source_lines[line - 1].rstrip()
         raise OVPPSyntaxError(message, line_number=line, column=col, source_line=source_line)
 
-    # ------------------------------------------------------------ 语句块
+    # ------------------------------------------------------------ statement blocks / 中文：语句块
     def parse_block(self, stop_words, block_name, missing_hint):
-        """解析一个语句块，直到遇到 stop_words 中的关键字。
+        """Parse a block of statements until a keyword in stop_words appears.
 
-        任何意外（EOF、不属于本块的结束符）都上报为语法错误，
-        绝不返回 None 让调用方空转 —— 这是早期"编译器卡死"的教训。
+        Anything unexpected — end of input, a terminator that belongs to another block —
+        is reported as a syntax error. Returning None would leave the caller spinning,
+        which is what used to hang the compiler.
+
+        中文：解析一个语句块，直到遇到 stop_words 中的关键字。任何意外（EOF、不属于本块
+        terminator) is reported as a syntax error; nothing ever returns None and leaves the
+        caller spinning. That is the lesson of an early hang.
+        中文：的结束符）都上报为语法错误，绝不返回 None 让调用方空转，这是早期「编译器卡死」
+        中文：的教训。
         """
         body = []
         while True:
@@ -148,7 +171,10 @@ class Parser:
         return tok
 
     def end_block(self, word):
-        """吃掉 'End <word>'，例如 End If / End Select / End Sub / End With。"""
+        """Consume 'End <word>', as in End If, End Select, End Sub or End With.
+
+        中文：吃掉 'End <word>'，例如 End If / End Select / End Sub / End With。
+        """
         tok = self.peek()
         if not self.is_word(tok, "end"):
             self.error(f"Expected 'End {word.title()}', got {self.describe(tok)}", tok)
@@ -159,7 +185,7 @@ class Parser:
                        f"got {self.describe(after)}", after)
         self.pos += 1
 
-    # ------------------------------------------------------------ 入口
+    # ------------------------------------------------------------ entry / 中文：入口
     def parse(self):
         body = []
         while True:
@@ -175,7 +201,8 @@ class Parser:
         if tok[0] == "EOF":
             self.error("Unexpected end of file", tok)
         if tok[0] == "COLON":
-            # 空语句（连续冒号）——直接吃掉
+            # An empty statement (run of colons) is swallowed.
+            # 中文：空语句（连续冒号）—— 直接吃掉。
             self.eat("COLON")
             return self.statement()
         if tok[0] == "DOT":
@@ -260,7 +287,8 @@ class Parser:
                 node.visibility = visibility
             return node
         if word == "let":
-            # Let x = ... 等价于 x = ...
+            # `Let x = ...` is the same as `x = ...`.
+            # 中文：`Let x = ...` 等价于 `x = ...`。
             self.eat("IDENT")
             return self.identifier_statement()
         if word == "set":
@@ -274,7 +302,7 @@ class Parser:
 
         return self.identifier_statement()
 
-    # ------------------------------------------------------------ 简单语句
+    # ------------------------------------------------------------ simple statements / 中文：简单语句
     def print_statement(self):
         tok = self.eat("IDENT")   # Echo
         expr = self.expr()
@@ -390,7 +418,10 @@ class Parser:
         self.error(f"Unknown option '{word_tok[1]}'", word_tok)
 
     def parse_type_annotation(self):
-        """解析 `-> 类型名`；没有注解时返回 None。"""
+        """Parse `-> typename`, or None when there is no annotation.
+
+        中文：解析 `-> 类型名`；没有注解时返回 None。
+        """
         if self.peek()[0] != "ARROW":
             return None
         self.eat("ARROW")
@@ -416,7 +447,9 @@ class Parser:
             if self.peek()[0] == "LPAREN":
                 self.eat("LPAREN")
                 if self.peek()[0] == "RPAREN":
-                    dims = []                      # Dim a() ：动态数组
+                    # `Dim a()` declares a dynamic array.
+                    # 中文：`Dim a()` 声明动态数组。
+                    dims = []
                 else:
                     dims = [self.expr()]
                     while self.peek()[0] == "COMMA":
@@ -476,7 +509,7 @@ class Parser:
         expr = self.expr()
         return ConstDecl(name_tok[1], expr).at(tok[2], tok[3])
 
-    # ------------------------------------------------------------ 过程定义
+    # ------------------------------------------------------------ procedure definitions / 中文：过程定义
     def procedure_statement(self, kind):
         tok = self.eat("IDENT")   # Sub / Function
 
@@ -516,7 +549,9 @@ class Parser:
             return params
 
         while True:
-            byref = True                       # VBS 默认 ByRef
+            # ByRef is the VBScript default.
+            # 中文：VBS 默认 ByRef。
+            byref = True
             optional = False
             paramarray = False
             head = self.peek()
@@ -563,7 +598,9 @@ class Parser:
                 if self.peek()[0] == "ASSIGN":
                     self.eat("ASSIGN")
                 else:
-                    self.pos += 1          # 词法器给的是 "=" 的 EQ 形式
+                    # The lexer reports `=` as the EQ operator.
+                    # 中文：词法器给的是 "=" 的 EQ 形式。
+                    self.pos += 1
                 default = self.expr()
 
             params.append(Param(name_tok[1], byref, is_array, type_name,
@@ -591,7 +628,7 @@ class Parser:
         self.eat("RPAREN")
         return params
 
-    # ------------------------------------------------------------ 类与属性
+    # ------------------------------------------------------------ classes and properties / 中文：类与属性
     def class_statement(self):
         tok = self.eat("IDENT")   # Class
 
@@ -774,7 +811,7 @@ class Parser:
 
         return AttributeDecl(member_tok[1], key_tok[1], value).at(tok[2], tok[3])
 
-    # ------------------------------------------------------------ 调用 / 赋值
+    # ------------------------------------------------------------ calls and assignments / 中文：调用 / 赋值
     def call_statement(self):
         tok = self.eat("IDENT")   # Call
         if self.peek()[0] == "DOT":
@@ -827,7 +864,10 @@ class Parser:
         return self.finish_call_or_assign(node, name_tok)
 
     def _interpolate(self, tok):
-        """$"a{x}b" -> "a" & x & "b"（编译期展开成拼接）"""
+        """The interpolated string $"a{x}b" becomes "a" & x & "b", expanded at compile time.
+
+        中文：$"a{x}b" -> "a" & x & "b"（编译期展开成拼接）
+        """
         raw = tok[1]
         text = raw[2:-1].replace('""', '"')
         parts = []
@@ -916,7 +956,10 @@ class Parser:
         self.error("Invalid assignment target", tok)
 
     def parse_args(self):
-        """解析括号内的实参列表。"""
+        """Parse a parenthesised argument list.
+
+        中文：解析括号内的实参列表。
+        """
         self.eat("LPAREN")
         args = []
         if self.peek()[0] == "RPAREN":
@@ -937,7 +980,10 @@ class Parser:
         return args
 
     def parse_bare_args(self):
-        """解析无括号的实参列表：Foo 1, 2"""
+        """Parse an unparenthesised argument list: Foo 1, 2.
+
+        中文：解析无括号的实参列表：Foo 1, 2
+        """
         if self.at_statement_end():
             return []
         args = [self.expr()]
@@ -948,7 +994,10 @@ class Parser:
 
     # ------------------------------------------------------------ If
     def _is_label(self):
-        """名字: 独占一行 = 行标签（不是 : 语句分隔符）。"""
+        """A name alone on its line is a label, not a colon-separated statement.
+
+        中文：名字: 独占一行 = 行标签（不是 : 语句分隔符）。
+        """
         index = self.pos
         if index + 2 >= len(self.tokens):
             return False
@@ -962,7 +1011,10 @@ class Parser:
         return LabelStmt(tok[1]).at(tok[2], tok[3])
 
     def _next_is_newline(self):
-        """Try 只在独占一行时才是块语句，Try = 1 仍然可以是变量名。"""
+        """Try is a block keyword only when it stands alone; `Try = 1` is still a variable.
+
+        中文：Try 只在独占一行时才是块语句，Try = 1 仍然可以是变量名。
+        """
         index = self.pos + 1
         if index >= len(self.tokens):
             return False
@@ -1044,7 +1096,10 @@ class Parser:
         return node.at(tok[2], tok[3])
 
     def inline_if(self, tok, cond):
-        """单行 If：If cond Then stmt [: stmt...] [Else stmt...]"""
+        """Single-line If: If cond Then stmt [: stmt...] [Else stmt...]
+
+        中文：单行 If：If cond Then stmt [: stmt...] [Else stmt...]
+        """
         then_body = self.inline_statements(("else",))
         else_body = None
 
@@ -1154,7 +1209,10 @@ class Parser:
         return For(var_name, start_expr, end_expr, step_expr, body).at(tok[2], tok[3])
 
     def eat_optional_next_variable(self):
-        """允许 'Next i' 这种写法。"""
+        """Accept the `Next i` form.
+
+        中文：允许 'Next i' 这种写法。
+        """
         nxt = self.peek()
         if nxt[0] == "IDENT" and nxt[1].lower() not in KEYWORD_STARTERS:
             self.eat("IDENT")
@@ -1208,7 +1266,9 @@ class Parser:
             self.eat("IDENT")
             op_tok = self.peek()
             if op_tok[0] == "ASSIGN":
-                op = "EQ"                       # Case Is = 5 是合法 VBS
+                # `Case Is = 5` is legal VBScript.
+                # 中文：`Case Is = 5` 是合法 VBS。
+                op = "EQ"
             elif op_tok[0] in CMP_OPS:
                 op = op_tok[0]
             else:
@@ -1227,9 +1287,14 @@ class Parser:
 
         return CaseCond("EXPR", left).at(tok[2], tok[3])
 
-    # ------------------------------------------------------------ 表达式
-    # 优先级（低 → 高）：
-    #   Imp < Eqv < Xor < Or < And < Not < 比较 < & < +- < Mod < \ < */ < 一元 < ^ < 原子
+    # ------------------------------------------------------------ expressions / 中文：表达式
+    # Precedence, low to high:
+    #   Imp < Eqv < Xor < Or < And < Not < comparison < & < +- < Mod < \ < */ < unary
+    #   < ^ < atom
+    #
+    # 中文：优先级（低 → 高）—— Imp < Eqv < Xor < Or < And < Not < 比较 < & < +- <
+    # Mod < \ < */ < unary < ^ < atom.
+    # 中文：Mod < \ < */ < 一元 < ^ < 原子。
     def expr(self):
         self.skip_newlines()
         left = self.imp_expr()
@@ -1285,9 +1350,13 @@ class Parser:
             if tok[0] in CMP_OPS:
                 op = tok[0]
             elif tok[0] == "ASSIGN":
-                op = "EQ"          # VBS 里 = 同时是相等比较
+                # In VBScript `=` is also the equality comparison.
+                # 中文：VBS 里 = 同时是相等比较。
+                op = "EQ"
             elif self.is_word(tok, "is"):
-                op = "IS"          # 对象身份比较：x Is Nothing
+                # Object identity: `x Is Nothing`.
+                # 中文：对象身份比较 —— `x Is Nothing`。
+                op = "IS"
             else:
                 break
 
@@ -1350,7 +1419,8 @@ class Parser:
         return self.power_expr()
 
     def power_expr(self):
-        # VBS 的 ^ 是左结合（同级运算符从左到右）
+        # VBScript's ^ is left-associative: equal precedence binds left to right.
+        # 中文：VBS 的 ^ 是左结合（同级运算符从左到右）。
         node = self.atom()
         while self.peek()[0] == "CARET":
             op_tok = self.eat("CARET")
@@ -1358,7 +1428,10 @@ class Parser:
         return node
 
     def power_operand(self):
-        """^ 右侧可以带一元正负号，但不再继续吃 ^。"""
+        """The right side of ^ may carry a unary sign, but no further ^.
+
+        中文：^ 右侧可以带一元正负号，但不再继续吃 ^。
+        """
         tok = self.peek()
         if tok[0] == "MINUS":
             self.eat("MINUS")
@@ -1440,7 +1513,10 @@ class Parser:
         self.error(f"Bad expression token: {self.describe(tok)}", tok)
 
     def postfix(self, node):
-        """处理 .member / ?.member 与 (args) 两种后缀。"""
+        """Handle the .member / ?.member and (args) suffixes.
+
+        中文：处理 .member / ?.member 与 (args) 两种后缀。
+        """
         while True:
             if self.peek()[0] in ("DOT", "QDOT"):
                 node = self.member_chain(node)

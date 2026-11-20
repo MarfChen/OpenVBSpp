@@ -13,7 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-支持 `python -m OpenVBSPP`（pip 安装后也能直接用）。
+Supports `python -m OpenVBSPP` (also works after a pip install).
+
+中文：支持 `python -m OpenVBSPP`（pip 安装后也能直接用）。
 '''
 
 import sys

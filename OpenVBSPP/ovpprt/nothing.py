@@ -13,15 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-VBS 的 Nothing：空对象引用。用 `x Is Nothing` 判断。
+VBScript `Nothing`: the empty object reference, tested with `x Is Nothing`.
 
-对象模型尚未实现前，Nothing 只是一个哨兵，用于把相关语法跑通，
-避免合法 VBS 代码在语法阶段就被拒绝。
+中文：VBS 的 Nothing —— 空对象引用，用 `x Is Nothing` 判断。
 '''
 
 
 class NothingType:
-    """Nothing 哨兵（空对象引用）。"""
+    """The `Nothing` sentinel (an empty object reference).
+
+    中文：Nothing 哨兵（空对象引用）。
+    """
 
     __slots__ = ()
 
@@ -38,7 +40,8 @@ class NothingType:
         return hash("Nothing")
 
     def __eq__(self, other):
-        # VBS 里对象比较要用 Is，这里只保证 Nothing Is Nothing 成立
+        # VBScripts compares objects with Is; this only has to make `Nothing Is Nothing` true.
+        # 中文：VBS 里对象比较要用 Is，这里只保证 Nothing Is Nothing 成立。
         return other is self
 
     def __ne__(self, other):

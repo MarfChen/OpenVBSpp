@@ -1,9 +1,11 @@
 # OpenVBS++ 对象模型设计报告
 
-> 版本：v0.4（P1 + P2 已落地）
+> 版本：v0.4（P1 + P2 已落地），文档于 v0.9.20 复核
 > 目标读者：项目作者 / 后续维护者
 > 状态：**P1（集合 / `Set` / `CreateObject`）与 P2（`Class` / `Property` / `Me`）已实现**，
 > 实现与本文的差异见 §8「实现现状对照」。P3（继承等超集扩展）仍为规划。
+> 使用者视角的说明在 `doc/OBJECT_MODEL.md`（中文 `doc/OBJECT_MODEL.zh-CN.md`），
+> 本文只记录设计取舍与演进计划，不要和那份文档重复。
 
 ---
 
@@ -13,7 +15,7 @@
 
 | 约束 | 说明 |
 |---|---|
-| **VBS 超集** | 任何合法 VBScript 程序（含 `Class` / `Property` / `Set` / `CreateObject`）都必须能编译。对象相关语法是目前**唯一还缺的**一大块（见 `doc/VBS_SUPERSET.md`）。 |
+| **VBS 超集** | 任何合法 VBScript 程序（含 `Class` / `Property` / `Set` / `CreateObject`）都必须能编译。对象相关语法当年是最大的缺口，P1/P2 之后已补齐（覆盖情况见 `doc/VBS_SUPERSET.md`）；目前仍缺的是 `Declare` 与 `Collection` 内置类。 |
 | **不破坏现有语义** | 现有实现：过程改名为 `_ovpp_fn_*` / `_ovpp_sub_*`；ByRef 用 `Ref` 盒子 + 调用点写回；`Empty` / `Null` / `Nothing` 是运行时哨兵；`Option Explicit` 在编译期查名字；`On Error Resume Next` 靠"每条语句包 try/except + `_ovpp_err.capture`"实现。对象模型必须与这些机制**正交**，不能推倒重来。 |
 | **零第三方依赖** | 运行时只能用标准库（这是教育向项目的底线）。 |
 | **可移植** | 不启动 Windows COM。VBS 的对象在真实环境里是 IDispatch，我们不追这条路线，而是提供**等价的 Python 对象 + 同名内置类**。 |

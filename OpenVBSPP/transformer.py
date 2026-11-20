@@ -41,11 +41,11 @@ from OpenVBSPP.ovpprt import builtins as vb_builtins
 from OpenVBSPP.plugins.python_embed import is_placeholder, placeholder_index
 from OpenVBSPP.plugins.modules import (is_placeholder as is_module_placeholder,)
 
-# 兼容别名：模块占位语句
+# Compatibility alias: a module's placeholder statement / 中文：兼容别名：模块占位语句
 _python_placeholder = is_placeholder
 
 
-# 运行时模块的别名。用下划线前缀是为了避免和用户变量重名。
+# Aliases of the runtime modules; the underscore prefix keeps them away from user variables. / 中文：运行时模块的别名。用下划线前缀是为了避免和用户变量重名。
 BOOL_MODULE = "_ovpp_bool"
 STR_MODULE = "_ovpp_str"
 ARR_MODULE = "_ovpp_arr"
@@ -67,13 +67,13 @@ NOTHING_NAME = "_ovpp_nothing"
 
 BUILTIN_NAMES = frozenset(vb_builtins.REGISTRY)
 
-# 成员名统一小写；个别名字在 Python 里是关键字，需要换个写法
+# Member names are lower-cased; a few hit Python keywords and get another spelling. / 中文：成员名统一小写；个别名字在 Python 里是关键字，需要换个写法
 MEMBER_ALIASES = {
     "raise": "raise_error",
     "class": "class_value",
 }
 
-# VBS 的预定义常量
+# The predefined VBScript constants / 中文：VBS 的预定义常量
 VBS_CONSTANTS = {
     "vbcrlf": "\r\n",
     "vbcr": "\r",
@@ -84,7 +84,9 @@ VBS_CONSTANTS = {
     "vbverticaltab": "\v",
     "vbnullchar": "\0",
     "vbnullstring": "",
-    # FormatDateTime 的命名格式
+ # The named formats of FormatDateTime
+ # 中文：FormatDateTime 的命名格式
+  
     "vbgeneraldate": 0,
     "vblongdate": 1,
     "vbshortdate": 2,
@@ -92,7 +94,7 @@ VBS_CONSTANTS = {
     "vbshorttime": 4,
 }
 
-# 这些名字不需要 Option Explicit 声明
+# These names never need an Option Explicit declaration / 中文：这些名字不需要 Option Explicit 声明
 SPECIAL_NAMES = frozenset(VBS_CONSTANTS) | {"err", "vbtrue", "vbfalse", "cop"}
 
 _FROM_OVPPRT = (
@@ -137,7 +139,7 @@ bool_call_map = {
     "IMP": "ovpp_imp",
 }
 
-# VBS 的整除 \ 与 Mod 需要"向零截断"语义，交给运行时函数处理
+# VBScript's \ and Mod truncate toward zero, so the runtime does the work. / 中文：VBS 的整除 \ 与 Mod 需要"向零截断"语义，交给运行时函数处理
 builtin_call_map = {
     "INTDIV": "ovpp_intdiv",
     "MOD": "ovpp_mod",
@@ -151,12 +153,18 @@ unary_call_map = {
 
 
 def canon(name):
-    """VBS 标识符大小写不敏感，统一转小写。"""
+    """VBScript identifiers are case-insensitive, so lower-case them.
+
+    中文：VBS 标识符大小写不敏感，统一转小写。
+    """
     return name.lower()
 
 
 def _var_names_in(node):
-    """收集表达式里出现的所有变量名（保守：Member 的 base 也算进去）。"""
+    """Collect every variable name in an expression, conservatively counting a Member's base too.
+
+    中文：收集表达式里出现的所有变量名（保守：Member 的 base 也算进去）。
+    """
     found = set()
     stack = [node]
     seen = set()
@@ -183,13 +191,22 @@ def _var_names_in(node):
 
 
 def _ref_param_names(node):
-    """算出哪些 ByRef 参数必须真的用 Ref 盒子。
+    """Work out which ByRef parameters really need a Ref box.
 
-    只需要两类：过程体里被赋过值的（新值要回写给调用方），以及作为实参
-    传给别的调用的（对方可能再回写）。只读的 ByRef 参数按值传即可——
-    调用方省掉一次 `Ref(...)` 与一次回写，被调方也不用每次访问走 `.v`。
+    Only two kinds do: those assigned inside the body, whose new value must travel back,
+    and those passed on as arguments to another call, which may write them back. A
+    read-only ByRef parameter can pass by value, saving the caller a `Ref(...)` and a
+    write-back and sparing the callee a `.v` on every access.
 
-    这是纯静态判断，宁可保守：算不出确定就保留 Ref。
+    This is pure static analysis and errs conservative: anything uncertain keeps its Ref.
+
+    中文：算出哪些 ByRef 参数必须真的用 Ref 盒子。只需要两类 —— 过程体里被赋过值的
+    (whose new value must go back to the caller), and to a parameter passed on to another call that may write it back. A read-only ByRef
+    中文：（新值要回写给调用方），以及作为实参传给别的调用的（对方可能再回写）。只读的 ByRef
+    parameter can simply pass by value: the caller saves a `Ref(...)` and a write-back, and the callee never has to go through `.v`.
+    中文：参数按值传即可：调用方省掉一次 `Ref(...)` 与一次回写，被调方也不用每次访问走 `.v`。
+    The check is purely static and errs on the safe side: when it cannot be sure, the Ref stays.
+    中文：纯静态判断，宁可保守，算不出确定就保留 Ref。
     """
     names = frozenset(canon(p.name) for p in node.params if p.byref)
     if not names:
@@ -224,11 +241,17 @@ def _ref_param_names(node):
 
 
 def _needs_error_frame(body):
-    """过程体是否真的需要错误处理帧（enter / leave）。
+    """Whether a procedure body really needs an error frame (enter / leave).
 
-    只有出现 On Error 系列语句、Resume，或者直接引用了 `Err` 时才需要；
-    其余过程按 VBS 语义根本不可能捕获错误，省掉帧就省掉每次调用的
-    两次函数调用。
+    Only bodies using an On Error statement, Resume, or reading `Err` need one. The rest
+    cannot catch an error under VBScript semantics, and dropping the frame drops two
+    function calls per invocation.
+
+    中文：过程体是否真的需要错误处理帧（enter / leave）。只有出现 On Error 系列语句、
+    Resume or refers to `Err` directly; any other procedure cannot catch an error under VBScript semantics,
+    中文：Resume，或者直接引用了 `Err` 时才需要；其余过程按 VBS 语义根本不可能捕获错误，
+    so skipping the frame skips two function calls per invocation.
+    中文：省掉帧就省掉每次调用的两次函数调用。
     """
     stack = list(body)
     seen = set()
@@ -255,7 +278,10 @@ def _needs_error_frame(body):
 
 
 def _writes_name(body, name):
-    """过程体（或循环体）里是否给某个变量赋过值。"""
+    """Whether a variable is assigned somewhere in this procedure or loop body.
+
+    中文：过程体（或循环体）里是否给某个变量赋过值。
+    """
     stack = list(body)
     seen = set()
     while stack:
@@ -282,7 +308,10 @@ def _writes_name(body, name):
 
 
 def _const_step(node):
-    """`Step` 是字面量常量时返回它的数值，否则返回 None。"""
+    """Return the value of `Step` when it is a literal constant, else None.
+
+    中文：`Step` 是字面量常量时返回它的数值，否则返回 None。
+    """
     step = node.step
     if step is None:
         return 1
@@ -331,11 +360,18 @@ class _ProcInfo:
 
 
 class Transformer:
-    """OpenVBS++ AST → 标准库 ast。
+    """Turn the OpenVBS++ AST into the standard library ast.
 
-    两遍处理：
-      1. `_collect()` 先扫描整个脚本，登记过程签名、模块级变量、Option Explicit；
-      2. 再逐语句生成 Python AST，每个节点都带上源码行号。
+    Two passes:
+      1. `_collect()` scans the whole script first, registering procedure signatures,
+         module-level variables and Option Explicit;
+      2. statements are then translated one by one, every node carrying its source line.
+
+    中文：把 OpenVBS++ AST 转成标准库 ast。两遍处理 —— 先 `_collect()` 扫描整个脚本，
+    It records procedure signatures, module-level variables and Option Explicit, then emits a Python AST statement by statement, with every node carrying
+    中文：登记过程签名、模块级变量、Option Explicit；再逐语句生成 Python AST，每个节点都带上
+    its source line number.
+    中文：源码行号。
     """
 
     def __init__(self, python_blocks=None, features=None):
@@ -343,24 +379,42 @@ class Transformer:
         self.python_blocks = python_blocks or {}
         self.features = frozenset(features or ())
         self.class_methods = {}         # canon(cls) -> {canon(method) -> [Param]}
-        self._var_classes = {}          # 静态推断出的变量所属类
+        # static inference result: the class each variable belongs to
+        # 中文：静态推断出的变量所属类
+        self._var_classes = {}
         self.procs = {}                 # canon(name) -> _ProcInfo
-        self.module_vars = set()        # 模块级可见的名字（声明过或被赋值过）
-        self.module_declared = set()    # 模块级显式声明的名字（Dim/Const/ReDim）
+        # Module-level names that are visible: declared, or assigned somewhere
+        # 中文：模块级可见的名字（声明过或被赋值过）
+        self.module_vars = set()
+        # Names explicitly declared at module level (Dim / Const / ReDim)
+        # 中文：模块级显式声明的名字（Dim/Const/ReDim）
+        self.module_declared = set()
         self.option_explicit = False
-        self._declared_stack = []       # Option Explicit 用：各作用域已声明名字
+        # For Option Explicit: names already declared in each scope
+        # 中文：Option Explicit 用：各作用域已声明名字
+        self._declared_stack = []
         self.byref_params = frozenset()
         self.current = None
         self.ret_var = None
-        # 表达式里出现 ByRef 调用时，产生的"建盒子 / 写回"语句先挂在这里，
-        # 由外层语句统一插入（Python 的表达式里不能放语句）。
+     # A ByRef call inside an expression queues its box-building and write-back statements
+     # 中文：表达式里出现 ByRef 调用时，产生的"建盒子 / 写回"语句先挂在这里，
+      
+     # here; the enclosing statement splices them in, since a Python expression holds no statements.
+     # 中文：由外层语句统一插入（Python 的表达式里不能放语句）。
+      
         self._pending_pre = []
         self._pending_post = []
-        # With 块栈：存的是已经求值好的对象表达式
+     # The With-block stack holds already evaluated object expressions
+     # 中文：With 块栈：存的是已经求值好的对象表达式
+      
         self._with_stack = []
-        # 当前过程是否处于 On Error Resume Next 保护之下（编译期近似）
+     # Whether the procedure sits under On Error Resume Next, approximated at compile time
+     # 中文：当前过程是否处于 On Error Resume Next 保护之下（编译期近似）
+      
         self._on_error_resume = False
-        # 类：canon(name) -> ClassDef
+     # Classes: canon(name) -> ClassDef
+     # 中文：类：canon(name) -> ClassDef
+      
         self.classes = {}
         self.option_typing = False
         self._in_class_method = False
@@ -368,12 +422,22 @@ class Transformer:
         self._class_methods = frozenset()
         self._class_props = frozenset()
         self._method_locals = frozenset()
-        self._field_attrs = {}          # 字段名 -> Python 属性名（私有字段会改名）
-        self._method_attrs = {}         # 方法名 -> Python 方法名
+        # Field name -> Python attribute name; private fields are renamed
+        # 中文：字段名 -> Python 属性名（私有字段会改名）
+        self._field_attrs = {}
+        # Method name -> Python method name
+        # 中文：方法名 -> Python 方法名
+        self._method_attrs = {}
         self.option_compare_text = False
-        self._error_label_tail = None     # On Error GoTo <label> 的处理段
-        self._proc_labels = {}            # canon(label) -> 语句下标
-        self._proc_body = []              # 当前过程的语句列表（GoTo 用）
+        # The handler section of On Error GoTo <label>
+        # 中文：On Error GoTo <label> 的处理段
+        self._error_label_tail = None
+        # canon(label) -> statement index
+        # 中文：canon(label) -> 语句下标
+        self._proc_labels = {}
+        # The current procedure's statements, for GoTo
+        # 中文：当前过程的语句列表（GoTo 用）
+        self._proc_body = []
         self._goto_seen = set()
         self._in_handler_tail = False
         self._handler_uses_resume = False
@@ -384,9 +448,12 @@ class Transformer:
         self._delegates = set()
         self._param_names = frozenset()
 
-    # ------------------------------------------------------------------ 入口
+    # entry / 中文：入口
     def collect(self, program):
-        """只收集签名（多文件：先合并收集，再逐个生成代码）。"""
+        """Collect signatures only: across files collect first, then generate code one by one.
+
+        中文：只收集签名（多文件：先合并收集，再逐个生成代码）。
+        """
         self._collect(program)
 
     def transform(self, node):
@@ -416,7 +483,10 @@ class Transformer:
         return f"_{prefix}_{self._tmp_counter}"
 
     def _single(self, stmts):
-        """把多条语句收成一个节点（多条时包一层 if True:）。"""
+        """Fold several statements into one node, wrapping them in `if True:` when there are more.
+
+        中文：把多条语句收成一个节点（多条时包一层 if True:）。
+        """
         stmts = [s for s in stmts if s is not None]
         if not stmts:
             return ast.Pass()
@@ -430,7 +500,10 @@ class Transformer:
         return pre, post
 
     def _guard(self, py_node):
-        """把一条语句包进 try/except，实现 On Error Resume Next。"""
+        """Wrap one statement in try/except to implement On Error Resume Next.
+
+        中文：把一条语句包进 try/except，实现 On Error Resume Next。
+        """
         record = ast.Expr(value=ast.Call(
             func=ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
                                attr=("record" if self._error_label_tail else "capture"),
@@ -439,7 +512,9 @@ class Transformer:
             keywords=[]))
 
         if self._error_label_tail and self._handler_uses_resume:
-            # 处理段里有 Resume / Resume Next：用重试循环包住这条语句
+         # The handler contains Resume or Resume Next, so a retry loop wraps this statement.
+         # 中文：处理段里有 Resume / Resume Next：用重试循环包住这条语句
+          
             clear = ast.Expr(value=ast.Call(
                 func=ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
                                    attr="set_resume", ctx=ast.Load()),
@@ -496,7 +571,10 @@ class Transformer:
             out.append(self._guard(stmt) if guard else stmt)
 
     def _flush_nodes(self, nodes):
-        """把语句列表逐个转换，并把它产生的 pre/post 语句按顺序插进结果。"""
+        """Convert a statement list item by item, splicing each item's pre and post statements in order.
+
+        中文：把语句列表逐个转换，并把它产生的 pre/post 语句按顺序插进结果。
+        """
         out = []
         for node in nodes:
             py_node = self.transform(node)
@@ -512,7 +590,10 @@ class Transformer:
         return self._flush_nodes(nodes) or [ast.Pass()]
 
     def _hoist(self, value):
-        """把值表达式提到临时变量，让 pre/post 语句能插在正确位置。"""
+        """Hoist a value expression into a temporary so pre and post statements land at the right place.
+
+        中文：把值表达式提到临时变量，让 pre/post 语句能插在正确位置。
+        """
         pre, post = self._take_pending()
         if not pre and not post:
             return [], value
@@ -521,7 +602,7 @@ class Transformer:
                                   value=value)] + post
         return stmts, ast.Name(id=tmp, ctx=ast.Load())
 
-    # ------------------------------------------------------------------ 第一遍
+    # first pass / 中文：第一遍
     def _collect(self, program):
         for stmt in program.body:
             self._collect_stmt(stmt)
@@ -561,7 +642,9 @@ class Transformer:
                 raise OVPPError(
                     f"Procedure '{node.name}' is already defined with {arity} parameter(s)",
                     line_number=node.line)
-            # 有重载时，生成的名字带上参数个数
+         # With overloads the generated name carries the argument count
+         # 中文：有重载时，生成的名字带上参数个数
+          
             py_name = prefix + key if not overloads else f"{prefix}{key}_{arity}"
             overloads.append(_ProcInfo(node, py_name))
             return
@@ -622,7 +705,10 @@ class Transformer:
             return
 
     def _local_declarations(self, body):
-        """收集一个过程里 Dim / Const / ReDim 出来的名字。"""
+        """Collect the names a procedure introduces with Dim, Const and ReDim.
+
+        中文：收集一个过程里 Dim / Const / ReDim 出来的名字。
+        """
         found = set()
 
         def walk(nodes):
@@ -648,7 +734,10 @@ class Transformer:
         return found
 
     def _assigned_names(self, body):
-        """收集一个过程里被赋值的名字（用来决定哪些需要 global）。"""
+        """Collect the names assigned inside a procedure, which decides what must be global.
+
+        中文：收集一个过程里被赋值的名字（用来决定哪些需要 global）。
+        """
         found = set()
 
         def walk(nodes):
@@ -676,7 +765,7 @@ class Transformer:
         walk(body)
         return found
 
-    # ------------------------------------------------------------------ 模块
+    # module / 中文：模块
     def _runtime_imports(self):
         stmts = [
             ast.ImportFrom(
@@ -720,7 +809,10 @@ class Transformer:
                           type_ignores=[])
 
     def _classes_registry(self):
-        """生成 `_ovpp_classes = {"foo": _ovpp_cls_foo, ...}`，供 CreateObject 使用。"""
+        """Emit `_ovpp_classes = {"foo": _ovpp_cls_foo, ...}` for CreateObject.
+
+        中文：生成 `_ovpp_classes = {"foo": _ovpp_cls_foo, ...}`，供 CreateObject 使用。
+        """
         keys = [ast.Constant(value=key) for key in sorted(self.classes)]
         values = [ast.Name(id="_ovpp_cls_" + key, ctx=ast.Load())
                   for key in sorted(self.classes)]
@@ -730,7 +822,9 @@ class Transformer:
 
     def _transform_proc(self, node, as_method=False, py_name=None):
         if as_method:
-            # 方法不登记在 self.procs 里，按节点自身构造签名
+         # Methods stay out of self.procs; each signature is built from its own node
+         # 中文：方法不登记在 self.procs 里，按节点自身构造签名
+          
             info = _ProcInfo(node, py_name or canon(node.name))
         else:
             overloads = self.procs.get(canon(node.name), [])
@@ -751,10 +845,14 @@ class Transformer:
                                       if not p.is_array)
         if as_method:
             self._in_class_method = True
-            # 方法参数统一通过 Ref 传入，ByVal 在函数体开头解包
+         # Method arguments always arrive as Refs; ByVal is unwrapped at the top of the body
+         # 中文：方法参数统一通过 Ref 传入，ByVal 在函数体开头解包
+          
             self.byref_params = frozenset(canon(p.name) for p in info.params if p.byref)
         else:
-            # 只有"会被写回"的 ByRef 参数才走 Ref 盒子，其余按值传
+         # Only ByRef parameters that get written back travel in a Ref box; others pass by value
+         # 中文：只有"会被写回"的 ByRef 参数才走 Ref 盒子，其余按值传
+          
             self.byref_params = frozenset(canon(p.name) for p in info.params
                                           if p.byref and canon(p.name) in info.ref_params)
         self._with_stack = []
@@ -783,7 +881,9 @@ class Transformer:
                     continue
                 pname = canon(param.name)
                 if as_method:
-                    # 方法的实参都是 Ref，取 .v
+                 # Method arguments are Refs, so read .v
+                 # 中文：方法的实参都是 Ref，取 .v
+                  
                     items = ast.ListComp(
                         elt=ast.Attribute(value=ast.Name(id="_pa", ctx=ast.Load()),
                                           attr="v", ctx=ast.Load()),
@@ -795,7 +895,9 @@ class Transformer:
                     items = ast.Call(func=ast.Name(id="list", ctx=ast.Load()),
                                      args=[ast.Name(id=pname, ctx=ast.Load())],
                                      keywords=[])
-                # ParamArray 在运行时就是一个普通数组（list）
+             # At runtime a ParamArray is an ordinary array, i.e. a list
+             # 中文：ParamArray 在运行时就是一个普通数组（list）
+              
                 prologue.append(ast.Assign(
                     targets=[ast.Name(id=pname, ctx=ast.Store())],
                     value=items))
@@ -809,8 +911,10 @@ class Transformer:
                         value=ast.Attribute(value=ast.Name(id=pname, ctx=ast.Load()),
                                             attr="v", ctx=ast.Load())))
             else:
-                # 只读的 ByRef 参数按值传；但跨模块 / 委托调用仍然会传 Ref，
-                # 这里统一拆包，两种调用约定都能接住。
+                # read-only ByRef parameters pass by value, while cross-module and delegate calls still pass a Ref,
+                # 中文：只读的 ByRef 参数按值传；但跨模块 / 委托调用仍然会传 Ref，
+                # so unpack uniformly here and accept either convention.
+                # 中文：这里统一拆包，两种调用约定都能接住。
                 for param in info.params:
                     if not param.byref or param.paramarray:
                         continue
@@ -832,7 +936,9 @@ class Transformer:
                                                 attr="v", ctx=ast.Load()))],
                         orelse=[]))
             if info.kind == "function":
-                # 返回值用"函数名"这个局部变量承载，先初始化成 Empty
+             # The return value rides in a local named after the function, starting as Empty
+             # 中文：返回值用"函数名"这个局部变量承载，先初始化成 Empty
+              
                 prologue.insert(0, ast.Assign(
                     targets=[ast.Name(id=self.ret_var, ctx=ast.Store())],
                     value=ast.Name(id=EMPTY_NAME, ctx=ast.Load())))
@@ -841,7 +947,9 @@ class Transformer:
             if handler_index is None:
                 body = self._flush_nodes(node.body)
             elif self._contains_resume(node.body):
-                # 含 Resume：整个过程编译成状态机（下标分派）
+             # Resume appears, so the procedure compiles into a state machine dispatching on an index
+             # 中文：含 Resume：整个过程编译成状态机（下标分派）
+              
                 body = self._build_state_machine(node, handler_index)
             else:
                 tail_stmts = all_stmts[handler_index + 1:]
@@ -869,9 +977,12 @@ class Transformer:
             self._method_locals = saved_locals
             self._var_classes = saved_var_classes
 
-        # 过程默认要一个错误处理帧：enter + try/finally leave。
-        # 但过程体里没有 On Error / Resume / Err 时根本不会捕获错误，
-        # 省略帧可以省掉每次调用的两次函数调用（函数调用密集的代码很吃这个）。
+        # By default a procedure gets an error-handling frame: enter plus try/finally leave.
+        # 中文：过程默认要一个错误处理帧：enter + try/finally leave。
+        # Yet without On Error, Resume or Err the body cannot catch anything,
+        # 中文：但过程体里没有 On Error / Resume / Err 时根本不会捕获错误，
+        # and omitting the frame saves two calls per invocation, which call-heavy code badly wants.
+        # 中文：省略帧可以省掉每次调用的两次函数调用（函数调用密集的代码很吃这个）。
         statements = prologue + (body or [ast.Pass()])
         if _needs_error_frame(node.body):
             leave_call = ast.Expr(value=ast.Call(
@@ -900,7 +1011,9 @@ class Transformer:
                     default_value = ast.Name(id=EMPTY_NAME, ctx=ast.Load())
                 else:
                     default_value = self.transform(param.default)
-                # 方法的所有参数都是 Ref；过程的 ByRef 参数按需是 Ref
+             # All method arguments are Refs; a procedure's ByRef parameters are Refs only on demand
+             # 中文：方法的所有参数都是 Ref；过程的 ByRef 参数按需是 Ref
+              
                 if as_method or (param.byref and canon(param.name) in info.ref_params):
                     default_value = self._ref_call(default_value)
                 defaults.append(default_value)
@@ -929,7 +1042,7 @@ class Transformer:
             type_comment=None,
         )
 
-    # ------------------------------------------------------------------ 类
+    # classes / 中文：类
     def _transform_class(self, node):
         fields = [m for m in node.body if isinstance(m, FieldDecl)]
         methods = [m for m in node.body if isinstance(m, (SubDef, FunctionDef))]
@@ -955,7 +1068,9 @@ class Transformer:
         for method in methods:
             key = canon(method.name)
             if key in ("class_initialize", "class_terminate"):
-                method_attrs[key] = key       # 构造/析构保持原名，由 __init__/__del__ 调用
+                # the constructor and destructor keep their names and __init__ / __del__ call them
+                # 中文：构造/析构保持原名，由 __init__/__del__ 调用
+                method_attrs[key] = key
                 continue
             public = getattr(method, "visibility", "public") == "public"
             method_attrs[key] = key if public else "_priv_" + key
@@ -990,7 +1105,9 @@ class Transformer:
                        value=attrs_value),
         ]
 
-        # Shared 字段是类属性（所有实例共享），不进 __init__
+     # A Shared field is a class attribute shared by all instances, so it stays out of __init__
+     # 中文：Shared 字段是类属性（所有实例共享），不进 __init__
+      
         for field in fields:
             if not getattr(field, "shared", False):
                 continue
@@ -1024,7 +1141,9 @@ class Transformer:
                                    attr="class_initialize", ctx=ast.Load()),
                 args=[], keywords=[])))
 
-        # 方法参数走 Ref 协议，所以 Class_Initialize 的实参也要包成 Ref
+     # Method arguments follow the Ref protocol, so Class_Initialize's arguments are boxed too
+     # 中文：方法参数走 Ref 协议，所以 Class_Initialize 的实参也要包成 Ref
+      
         init_call_args = ([ast.Starred(
             value=ast.ListComp(
                 elt=ast.Call(
@@ -1097,7 +1216,9 @@ class Transformer:
                         func = self._transform_proc(
                             only, as_method=True,
                             py_name=method_attrs.get(key, key))
-                        func.args.args = func.args.args[1:]        # 去掉 self
+                        # drop self
+                        # 中文：去掉 self
+                        func.args.args = func.args.args[1:]
                         func.decorator_list = [ast.Name(id="staticmethod",
                                                         ctx=ast.Load())]
                         class_body.append(func)
@@ -1130,7 +1251,10 @@ class Transformer:
                             decorator_list=[])
 
     def _overload_dispatcher(self, py_name, vbs_key, arities, display_name):
-        """类内重载：生成 *args 方法，按参数个数转发到具体实现。"""
+        """Overloads inside a class: generate an *args method dispatching on the argument count.
+
+        中文：类内重载：生成 *args 方法，按参数个数转发到具体实现。
+        """
         body = []
         for arity in arities:
             body.append(ast.If(
@@ -1174,7 +1298,10 @@ class Transformer:
             decorator_list=[], returns=None, type_comment=None)
 
     def _transform_setattr(self):
-        """给类加一道 __setattr__ 检查：只允许写已声明的字段/属性。"""
+        """Add a __setattr__ guard so only declared fields and properties can be written.
+
+        中文：给类加一道 __setattr__ 检查：只允许写已声明的字段/属性。
+        """
         guard = ast.If(
             test=ast.UnaryOp(
                 op=ast.Not(),
@@ -1211,7 +1338,9 @@ class Transformer:
             decorator_list=[], returns=None, type_comment=None)
 
     def _check_interfaces(self, node, method_groups):
-        """Implements：编译期契约检查（方法名 + 参数个数）。"""
+        """The Implements contract, checked at compile time: method name plus argument count.
+
+        中文：Implements：编译期契约检查（方法名 + 参数个数）。"""
         for interface in getattr(node, "interfaces", []) or []:
             key = canon(interface)
             iface = self.classes.get(key)
@@ -1238,11 +1367,15 @@ class Transformer:
                         line_number=getattr(node, "line", None))
 
     def _emit_properties(self, class_body, props):
-        """按属性名分组生成 Get / Let / Set。
+        """Group by property name and emit Get / Let / Set.
+
+        中文：按属性名分组生成 Get / Let / Set。
 
         * Get -> @property; Let -> @name.setter
-        * Set -> 独立的 _ovpp_pset_<name>（Set obj.P = x 时调用）
-        * 没有 Get -> 补一个"只写"getter，读取时抛错（VBS 写属性语义）
+        * Set becomes a separate _ovpp_pset_<name>, called for Set obj.P = x
+        中文：Set -> 独立的 _ovpp_pset_<name>（Set obj.P = x 时调用）
+        * without a Get, add a write-only getter that raises when read, as VBScript write-only properties do
+        中文：没有 Get -> 补一个"只写"getter，读取时抛错（VBS 写属性语义）
         """
         groups = {}
         for prop in props:
@@ -1262,7 +1395,9 @@ class Transformer:
                 class_body.extend(entries)
 
     def _write_only_getter(self, key):
-        """只写属性的占位 getter：让 @key.setter 有东西可挂。"""
+        """Placeholder getter for a write-only property, so @key.setter has something to attach to.
+
+        中文：只写属性的占位 getter：让 @key.setter 有东西可挂。"""
         raise_stmt = ast.Expr(value=ast.Call(
             func=ast.Attribute(value=ast.Name(id=OBJ_MODULE, ctx=ast.Load()),
                                attr="write_only_error", ctx=ast.Load()),
@@ -1338,7 +1473,9 @@ class Transformer:
             type_comment=None)]
 
     def _transform_terminate(self, node):
-        """Class_Terminate → __del__（异常一律吞掉）。"""
+        """Class_Terminate becomes __del__, and any exception there is swallowed.
+
+        中文：Class_Terminate → __del__（异常一律吞掉）。"""
         method = self._transform_proc(node, as_method=True)
         guarded = ast.Try(
             body=method.body,
@@ -1348,7 +1485,7 @@ class Transformer:
         return ast.FunctionDef(name="__del__", args=method.args, body=[guarded],
                                decorator_list=[], returns=None, type_comment=None)
 
-    # ------------------------------------------------------------------ 名字
+    # names / 中文：名字
     def _name_load(self, key):
         if key in self.byref_params:
             return ast.Attribute(value=ast.Name(id=key, ctx=ast.Load()),
@@ -1419,7 +1556,9 @@ class Transformer:
         return self._name_store(key)
 
     def _shared_target(self, key):
-        """Shared 字段：读写落在类对象上，而不是实例上。"""
+        """A Shared field reads and writes on the class object instead of the instance.
+
+        中文：Shared 字段：读写落在类对象上，而不是实例上。"""
         if not (self._current_class and key in self._shared_fields):
             return None
         return ast.Name(id="_ovpp_cls_" + self._current_class, ctx=ast.Load())
@@ -1456,7 +1595,7 @@ class Transformer:
             )
         return node
 
-    # ------------------------------------------------------------------ 成员访问
+    # member access / 中文：成员访问
     def _member_base(self, base, node=None):
         if base is None:
             if not self._with_stack:
@@ -1492,7 +1631,9 @@ class Transformer:
         return MEMBER_ALIASES.get(key, key)
 
     def _let_value(self, value, node):
-        """普通赋值（Let）时，如果右边是对象且有默认成员，取默认属性值。"""
+        """On a plain assignment (Let), an object on the right contributes its default member's value.
+
+        中文：普通赋值（Let）时，如果右边是对象且有默认成员，取默认属性值。"""
         if getattr(node, "is_set", False):
             return value
         if not isinstance(node.expr, (Var, Member)):
@@ -1503,7 +1644,10 @@ class Transformer:
             args=[value], keywords=[])
 
     def _member_call_expr(self, member, args, statement=False):
-        """obj.name(args)：统一走 Ref 协议，运行期再决定方法还是数组下标。"""
+        """obj.name(args) follows the Ref protocol; whether it is a method or a subscript is decided at run time.
+
+        中文：obj.name(args)：统一走 Ref 协议，运行期再决定方法还是数组下标。
+        """
         base_expr = self._member_base(member.base, member)
         attr = self._member_attr(member.name)
 
@@ -1538,12 +1682,15 @@ class Transformer:
         self._pending_post.extend(writebacks)
         return call
 
-    # ------------------------------------------------------------------ 过程调用
+    # procedure calls / 中文：过程调用
     def _arity_ok(self, info, count):
         return info.accepts(count)
 
     def _resolve_proc(self, key, count, node):
-        """按参数个数在重载里挑一个；找不到时给出清晰的错误。"""
+        """Pick an overload by argument count, with a clear error when nothing matches.
+
+        中文：按参数个数在重载里挑一个；找不到时给出清晰的错误。
+        """
         overloads = self.procs.get(key) or []
         for info in overloads:
             if info.arity == count:
@@ -1575,10 +1722,18 @@ class Transformer:
             args=[value], keywords=[])
 
     def _call_with_refs(self, func_expr, params, args, node, ref_names=None):
-        """通用的"按签名处理 ByRef"调用构造器：普通过程和对象方法共用。
+        """Build a call that handles ByRef according to the signature; procedures and
+        object methods share it.
 
-        `ref_names` 为 None 表示"所有 ByRef 参数都要 Ref"（方法调用；
-        方法的形参本来就是 Ref）。传入集合时只有命中的参数才建 Ref。
+        A `ref_names` of None means every ByRef parameter needs a Ref, which is what a
+        method call does since method parameters are Refs anyway. When a set is passed,
+        only the parameters it contains get a Ref.
+
+        中文：通用的「按签名处理 ByRef」调用构造器，普通过程和对象方法共用。`ref_names`
+        A ref_names of None means every ByRef parameter needs a Ref, which is a method call since method parameters are Refs already;
+        中文：为 None 表示「所有 ByRef 参数都要 Ref」（方法调用，方法的形参本来就是 Ref）；
+        pass a set and only the parameters it names get a Ref.
+        中文：传入集合时只有命中的参数才建 Ref。
         """
         py_args, setups, writebacks = [], [], []
         for index, arg in enumerate(args):
@@ -1608,7 +1763,7 @@ class Transformer:
             ast.Name(id=info.py_name, ctx=ast.Load()), info.params, args, node,
             info.ref_params)
 
-    # ------------------------------------------------------------------ 对象方法
+    # object methods / 中文：对象方法
     def _class_chain(self, key):
         chain = []
         seen = set()
@@ -1635,7 +1790,10 @@ class Transformer:
         return None
 
     def _method_call_with_refs(self, member, args, node, statement):
-        """对象方法的 ByRef：接收者类可静态推断时，按签名建 Ref 并写回。"""
+        """ByRef for object methods: when the receiver's class can be inferred statically, build Refs from the signature and write back.
+
+        中文：对象方法的 ByRef：接收者类可静态推断时，按签名建 Ref 并写回。
+        """
         cls = self._known_class(member.base)
         if not cls:
             return None
@@ -1657,7 +1815,10 @@ class Transformer:
         return call
 
     def _self_method_call(self, name, args, statement):
-        """类内部调用自身方法：临时把 self 放到 With 栈上复用同一套调用逻辑。"""
+        """A class calling its own method: temporarily push self onto the With stack and reuse the same call path.
+
+        中文：类内部调用自身方法：临时把 self 放到 With 栈上复用同一套调用逻辑。
+        """
         self._with_stack.append(ast.Name(id="self", ctx=ast.Load()))
         try:
             return self._member_call_expr(Member(None, name), args, statement=statement)
@@ -1665,7 +1826,10 @@ class Transformer:
             self._with_stack.pop()
 
     def _track_class(self, name, expr):
-        """记录变量的静态类型，供对象方法 ByRef 使用。"""
+        """Record a variable's static type so object-method ByRef calls can use it.
+
+        中文：记录变量的静态类型，供对象方法 ByRef 使用。
+        """
         key = canon(name)
         cls = None
         if isinstance(expr, NewExpr):
@@ -1683,7 +1847,10 @@ class Transformer:
             self._var_classes.pop(key, None)
 
     def _writeback_target(self, arg):
-        """ByRef 实参的写回目标；不是可赋值表达式时返回 None。"""
+        """The write-back target of a ByRef argument, or None when it is not assignable.
+
+        中文：ByRef 实参的写回目标；不是可赋值表达式时返回 None。
+        """
         if isinstance(arg, Var):
             return self._write_name(arg.name, arg)
         if isinstance(arg, Call):
@@ -1699,12 +1866,14 @@ class Transformer:
             return self._subscript_chain(base, arg.args, store=True)
         return None
 
-    # ------------------------------------------------------------------ 语句
+    # statements / 中文：语句
     def _transform_call_stmt(self, node):
         callee = node.callee
 
         if isinstance(callee, Var) and is_module_placeholder(callee.name):
-            return ast.Pass()          # 多文件声明：由 compiler 处理
+            # a multi-file declaration, handled by the compiler
+            # 中文：多文件声明：由 compiler 处理
+            return ast.Pass()
 
         if isinstance(callee, Var) and is_placeholder(callee.name):
             source = self.python_blocks.get(placeholder_index(callee.name), "")
@@ -1747,7 +1916,10 @@ class Transformer:
         return self._single(pre + setups + post + [ast.Expr(value=call)] + writebacks)
 
     def _transform_goto(self, node):
-        """GoTo label：执行标签之后的语句，然后离开当前过程。"""
+        """GoTo label: run the statements after the label, then leave the procedure.
+
+        中文：GoTo label：执行标签之后的语句，然后离开当前过程。
+        """
         key = canon(node.label)
         index = self._proc_labels.get(key)
         if index is None:
@@ -1765,7 +1937,10 @@ class Transformer:
         return self._single(stmts)
 
     def _prepare_error_labels(self, body):
-        """扫描过程体：登记标签，并为 On Error GoTo <label> 准备处理段。"""
+        """Scan the procedure body: register labels and prepare the handler for On Error GoTo <label>.
+
+        中文：扫描过程体：登记标签，并为 On Error GoTo <label> 准备处理段。
+        """
         labels = {}
         handler_label = None
         for index, stmt in enumerate(body):
@@ -1792,10 +1967,14 @@ class Transformer:
         return index, body
 
     def _transform_resume(self, node):
-        """`Resume`（重试本句）/ `Resume Next`（下一条）。
+        """`Resume` retries this statement, `Resume Next` moves to the next one.
 
-        在状态机模式下编译成"改写 _pc"：不需要 break/continue 逃逸，
-        所以处理段里嵌套 If/For 也不会乱。
+        In state-machine mode both compile to an assignment on _pc, so no break or continue
+        has to escape a block and nested If / For inside a handler stays ordered.
+
+        中文：`Resume`（重试本句）/ `Resume Next`（下一条）。在状态机模式下编译成
+        an assignment to _pc, so nothing has to break or continue out and a nested If or For inside the handler stays ordered.
+        中文：「改写 _pc」——不需要 break/continue 逃逸，所以处理段里嵌套 If/For 也不会乱。
         """
         if not self._state_machine:
             raise OVPPSyntaxError(
@@ -1820,7 +1999,10 @@ class Transformer:
         ])
 
     def _contains_resume(self, nodes):
-        """递归检查是否有 Resume（可能在 If/For 里）。"""
+        """Recursively check for Resume, which may sit inside an If or a For.
+
+        中文：递归检查是否有 Resume（可能在 If/For 里）。
+        """
         for node in nodes:
             if isinstance(node, ResumeStmt):
                 return True
@@ -1835,12 +2017,20 @@ class Transformer:
         return False
 
     def _build_state_machine(self, node, handler_index):
-        """把过程体编译成"语句下标分派"循环。
+        """Compile the body into a loop dispatching on a statement index.
 
-        每条语句是一个 if _pc == N 分支：
-          * 默认先 _pc = N+1，出错时 `_pc = 处理段下标` 并记下 `_ovpp_fail = N`；
-          * 处理段里 `Resume` 把 _pc 设回 _ovpp_fail，`Resume Next` 设成 +1；
-          * 处理段自身不再套 try，所以处理段里的错误照常向上抛。
+        Every statement is an `if _pc == N` branch:
+          * _pc defaults to N+1; on error it becomes the handler index and _ovpp_fail = N;
+          * inside the handler, Resume sets _pc back to _ovpp_fail and Resume Next to +1;
+          * the handler itself is not wrapped in try, so its errors still propagate.
+
+        中文：把过程体编译成「语句下标分派」循环。每条语句是一个 `if _pc == N` 分支：
+        _pc starts at N+1; on error it becomes the handler index and _ovpp_fail records N; inside the handler
+        中文：默认先 `_pc = N+1`，出错时 `_pc = 处理段下标` 并记下 `_ovpp_fail = N`；处理段里
+        Resume sets _pc back to _ovpp_fail and Resume Next sets it to N+1; the handler is not wrapped in try itself,
+        中文：`Resume` 把 _pc 设回 _ovpp_fail，`Resume Next` 设成 +1；处理段自身不再套 try，
+        so an error inside the handler propagates as usual.
+        中文：所以处理段里的错误照常向上抛。
         """
         order = []
         handler_pos = None
@@ -1930,12 +2120,19 @@ class Transformer:
         return stmts or [ast.Pass()]
 
     def _transform_try(self, node):
-        """Try ... Catch e [When 条件] ... Finally ... End Try
+        """Try ... Catch e [When condition] ... Finally ... End Try
 
-        编译成：push_handler() 之后一个标准 try/except/finally。
-        块内的 On Error Resume Next 会把异常交给这里（见 err.capture）。
+        It compiles to a push_handler() followed by an ordinary try/except/finally. An
+        On Error Resume Next inside the block hands exceptions to this handler, see
+        err.capture.
+
+        中文：编译成 push_handler() 之后一个标准 try/except/finally；块内的
+        An On Error Resume Next inside the block hands its exceptions to this handler; see err.capture.
+        中文：On Error Resume Next 会把异常交给这里（见 err.capture）。
         """
-        # 块内的异常归本块的 Catch 管：暂时屏蔽过程级的 On Error GoTo 处理段
+     # Exceptions inside the block belong to its Catch, so the procedure-level On Error GoTo handler is masked for now
+     # 中文：块内的异常归本块的 Catch 管：暂时屏蔽过程级的 On Error GoTo 处理段
+      
         saved_tail = self._error_label_tail
         self._error_label_tail = None
         saved_resume = self._on_error_resume
@@ -1962,7 +2159,9 @@ class Transformer:
                                    attr="record", ctx=ast.Load()),
                 args=[ast.Name(id="_ovpp_exc", ctx=ast.Load())], keywords=[]))]
 
-            # 先把快照绑定到 Catch 变量，这样 When 子句里也能用 e
+         # Bind the snapshot to the Catch variable first, so the When clause can use e too
+         # 中文：先把快照绑定到 Catch 变量，这样 When 子句里也能用 e
+          
             first_var = next((entry[0] for entry in node.handlers if entry[0]), None)
             if first_var:
                 inner.append(ast.Assign(
@@ -2070,7 +2269,9 @@ class Transformer:
 
     def _transform_if(self, node):
         test = self.transform(node.cond)
-        # 先取走条件产生的 pre/post，否则会被 then 分支的第一条语句吃掉
+     # Take the condition's pre and post statements first, or the first statement of the then branch swallows them
+     # 中文：先取走条件产生的 pre/post，否则会被 then 分支的第一条语句吃掉
+      
         pre, post = self._take_pending()
 
         if_node = ast.If(
@@ -2082,7 +2283,9 @@ class Transformer:
         if not pre and not post:
             return if_node
 
-        # 条件里有 ByRef 调用：先把条件算进临时变量并写回，再分支
+     # The condition calls a ByRef procedure, so evaluate it into a temporary, write back, then branch
+     # 中文：条件里有 ByRef 调用：先把条件算进临时变量并写回，再分支
+      
         tmp = self._new_tmp("cond")
         return self._single(pre + [ast.Assign(
             targets=[ast.Name(id=tmp, ctx=ast.Store())], value=if_node.test,
@@ -2091,7 +2294,9 @@ class Transformer:
 
     def _transform_while(self, node):
         test = self.transform(node.cond)
-        # 先取走条件产生的 pre/post，避免被循环体第一条语句吃掉
+     # Take the condition's pre and post statements first, before the loop body eats them
+     # 中文：先取走条件产生的 pre/post，避免被循环体第一条语句吃掉
+      
         pre, post = self._take_pending()
         body = self._stmts(node.body)
 
@@ -2109,7 +2314,9 @@ class Transformer:
     def _transform_do_loop(self, node):
         body = self._stmts(node.body)
 
-        # Do ... Loop While/Until cond：至少执行一次，在尾部判断
+     # Do ... Loop While/Until cond runs at least once and tests at the end
+     # 中文：Do ... Loop While/Until cond：至少执行一次，在尾部判断
+      
         if node.post_cond is not None:
             cond = self.transform(node.post_cond)
             if node.post_cond_type == "UNTIL":
@@ -2146,8 +2353,12 @@ class Transformer:
         step_tmp = self._new_tmp("for_step")
         key = canon(node.var)
 
-        # 快路径：步长是字面量常量、循环体不改计数器 —— 直接用 range，
-        # 省掉每次迭代的 Step 比较与自增。
+     # Fast path: the step is a literal constant and the body does not touch the counter, so use range
+     # 中文：快路径：步长是字面量常量、循环体不改计数器 —— 直接用 range，
+      
+     # and skip the per-iteration step comparison and increment.
+     # 中文：省掉每次迭代的 Step 比较与自增。
+      
         constant_step = _const_step(node)
         if (constant_step is not None and constant_step != 0
                 and not _writes_name(node.body, key)):
@@ -2200,7 +2411,10 @@ class Transformer:
         return ast.If(test=ast.Constant(value=True), body=prologue + [loop], orelse=[])
 
     def _transform_for_seq(self, node, key, step):
-        """For 的快路径：`for i in for_seq(a, b, step): ...`。"""
+        """The For fast path: `for i in for_seq(a, b, step): ...`.
+
+        中文：For 的快路径：`for i in for_seq(a, b, step): ...`。
+        """
         seq_tmp = self._new_tmp("for_seq")
 
         start_value = self.transform(node.start)
@@ -2220,8 +2434,12 @@ class Transformer:
         ] + post
 
         body = self._stmts(node.body)
-        # VBS 正常结束后计数器停在"第一个越界值"；for...else 只在没有
-        # Exit For 时执行，`if seq` 保证空区间不会凭空加一次 step。
+     # After a normal VBScript finish the counter holds the first out-of-range value; for...else runs only when no
+     # 中文：VBS 正常结束后计数器停在"第一个越界值"；for...else 只在没有
+      
+     # Exit For happened, and `if seq` keeps an empty range from adding one step out of nowhere.
+     # 中文：Exit For 时执行，`if seq` 保证空区间不会凭空加一次 step。
+      
         tail = ast.If(
             test=ast.Name(id=seq_tmp, ctx=ast.Load()),
             body=[ast.Assign(
@@ -2322,7 +2540,7 @@ class Transformer:
         stmts.append(root_if)
         return ast.If(test=ast.Constant(value=True), body=stmts, orelse=[])
 
-    # ------------------------------------------------------------------ 表达式
+    # expressions / 中文：表达式
     def _call_bool(self, func_name, args):
         return ast.Call(
             func=ast.Attribute(value=ast.Name(id=BOOL_MODULE, ctx=ast.Load()),
@@ -2330,7 +2548,10 @@ class Transformer:
             args=args, keywords=[])
 
     def _transform_address_of(self, node):
-        """AddressOf Foo -> 一个可传递、可调用的过程值。"""
+        """AddressOf Foo becomes a passable, callable procedure value.
+
+        中文：AddressOf Foo -> 一个可传递、可调用的过程值。
+        """
         key = canon(node.name)
         overloads = self.procs.get(key)
         cls_attr = None
@@ -2395,7 +2616,9 @@ class Transformer:
         return ast.UnaryOp(op=unary_call_map[node.op], operand=operand)
 
     def _transform_compare(self, node):
-        # 比较结果统一成 VBS 风格的布尔（真 = -1，假 = 0）
+     # Comparison results become VBScript booleans: true is -1 and false is 0
+     # 中文：比较结果统一成 VBS 风格的布尔（真 = -1，假 = 0）
+      
         left = self.transform(node.left)
         right = self.transform(node.right)
 
@@ -2414,7 +2637,10 @@ class Transformer:
         return self._call_bool("to_bool", [cmp_node])
 
     def _transform_new_with_args(self, node):
-        """New Foo(a, b)：把参数传给 Class_Initialize。"""
+        """New Foo(a, b) passes its arguments to Class_Initialize.
+
+        中文：New Foo(a, b)：把参数传给 Class_Initialize。
+        """
         key = canon(node.name)
         if key not in self.classes:
             raise OVPPObjectNotSupportedError(
@@ -2425,7 +2651,10 @@ class Transformer:
                         keywords=[])
 
     def _transform_create_object(self, node, factory="create_object"):
-        """CreateObject / GetObject：字面量 ProgID 在编译期解析。"""
+        """CreateObject / GetObject: a literal ProgID is resolved at compile time.
+
+        中文：CreateObject / GetObject：字面量 ProgID 在编译期解析。
+        """
         if not node.args:
             raise OVPPArgumentError("CreateObject expects a ProgID string",
                                     line_number=node.line)
@@ -2437,7 +2666,9 @@ class Transformer:
                 line_number=getattr(node, "line", None))
 
         if len(node.args) == 2:
-            # VBS 的第二个参数是远程服务器名（DCOM 激活），本地实现不支持
+         # VBScript's second argument names a remote server for DCOM activation, which this local implementation does not support
+         # 中文：VBS 的第二个参数是远程服务器名（DCOM 激活），本地实现不支持
+          
             raise OVPPObjectNotSupportedError(
                 "Remote activation is not supported: CreateObject(class, "
                 "servername) cannot be implemented locally",
@@ -2516,7 +2747,9 @@ class Transformer:
                 return self._self_method_call(key, node.args, statement=False)
             if key in BUILTIN_NAMES:
                 return self._builtin_call(key, node.args)
-            # 不是过程也不是内置函数：当作数组下标 a(i)
+         # Neither a procedure nor a built-in function, so treat it as the array subscript a(i)
+         # 中文：不是过程也不是内置函数：当作数组下标 a(i)
+          
             base = self._read_name(func.name, node)
             if key in self._delegates or key in self._param_names:
                 args = [self.transform(arg) for arg in node.args]
@@ -2532,8 +2765,12 @@ class Transformer:
                 line_number=node.line)
 
         if info.ref_params:
-            # ByRef 函数在表达式里调用：实参先装进 Ref 盒子，
-            # 写回语句由外层语句用 _hoist() 插在正确位置。
+         # A ByRef function called inside an expression boxes its arguments first,
+         # 中文：ByRef 函数在表达式里调用：实参先装进 Ref 盒子，
+          
+         # and the enclosing statement uses _hoist() to insert the write-backs at the right place.
+         # 中文：写回语句由外层语句用 _hoist() 插在正确位置。
+          
             py_args = []
             for index, arg in enumerate(node.args):
                 param = info.params[index] if index < len(info.params) else None
@@ -2563,7 +2800,7 @@ class Transformer:
             args=[self.transform(arg) for arg in node.args],
             keywords=[])
 
-    # ------------------------------------------------------------------ 分发
+    # dispatch / 中文：分发
     def _dispatch(self, node):
         if isinstance(node, BinOp):
             return self._transform_binop(node)
@@ -2686,7 +2923,9 @@ class Transformer:
             return None
 
         if isinstance(node, LabelStmt):
-            return ast.Pass()          # 标签本身不生成代码
+            # a label emits no code
+            # 中文：标签本身不生成代码
+            return ast.Pass()
 
         if isinstance(node, GoToStmt):
             return self._transform_goto(node)
@@ -2695,7 +2934,9 @@ class Transformer:
             return self._transform_resume(node)
 
         if isinstance(node, OnErrorGoToLabel):
-            return ast.Pass()          # 由过程级处理段实现
+            # implemented by the procedure-level handler
+            # 中文：由过程级处理段实现
+            return ast.Pass()
 
         if isinstance(node, TryStmt):
             return self._transform_try(node)

@@ -13,21 +13,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-多文件声明（超集扩展）：XML 风格的两种指令。
+Multi-file declarations: two XML-style directives, a superset extension.
 
-  <script src="utils.vbs">            合并：目标文件的过程直接可用
-  <namespace src="utils.vbs" alias="u">  命名空间：u.Double(21)
+  <script src="utils.vbs">              merge: the target file's procedures become usable
+  <namespace src="utils.vbs" alias="u"> namespace: u.Double(21)
 
-属性名兼容：`alias` / `nickyname` 都表示别名，`src` 表示目标文件。
+The attributes are flexible: `alias` and `nickyname` both name the alias, `src` points
+at the target file.
 
-在词法之前把指令抽出来，原地留占位语句（行号不变），
-真正的文件加载由 compiler 处理（编译期，不是运行期）。
+Directives are extracted before lexing and replaced by a placeholder statement, so line
+numbers never shift; the real loading happens in the compiler, at compile time.
+
+中文：多文件声明（超集扩展）—— `<script src>` 合并（目标文件的过程直接可用）与
+and `<namespace src alias>` for a namespace (`u.Double(21)`). `alias` and `nickyname` both name the alias,
+中文：`<namespace src alias>` 命名空间（`u.Double(21)`）。`alias` / `nickyname` 都表示别名，
+`src` names the target file. Directives are pulled out before lexing and replaced in place by a placeholder statement, so line numbers hold; the actual load happens
+中文：`src` 表示目标文件。指令在词法之前抽出、原地留占位语句（行号不变），真正的文件加载
+in the compiler at compile time.
+中文：由 compiler 在编译期完成。
 '''
 
 import re
 
 
-# <script src="..." />   或   <script src="...">
+# Either a self-closing <script src="..." /> or an opening <script src="...">.
+# 中文：自闭合的 `<script src="..." />` 或开标签 `<script src="...">`。
 SCRIPT_RE = re.compile(
     r"^[ \t]*<script\s+src\s*=\s*(['\"])(?P<src>[^'\"]+)\1\s*/?>[ \t]*$",
     re.IGNORECASE | re.MULTILINE,
@@ -47,14 +57,21 @@ PLACEHOLDER = "__ovpp_module_{index}__"
 
 
 class Directive:
-    """一条多文件声明。"""
+    """One multi-file directive.
+
+    中文：一条多文件声明。
+    """
 
     __slots__ = ("kind", "src", "alias", "line")
 
     def __init__(self, kind, src, alias, line):
         self.kind = kind          # "script" | "namespace"
-        self.src = src            # 目标文件（相对当前文件）
-        self.alias = alias        # namespace 的别名
+        # Target file, relative to the file that declares it.
+        # 中文：目标文件（相对当前文件）。
+        self.src = src
+        # Alias of a namespace directive.
+        # 中文：namespace 的别名。
+        self.alias = alias
         self.line = line
 
     def __repr__(self):
@@ -70,7 +87,10 @@ def _parse_attrs(text):
 
 
 def extract(code):
-    """抽出多文件指令，返回 (替换后的源码, [Directive])。"""
+    """Extract the directives and return (rewritten source, [Directive]).
+
+    中文：抽出多文件指令，返回 (替换后的源码, [Directive])。
+    """
     directives = []
 
     def script_sub(match):

@@ -13,7 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-类与对象相关的 AST 节点（VBS 对象模型）。
+AST nodes for classes and objects, the VBScript object model.
+
+中文：类与对象相关的 AST 节点（VBS 对象模型）。
 '''
 
 
@@ -21,7 +23,9 @@ from OpenVBSPP.ast_nodes._base import AST
 
 
 class FieldDecl(AST):
-    """类里的字段：Public x / Private y / Dim z（可带 -> Type）"""
+    """A class field: Public x, Private y or Dim z, optionally with -> Type.
+
+    中文：类里的字段：Public x / Private y / Dim z（可带 -> Type）"""
     def __init__(self, name, type_name=None, visibility="public", dims=None):
         self.name = name
         self.type_name = type_name
@@ -48,7 +52,8 @@ class ClassDef(AST):
     def __init__(self, name, body, base=None):
         self.name = name
         self.body = body          # list[AST]
-        self.base = base          # 基类名（超集扩展）
+        # Base class name, an OpenVBS++ extension / 中文：基类名（超集扩展）
+        self.base = base
     def __repr__(self):
         return f"ClassDef({self.name}, {len(self.body)} members)"
 
@@ -63,7 +68,9 @@ class NewExpr(AST):
 
 
 class AttributeDecl(AST):
-    """Attribute 语句：目前只认 Value.VB_UserMemId = 0（默认成员）"""
+    """Attribute statement; only Value.VB_UserMemId = 0, the default member, is honoured.
+
+    中文：Attribute 语句：目前只认 Value.VB_UserMemId = 0（默认成员）"""
     def __init__(self, member, key, value):
         self.member = member
         self.key = key

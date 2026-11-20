@@ -52,6 +52,10 @@ Release-by-release engineering notes (how to cut a release) live in
 - User documentation is English-first, with a `<page>.zh-CN.md` counterpart for every page;
   maintainer notes (release process, roadmap, IDE/LSP design, try/catch design, object-model
   design, good first issues) moved to `dev-docs/` and out of the published docs site.
+- **Every code comment and docstring is now bilingual and user-facing**: English first,
+  then a `中文：…` line/paragraph. They explain what a module, class or function gives a
+  script author, how to use it and what the limits are; implementation notes belong in
+  `dev-docs/`. The convention is written down in `AGENTS.md` (文档约定).
 
 ### Fixed
 

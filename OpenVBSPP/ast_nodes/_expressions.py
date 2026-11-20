@@ -22,7 +22,10 @@ class Number(AST):
     def __init__(self, val): self.val = int(val)
     def __repr__(self): return f"Number({self.val})"
 class Float(AST):
-    """浮点数字面量，例如 3.5。"""
+    """A floating-point literal such as 3.5.
+
+    中文：浮点数字面量，例如 3.5。
+    """
     def __init__(self, val): self.val = float(val)
     def __repr__(self): return f"Float({self.val})"
 class String(AST):
@@ -30,27 +33,43 @@ class String(AST):
         raw = val
         if len(raw) >= 2 and raw.startswith('"') and raw.endswith('"'):
             raw = raw[1:-1]
-        # VBS 里用 "" 表示一个字面双引号
+        # In VBS a doubled "" stands for one literal double quote.
+        # 中文：VBS 里用 "" 表示一个字面双引号。
         self.val = raw.replace('""', '"')
     def __repr__(self): return f'String("{self.val}")'
 class Boolean(AST):
-    """True / False 字面量。"""
+    """A True / False literal.
+
+    中文：True / False 字面量。
+    """
     def __init__(self, val): self.val = bool(val)
     def __repr__(self): return f"Boolean({self.val})"
 class EmptyValue(AST):
-    """Empty 字面量。"""
+    """An Empty literal.
+
+    中文：Empty 字面量。
+    """
     def __repr__(self): return "EmptyValue()"
 class NullValue(AST):
-    """Null 字面量。"""
+    """A Null literal.
+
+    中文：Null 字面量。
+    """
     def __repr__(self): return "NullValue()"
 class NothingValue(AST):
-    """Nothing 字面量。"""
+    """A Nothing literal.
+
+    中文：Nothing 字面量。
+    """
     def __repr__(self): return "NothingValue()"
 class Var(AST):
     def __init__(self, name): self.name = name
     def __repr__(self): return f"Var({self.name})"
 class Member(AST):
-    """成员访问 a.b；base 为 None 表示 With 块里的 .b。"""
+    """Member access a.b; a None base means .b inside a With block.
+
+    中文：成员访问 a.b；base 为 None 表示 With 块里的 .b。
+    """
     def __init__(self, base, name):
         self.base = base
         self.name = name
@@ -74,9 +93,16 @@ class Compare(AST):
         self.right = right
     def __repr__(self): return f"Compare({self.left}, '{self.op}', {self.right})"
 class Call(AST):
-    """函数/方法调用，或数组下标（由 Transformer 区分）。
+    """A function or method call, or an array subscript; the Transformer decides which.
 
-    func 是一个表达式节点：Var（过程 / 内置函数 / 数组）或 Member（方法）。
+    func is an expression node: a Var (procedure, built-in function or array) or a
+    Member (method).
+
+    中文：函数 / 方法调用，或数组下标（由 Transformer 区分）。func 是一个表达式节点 ——
+    func is an expression node: Var (procedure, built-in function or array) or Member
+    (method).
+
+    中文：func 是一个表达式节点：Var（过程 / 内置函数 / 数组）或 Member（方法）。
     """
     def __init__(self, func, args):
         self.func = func
@@ -86,7 +112,10 @@ class Call(AST):
 
 
 class AddressOf(AST):
-    """AddressOf Foo：把过程变成可传递的值（超集扩展）。"""
+    """AddressOf Foo turns a procedure into a passable value (a superset extension).
+
+    中文：AddressOf Foo：把过程变成可传递的值（超集扩展）。
+    """
     def __init__(self, name):
         self.name = name
     def __repr__(self):

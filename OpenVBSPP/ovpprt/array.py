@@ -13,18 +13,26 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-VBS 数组支持。
+VBScript arrays.
 
-VBS 的 `Dim a(5)` 是**下界 0、上界 5**，共 6 个元素，
-所以编译器传给 make() 的是"元素个数"（5 + 1）。
-多维数组用嵌套 list 表示，`a(i, j)` 编译成 `a[i][j]`。
+`Dim a(5)` has lower bound 0 and upper bound 5, six elements in total, so the
+compiler passes the element count (5 + 1) to `make()`. Multi-dimensional arrays
+are nested lists, and `a(i, j)` compiles to `a[i][j]`.
+
+中文：VBS 数组支持。`Dim a(5)` 的下界是 0、上界是 5，共 6 个元素，所以编译器传给
+`make()` takes the element count (5 + 1). A multi-dimensional array is a nested list, so `a(i, j)` compiles to
+中文：`make()` 的是元素个数（5 + 1）。多维数组用嵌套 list 表示，`a(i, j)` 编译成
+`a[i][j]`。
 '''
 
 from OpenVBSPP.ovpprt.empty import EMPTY
 
 
 def make(dims):
-    """按元素个数创建数组（dims[0] 是第 1 维的元素个数）。"""
+    """Create an array from element counts (`dims[0]` is the length of dimension 1).
+
+    中文：按元素个数创建数组（`dims[0]` 是第 1 维的元素个数）。
+    """
     dims = [int(d) for d in dims]
     if not dims:
         return []
@@ -34,7 +42,10 @@ def make(dims):
 
 
 def resize(array, dims):
-    """ReDim [Preserve]：保留已有元素，按新的元素个数重建。"""
+    """`ReDim [Preserve]`: rebuild the array with new lengths, keeping existing values.
+
+    中文：`ReDim [Preserve]`——保留已有元素，按新的元素个数重建数组。
+    """
     dims = [int(d) for d in dims]
     if not isinstance(array, list):
         return make(dims)
@@ -58,7 +69,10 @@ def resize(array, dims):
 
 
 def ubound(array, dimension=1):
-    """UBound(arr[, dim])，1-based 维度参数。"""
+    """`UBound(arr[, dim])`; the dimension argument is 1-based.
+
+    中文：`UBound(arr[, dim])`，维度参数从 1 开始。
+    """
     dim = int(dimension)
     node = array
     for _ in range(max(1, dim) - 1):
@@ -67,12 +81,18 @@ def ubound(array, dimension=1):
 
 
 def lbound(array, dimension=1):
-    """LBound 恒为 0（VBS 默认下界）。"""
+    """`LBound` is always 0 (the VBScript default lower bound).
+
+    中文：`LBound` 恒为 0（VBS 的默认下界）。
+    """
     return 0
 
 
 def erase(array):
-    """Erase：把数组元素重置为 Empty（保持形状）。"""
+    """`Erase`: reset every element to Empty while keeping the shape.
+
+    中文：`Erase`——把数组元素重置为 Empty（保持形状）。
+    """
     if not isinstance(array, list):
         return []
     if not array:
@@ -83,10 +103,17 @@ def erase(array):
 
 
 def for_seq(start, end, step):
-    """`For i = start To end Step step` 的可迭代序列（跳过循环变量赋值）。
+    """The iterable behind `For i = start To end Step step`.
 
-    整数情形直接给 range，Python 的 for 比"while + 比较 + 自增"快得多；
-    VBS 允许浮点步长，那种情况退化成列表。
+    Integer bounds return a `range`, because a Python `for` beats "while + compare
+    + increment" by a wide margin; VBScript also allows a floating-point step, in
+    which case this falls back to a list.
+
+    中文：`For i = start To end Step step` 的可迭代序列（省掉循环变量赋值）。
+    For integers it returns a `range`, since a Python for loop beats while + compare + increment by a wide margin;
+    中文：整数情形直接给 `range`——Python 的 for 比「while + 比较 + 自增」快得多；
+    VBScript also allows a floating-point step, and that case degrades to a list.
+    中文：VBS 允许浮点步长，那种情况退化成列表。
     """
     try:
         return range(start, end + (1 if step > 0 else -1), step)

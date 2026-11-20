@@ -13,12 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-VBS 的 Null 值：任何运算都"传染"成 Null，用 IsNull() 判断。
+VBScript `Null`: every operation propagates it, and `IsNull()` tests for it.
+
+中文：VBS 的 Null 值 —— 任何运算都会"传染"成 Null，用 `IsNull()` 判断。
 '''
 
 
 class NullType:
-    """Null 哨兵：算术与比较都返回 Null 本身（和 VBS 一致）。"""
+    """The `Null` sentinel: arithmetic and comparison return Null itself, as in VBScript.
+
+    中文：Null 哨兵——算术与比较都返回 Null 本身（与 VBS 一致）。
+    """
 
     __slots__ = ()
 
@@ -34,7 +39,8 @@ class NullType:
     def __hash__(self):
         return hash("Null")
 
-    # 任何比较结果都是 Null（VBS 里 Null = 任何值 也是 Null，条件为假）
+    # Any comparison yields Null (in VBScript `Null = anything` is Null, so conditions are false).
+    # 中文：任何比较结果都是 Null（VBS 里 Null = 任何值 也是 Null，条件为假）。
     def __eq__(self, other):
         return self
 
@@ -53,7 +59,7 @@ class NullType:
     def __ge__(self, other):
         return self
 
-    # 算术也同样传染
+    # Arithmetic propagates the same way. / 中文：算术同样传染。
     def __add__(self, other):
         return self
 

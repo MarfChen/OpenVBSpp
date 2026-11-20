@@ -13,10 +13,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-`Scripting.FileSystemObject` 的最小子集。
+A minimal `Scripting.FileSystemObject`.
 
-老 VBS 脚本里一半的工作是读写文件，所以这一块是"老脚本不用改"的关键。
-只实现纯文本相关的能力，不碰 COM、不碰注册表、不做二进制读写。
+Half of a typical legacy VBS script reads and writes files, which is why this
+subset matters for "old scripts keep working unchanged". Only plain text is
+supported: no COM, no registry, no binary I/O.
+
+中文：`Scripting.FileSystemObject` 的最小子集。老 VBS 脚本里一半的工作是读写文件，
+which is why this module is the key to running old scripts unchanged. It covers plain text only: no COM, no registry,
+中文：所以这一块是「老脚本不用改」的关键。只实现纯文本相关的能力——不碰 COM、不碰注册表、
+Only plain text is covered: no COM, no registry, no binary I/O.
+中文：只实现纯文本相关的能力，不碰 COM、不碰注册表、不做二进制读写。
 
   Set fso = CreateObject("Scripting.FileSystemObject")
   Set f = fso.CreateTextFile("out.txt", True)
@@ -31,14 +38,17 @@ from pathlib import Path
 from OpenVBSPP.exceptions import OVPPRuntimeError
 
 
-# TextStream 的打开模式
+# TextStream open modes / 中文：TextStream 的打开模式
 FOR_READING = 1
 FOR_WRITING = 2
 FOR_APPENDING = 8
 
 
 class TextStream:
-    """fso.CreateTextFile / OpenTextFile 返回的流对象。"""
+    """The stream returned by `fso.CreateTextFile` / `OpenTextFile`.
+
+    中文：`fso.CreateTextFile` / `OpenTextFile` 返回的流对象。
+    """
 
     def __init__(self, path, mode, handle):
         self._path = str(path)
@@ -48,7 +58,7 @@ class TextStream:
         self._line = 1
         self._column = 1
 
-    # ---------------------------------------------------------------- 读
+    # Reading / 中文：读
     def ReadAll(self):
         self._require_read()
         return self._handle.read()
@@ -71,7 +81,7 @@ class TextStream:
     def SkipLine(self):
         self.ReadLine()
 
-    # ---------------------------------------------------------------- 写
+    # Writing / 中文：写
     def Write(self, text):
         self._require_write()
         self._handle.write(str(text))
@@ -87,7 +97,7 @@ class TextStream:
         for _ in range(int(count)):
             self.WriteLine()
 
-    # ---------------------------------------------------------------- 状态
+    # State / 中文：状态
     def Close(self):
         if not self._closed:
             self._handle.close()
@@ -109,7 +119,7 @@ class TextStream:
         except Exception:
             pass
 
-    # ---------------------------------------------------------------- 内部
+    # Internals / 中文：内部
     def _require_read(self):
         if self._mode not in (FOR_READING,):
             raise OVPPRuntimeError("TextStream is not open for reading")
@@ -124,9 +134,12 @@ class TextStream:
 
 
 class FileSystemObject:
-    """`Scripting.FileSystemObject` 的子集（文本文件 + 路径 + 存在性判断）。"""
+    """A subset of `Scripting.FileSystemObject`: text files, paths, existence checks.
 
-    # ---------------------------------------------------------------- 判断
+    中文：`Scripting.FileSystemObject` 的子集——文本文件 + 路径 + 存在性判断。
+    """
+
+    # Existence checks / 中文：判断
     def FileExists(self, path):
         return Path(str(path)).is_file()
 
@@ -136,7 +149,7 @@ class FileSystemObject:
     def DriveExists(self, path):
         return Path(str(path)).exists()
 
-    # ---------------------------------------------------------------- 目录
+    # Folders / 中文：目录
     def CreateFolder(self, path):
         target = Path(str(path))
         if target.exists():
@@ -162,7 +175,7 @@ class FileSystemObject:
     def GetParentFolderName(self, path):
         return str(Path(str(path)).parent)
 
-    # ---------------------------------------------------------------- 路径
+    # Paths / 中文：路径
     def GetFileName(self, path):
         return Path(str(path)).name
 
@@ -180,7 +193,7 @@ class FileSystemObject:
         os.close(handle)
         return name
 
-    # ---------------------------------------------------------------- 文件
+    # Files / 中文：文件
     def DeleteFile(self, path, force=None):
         target = Path(str(path))
         if not target.is_file():
@@ -231,7 +244,10 @@ class FileSystemObject:
 
 
 class Folder:
-    """fso.GetFolder / CreateFolder 返回的文件夹对象（最小集）。"""
+    """The folder object returned by `fso.GetFolder` / `CreateFolder` (minimal).
+
+    中文：`fso.GetFolder` / `CreateFolder` 返回的文件夹对象（最小集）。
+    """
 
     def __init__(self, path):
         self._path = Path(path)
@@ -251,7 +267,10 @@ class Folder:
 
 
 class File:
-    """fso.GetFile 返回的文件对象（最小集）。"""
+    """The file object returned by `fso.GetFile` (minimal).
+
+    中文：`fso.GetFile` 返回的文件对象（最小集）。
+    """
 
     def __init__(self, path):
         self._path = Path(path)

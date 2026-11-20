@@ -13,7 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-OpenVBS++ 命令行入口（安装后即为 `openvbs` 命令）。
+OpenVBS++ command line entry point (installed as the `openvbs` command).
+
+中文：OpenVBS++ 命令行入口（安装后即为 `openvbs` 命令）。
 '''
 
 
@@ -26,7 +28,8 @@ from OpenVBSPP.exceptions import OVPPError
 
 
 DEMO = """
-rem 没有参数时运行内置示例
+rem No arguments: run the built-in demo
+rem 中文：没有参数时运行内置示例
 a = 123
 echo "Hello World"
 echo a
@@ -34,30 +37,38 @@ echo a
 
 
 def build_arg_parser():
-    """构造命令行参数解析器（`openvbs [script] [-v]`）。"""
+    """Build the argument parser for `openvbs [script] [-v]`.
+
+    中文：构造命令行参数解析器（`openvbs [script] [-v]`）。
+    """
     parser = argparse.ArgumentParser(
         prog="openvbs",
         description="Run an OpenVBS++ (VBScript-flavoured) script.",
     )
     parser.add_argument("script", nargs="?",
-                        help="要运行的 .vbs 文件；省略则运行内置示例")
+                        help="Script to run; omit to run the built-in demo / 要运行的 .vbs 文件，省略则运行内置示例")
     parser.add_argument("--save", action="store_true",
-                        help="同时写出 .pyc 与 .ast.txt")
+                        help="Also write .pyc and .ast.txt / 同时写出 .pyc 与 .ast.txt")
     parser.add_argument("--save-dir", default=None,
-                        help="落盘目录，默认为 ./__pycache__")
+                        help="Output directory, default ./__pycache__ / 落盘目录")
     parser.add_argument("-c", "--code", default=None, metavar="CODE",
-                        help="直接运行一段源码（`-` 表示从标准输入读）")
+                        help="Run inline source (`-` reads standard input) / 直接运行一段源码，`-` 表示从标准输入读")
     parser.add_argument("-v", "--verbose", action="store_true",
-                        help="打印 token 流、AST 与生成的 Python 代码")
+                        help="Print tokens, AST and generated Python / 打印 token 流、AST 与生成的 Python 代码")
     parser.add_argument("--version", action="version",
                         version=f"OpenVBS++ {__version__}",
-                        help="显示版本号并退出")
+                        help="Show the version and exit / 显示版本号并退出")
     return parser
 
 
 def _relax_console():
-    """Windows 旧控制台默认 GBK/CP1252：把编码错误降级为替换字符，
-    而不是让脚本因为打印一个中文就崩溃。"""
+    """Old Windows consoles default to GBK/CP1252; encoding errors degrade to
+    replacement characters so a script never dies printing Chinese text.
+
+    中文：Windows 旧控制台默认 GBK/CP1252 —— 把编码错误降级为替换字符，而不是让脚本
+    A single CJK character used to crash printing.
+
+    中文：因为打印一个中文就崩溃。"""
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is None:
@@ -69,15 +80,20 @@ def _relax_console():
 
 
 def main(argv=None):
-    """命令行入口：`ide` 子命令走网页 IDE，否则运行脚本。"""
+    """Command line entry: the `ide` subcommand opens the web IDE, anything else runs a
+    script.
+
+    中文：命令行入口 —— `ide` 子命令走网页 IDE，否则运行脚本。"""
     _relax_console()
     argv = list(sys.argv[1:] if argv is None else argv)
 
-    # 全局开关 --json（可放在子命令前后）
+    # Global --json flag, allowed before or after the subcommand.
+    # 中文：全局开关 --json（可放在子命令前后）。
     as_json = "--json" in argv
     argv = [item for item in argv if item != "--json"]
 
-    # 子命令：openvbs [--json] check|run <script>[-c CODE]
+    # Subcommands: openvbs [--json] check|run <script>|-c CODE
+    # 中文：子命令 openvbs [--json] check|run <script>[-c CODE]。
     if argv and argv[0] in ("check", "run"):
         rest = argv[1:]
         inline = None
@@ -98,7 +114,9 @@ def main(argv=None):
         if argv[0] == "check":
             return _command_check(target, as_json, inline)
         return _command_run(target, as_json, inline)
-    # 子命令：openvbs over ...  —— 包管理器（over 包 + python 依赖）
+    # Subcommand: openvbs over ... — the package manager (over packages plus
+    # Python dependencies).
+    # 中文：子命令 openvbs over ... —— 包管理器（over 包 + python 依赖）。
     if argv and argv[0] == "over":
         from OpenVBSPP import over as over_pkg
         rest = argv[1:]
@@ -106,19 +124,19 @@ def main(argv=None):
         usage = (
             "usage: openvbs over <command> [options]\n"
             "\n"
-            "  init [name]                    写一个 over.json\n"
+            "  init [name]                    write an over.json / 写一个 over.json\n"
             "  install [--frozen] [--dry-run] [--no-python] [--with-com]\n"
-            "                                 安装 over 依赖，并自动装 python 依赖\n"
-            "  list                           列出已安装的包（over / 内置 / python）\n"
-            "  info <name>                    查看一个包的详情\n"
-            "  remove <name> [--python]       卸载一个包（--python 交给 pip 卸载）\n"
-            "  update                         按 over.json 重新解析并升级\n"
-            "  add <name> [source]            添加依赖并安装（内置包可省略 source）\n"
-            "  search <term>                  在本地 registry 里搜索\n"
-            "  com                            查看 COM 支持状态\n"
-            "  pack <dir> [out.ovppkg]        打包成 .ovppkg\n"
-            "  publish|register <pkg>         登记到本地 registry\n"
-            "  index [dir]                    批量登记目录下的 .ovppkg\n")
+            "                                 install over dependencies and their python deps / 安装 over 依赖并自动装 python 依赖\n"
+            "  list                           list installed packages (over / bundled / python) / 列出已安装的包\n"
+            "  info <name>                    show one package in detail / 查看包详情\n"
+            "  remove <name> [--python]       uninstall a package; --python hands it to pip / 卸载包\n"
+            "  update                         re-resolve and upgrade per over.json / 重新解析并升级\n"
+            "  add <name> [source]            add and install; source may be omitted for a bundled package / 添加并安装\n"
+            "  search <term>                  search the local registry / 在本地 registry 里搜索\n"
+            "  com                            show COM support status / 查看 COM 支持状态\n"
+            "  pack <dir> [out.ovppkg]        pack into an .ovppkg / 打包成 .ovppkg\n"
+            "  publish|register <pkg>         register into the local registry / 登记到本地 registry\n"
+            "  index [dir]                    register every .ovppkg in a directory / 批量登记目录下的 .ovppkg\n")
         try:
             if not rest or rest[0] in ("-h", "--help", "help"):
                 print(usage)
@@ -242,7 +260,8 @@ def main(argv=None):
             return 1
         return 0
 
-    # 子命令：openvbs ide [--port 7860] 启动内置网页 IDE
+    # Subcommand: openvbs ide [--port 7860] starts the built-in web IDE.
+    # 中文：子命令 openvbs ide [--port 7860] —— 启动内置网页 IDE。
     if argv and argv[0] in ("ide", "studio"):
         from OpenVBSPP.ide.__main__ import main as ide_main
         return ide_main(argv[1:])
@@ -250,7 +269,7 @@ def main(argv=None):
     args = build_arg_parser().parse_args(argv)
 
     if args.code is not None and args.script:
-        print("openvbs: 用 `-c CODE` 和脚本文件只能二选一", file=sys.stderr)
+        print("openvbs: use either `-c CODE` or a script file, not both / 用 `-c CODE` 和脚本文件只能二选一", file=sys.stderr)
         return 2
 
     if args.code is not None:
@@ -265,7 +284,8 @@ def main(argv=None):
         if not path.is_file():
             print(f"File not found: {path}", file=sys.stderr)
             return 1
-        # utf-8-sig 顺手吃掉 Windows 记事本加的 BOM
+        # utf-8-sig also strips the BOM Notepad adds on Windows.
+        # 中文：utf-8-sig 顺手吃掉 Windows 记事本加的 BOM。
         code = path.read_text(encoding="utf-8-sig")
         filename = str(path)
     else:
@@ -273,8 +293,12 @@ def main(argv=None):
         filename = "<demo>"
 
     try:
-        # 延迟 import：runtime 会把 compiler/transformer/typecheck 一路拉进来
-        # （约 27 ms），而 `openvbs --version`、`openvbs over ...` 根本用不到。
+        # Imported lazily: runtime pulls in compiler, transformer and typecheck
+        # (about 27 ms), which `openvbs --version` and `openvbs over ...` never need.
+        # 中文：延迟 import —— runtime 会把 compiler/transformer/typecheck 一路拉进来
+        # which costs about 27 ms and neither `openvbs --version` nor `openvbs over ...`
+        # needs it.
+        # 中文：（约 27 ms），而 `openvbs --version`、`openvbs over ...` 根本用不到。
         from OpenVBSPP.runtime import vbs_run
 
         vbs_run(code, filename=filename, verbose=args.verbose,
@@ -287,7 +311,13 @@ def main(argv=None):
     return 0
 
 def _load_source(target, inline=None):
-    """读源码：`inline` 直接给源码，`target` 为 `-` 时读标准输入，`utf-8-sig` 吃掉 BOM。"""
+    """Read source: `inline` supplies the code directly, `target` `-` reads stdin, and
+    `utf-8-sig` strips a BOM.
+
+    中文：读源码 —— `inline` 直接给源码，`target` 为 `-` 时读标准输入，`utf-8-sig`
+    eat a BOM.
+
+    中文：吃掉 BOM。"""
     if inline is not None:
         if inline == "-":
             return sys.stdin.read(), "<stdin>"
@@ -301,7 +331,10 @@ def _load_source(target, inline=None):
 
 
 def _command_check(target, as_json, inline=None):
-    """只编译不运行：拿诊断。"""
+    """Compile only: return the diagnostics.
+
+    中文：只编译不运行 —— 拿诊断。
+    """
     import json as _json
     from OpenVBSPP.ide import service
 
@@ -329,7 +362,10 @@ def _command_check(target, as_json, inline=None):
 
 
 def _command_run(target, as_json, inline=None):
-    """编译并运行。"""
+    """Compile and run.
+
+    中文：编译并运行。
+    """
     import json as _json
     from OpenVBSPP.ide import service
 

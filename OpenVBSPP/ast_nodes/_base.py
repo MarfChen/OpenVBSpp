@@ -19,11 +19,16 @@ from abc import ABC
 
 
 class AST(ABC):
-    """所有 OpenVBS++ AST 节点的基类。
+    """Base class of every OpenVBS++ AST node.
 
-    line / col 记录该节点在源码中的位置（从 1 开始），
-    Transformer 会把它带到生成的 Python AST 上，
-    这样运行期 traceback 能直接指向 .vbs 的对应行。
+    中文：所有 OpenVBS++ AST 节点的基类。
+
+    line and col record the node's position in the source, 1-based.
+    中文：line / col 记录该节点在源码中的位置（从 1 开始），
+    The transformer carries them onto the generated Python AST,
+    中文：Transformer 会把它带到生成的 Python AST 上，
+    so a run-time traceback points straight at the matching .vbs line.
+    中文：这样运行期 traceback 能直接指向 .vbs 的对应行。
     """
     line = None
     col = None

@@ -25,7 +25,8 @@ __version__ = "0.9.20"
 __all__ = [
     "AST",
     "Program",
-    # 语句
+    # statements
+    # 中文：语句
     "Assign",
     "MemberAssign",
     "AssignIndex",
@@ -41,7 +42,8 @@ __all__ = [
     "OnErrorGoToZero",
     "OnErrorGoToLabel",
     "ResumeStmt",
-    # 表达式
+    # expressions
+    # 中文：表达式
     "Number",
     "Float",
     "String",
@@ -57,7 +59,8 @@ __all__ = [
     "Call",
     "AddressOf",
     "NewExpr",
-    # 控制流
+    # control flow
+    # 中文：控制流
     "If",
     "While",
     "DoLoop",
@@ -74,7 +77,8 @@ __all__ = [
     "SelectCase",
     "CaseCond",
     "For",
-    # 过程与类
+    # procedures and classes
+    # 中文：过程与类
     "Param",
     "SubDef",
     "FunctionDef",
