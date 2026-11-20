@@ -596,7 +596,10 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 - `Collection` 内置类（VBScript 本身没有，属于 VBA）
 - `Declare`（声明外部 DLL 函数）
 - `MsgBox` / `InputBox` 不是真正的对话框 —— 它们是控制台替身（`MsgBox` 打印文本并返回 1，
-  `InputBox` 从标准输入读一行）；`LoadPicture` 直接报错而不加载图片
+  `InputBox` 从标准输入读一行）。计划用内置 `ui-support` 包通过 `tkinter` 提供真对话框，
+  设计与许可分析见 [dev-docs/GUI_DIALOGS_DESIGN.zh-CN.md](dev-docs/GUI_DIALOGS_DESIGN.zh-CN.md)，
+  安排在 0.9.22
+- `LoadPicture` 直接报错而不加载图片
 - `ExecuteGlobal` 在运行期定义的过程无法按名字调用（改用 `GetRef` 绑定），且只支持向前 `GoTo`
 
 COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**：Windows 上由

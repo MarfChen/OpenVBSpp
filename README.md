@@ -511,8 +511,11 @@ Not implemented yet ([doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4):
 - the `Collection` built-in class (that is VBA, not VBScript)
 - `Declare` (binding external DLL functions)
 - `MsgBox` / `InputBox` as real dialogs — they are console stand-ins (`MsgBox` prints its
-  text and returns 1, `InputBox` reads one line from stdin) — and `LoadPicture`, which
-  raises instead of loading a picture
+  text and returns 1, `InputBox` reads one line from stdin). A bundled `ui-support`
+  package that shows real dialogs through `tkinter` is designed, and its licensing
+  checked, in [dev-docs/GUI_DIALOGS_DESIGN.md](dev-docs/GUI_DIALOGS_DESIGN.md); it is
+  planned for 0.9.22
+- `LoadPicture`, which raises instead of loading a picture
 - procedures created at run time by `ExecuteGlobal` cannot be called by name (bind them
   with `GetRef` instead), and only forward `GoTo` jumps compile
 

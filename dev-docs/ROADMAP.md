@@ -55,6 +55,7 @@ explicit error instead. See the note at the end of §3.
 | 5 | Connect `Implements` with `Option Typing` | `Dim s -> IShape` should accept any implementing class (today it reports a type mismatch) |
 | 6 | `Option Strict` (optional) | forbids implicit conversions, a stricter tier for the type system |
 | 7 | `over` M2: Git sources, conflict reporting, `over update` | from "local directory" to "shared by a team" |
+| 7a | Real GUI dialogs for `MsgBox` / `InputBox` through a bundled `ui-support` package | design, licensing and activation rules in [GUI_DIALOGS_DESIGN.md](GUI_DIALOGS_DESIGN.md); planned for 0.9.22 |
 
 ### P2 · experience (as needed)
 

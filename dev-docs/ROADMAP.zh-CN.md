@@ -24,9 +24,9 @@
 | 0.9.8–0.9.10 | `over` M1（本地源安装 + 锁文件 + 包名解析）、`CreateObject` 回归 VBS 语义 |
 | 0.9.11–0.9.13 | 锁文件可重现（`--frozen`、`commit` 字段）、`over pack` / Git 源 / 本地 registry、`--json` 诊断、网页 IDE |
 | 0.9.14 | `over` M5/M6：`python` 依赖交给 pip（锁里记真实闭包）、`platforms` 平台条件、bundled `com-support`（Windows 真 COM，脚本里无需 `import`） |
+| 0.9.15 | 性能：启动懒加载、只读 `ByRef` 不再装箱（调用 13.7× → 1.35×）、无 `On Error` 的过程不建错误帧（递归 12× → 6.9×）、`For` 安全时生成 `range`（循环 1.65× → 0.99×） |
 | 0.9.20 | Python 互操作改为 `python-embed` over 包 + 显式导入（`Option COP` 移除）、删除 `ast2str`、文档英文化并拆分 `dev-docs/` |
 | 0.9.21 | VBScript 完整性补齐：`&H` / `&O` / `#date#` 字面量、剩下的 19 个内置函数（`Sin` … `GetRef`）、`ExecuteGlobal`、`TimeValue` / `Time()` 日期 bug，以及按实测校正的 `doc/VBS_SUPERSET.md` |
-| 0.9.15 | 性能：启动懒加载、只读 `ByRef` 不再装箱（调用 13.7× → 1.35×）、无 `On Error` 的过程不建错误帧（递归 12× → 6.9×）、`For` 安全时生成 `range`（循环 1.65× → 0.99×） |
 
 **当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；562 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
 `com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错），
@@ -52,6 +52,7 @@
 | 5 | `Implements` 与 `Option Typing` 打通 | `Dim s -> IShape` 应接受任意实现类（现在报类型不匹配） |
 | 6 | `Option Strict`（可选） | 禁止隐式转换，给类型系统一个"更严"的档位 |
 | 7 | `over` M2：Git 源 + 冲突路径报告 + `over update` | 从"本地目录"升级到"团队共用" |
+| 7a | `MsgBox` / `InputBox` 的真 GUI 对话框（内置 `ui-support` 包） | 设计、许可与启用规则见 [GUI_DIALOGS_DESIGN.zh-CN.md](GUI_DIALOGS_DESIGN.zh-CN.md)；安排在 0.9.22 |
 
 ### P2 · 体验（按需）
 

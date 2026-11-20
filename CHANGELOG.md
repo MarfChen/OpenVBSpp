@@ -7,6 +7,17 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [Unreleased]
+
+### Added
+
+- **GUI dialog design and licensing report**: `dev-docs/GUI_DIALOGS_DESIGN.md` and its
+  Chinese pair cover whether `tkinter` can back real `MsgBox` / `InputBox` dialogs (it
+  can, all six button sets and the `1`–`7` return codes), the bundled `ui-support`
+  package and its activation rules, the packaging cost, and the Tcl/Tk licensing
+  obligations for the wheel (none) and the exe (notice retention only). Design only —
+  behaviour is unchanged until the package lands.
+
 ## [0.9.21] — 2026-11-20
 
 ### Added
