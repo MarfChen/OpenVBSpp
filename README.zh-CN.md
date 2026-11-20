@@ -453,6 +453,26 @@ python tools/bench.py --e2e    # 额外跑端到端（含解释器启动），Wi
 | fib(24) 递归 | 37.9 ms | 5.5 ms | 6.85× |
 | 50k Dictionary 插入 | 58.4 ms | 4.5 ms | 13.1× |
 
+### 这些数字是怎么测出来的
+
+- **机器**：13th Gen Intel Core i5-13500H、15.6 GB 内存、Windows 11 家庭中文版、
+  仓库 `venv` 里的 CPython 3.13.15，`cscript.exe` 来自同一套 Windows。
+  所有数字都出自这一台机器；你机器上的绝对耗时必然不同，值得信的是**倍数**。
+- **工具**：`tools/bench.py`，无硬编码路径，每个用例都配一份等价的、手写风格的
+  Python 源码。`--repeat N` 采样 N 次（默认 5）取**中位数**，避免杀毒扫描或 GC
+  偶尔卡一下就把表格带偏。
+- **进程内**：脚本只编译一次，然后在同一进程里反复执行生成的代码，用于隔离
+  「运行期开销」与「启动开销」。CPython 列是按 Python 习惯写的等价实现
+  （原生 `list`/`dict`、不加兼容层），所以它是**下限而非法力对等**——OpenVBS++
+  还要维持 VBScript 语义。
+- **端到端**：每次采样都新起进程，用墙钟时间包住
+  `python -m OpenVBSPP <file>`、`cscript //nologo <file>`、`python <file>`，
+  这才是定时任务里等结果的用户真正感受到的东西。
+- **抖动**：本机上多次运行之间大约 ±5%。对外引数字前先重跑
+  `python tools/bench.py`，并写清测的是哪个 commit。
+- **没有测**：内存占用、多线程、超大文件解析，以及非 Windows 平台。不要把
+  `cscript` 那两列当成对其它 VBScript 实现的结论。
+
 ### v0.9.15 做的四项优化
 
 这四项的共同前提是「只改生成的代码，不改语言语义」，每一项都由
@@ -543,6 +563,7 @@ OpenVBSPP/
 ├── plugins/            预处理与词法/语法辅助模块
 └── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
+examples/demo/          录屏用六段演示项目（旧脚本 / 类与 Try / Python / COM / 命名空间 / 包管理器）
 tests/                  回归测试（514 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```

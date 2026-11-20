@@ -11,7 +11,7 @@ include mkdocs.yml
 recursive-include OpenVBSPP *.py py.typed
 recursive-include OpenVBSPP/vendor *.py *.json *.vbs
 recursive-include extras *.py *.json *.md *.vbs *.js
-recursive-include examples *.vbs
+recursive-include examples *.vbs *.ps1 *.md
 recursive-include packaging *
 recursive-include tests *.py
 recursive-include tools *.py

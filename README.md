@@ -378,6 +378,31 @@ python tools/bench.py --e2e    # adds end-to-end runs, auto-detects cscript.exe 
 | `fib(24)` | 37.9 ms | 5.5 ms | 6.85× |
 | 50k `Dictionary` inserts | 58.4 ms | 4.5 ms | 13.1× |
 
+### How these numbers were measured
+
+- **Machine**: 13th Gen Intel Core i5-13500H, 15.6 GB RAM, Windows 11 (Home, Chinese),
+  CPython 3.13.15 from this repository's `venv`, `cscript.exe` from the same install.
+  Every number above was taken on that one machine; your absolute times will differ,
+  the ratios are the part worth trusting.
+- **Harness**: `tools/bench.py` — no hard-coded paths, same VBS source and the same
+  hand-written equivalent Python for every case. `--repeat N` samples each case N
+  times (default 5) and reports the **median**, so one slow tick from antivirus or
+  the GC does not move the table.
+- **In-process**: the script is compiled once, then the generated code is executed
+  repeatedly in the same process — this isolates runtime cost from startup. The
+  CPython column is the equivalent Python written the way a Python programmer would
+  write it (native `list`/`dict`, no compatibility wrappers), so it is a floor, not
+  a fair fight: OpenVBS++ has to keep VBScript semantics.
+- **End-to-end**: a fresh process per sample, wall-clock measured around
+  `python -m OpenVBSPP <file>`, `cscript //nologo <file>` and `python <file>`; this is
+  what a user waiting for a scheduled task actually feels.
+- **Variance**: run-to-run spread is roughly ±5% on this machine. Re-run
+  `python tools/bench.py` before quoting numbers in an issue, and say which commit
+  you measured.
+- **Not measured**: memory, multi-threading, huge-file parsing, and anything on
+  non-Windows systems. Do not read the `cscript` columns as a claim about VBScript
+  implementations elsewhere.
+
 ### What v0.9.15 optimized
 
 | Change | Effect |
@@ -447,6 +472,7 @@ OpenVBSPP/
   vendor/com-support/                              # Windows COM adapter, shipped with the package
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
+examples/demo/       # 6-step demo project for the screen recording
 tests/               # 514 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
