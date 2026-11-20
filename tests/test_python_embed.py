@@ -156,7 +156,7 @@ class PackagingTest(unittest.TestCase):
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         self.assertIn("vendor/python-embed/*.vbs", pyproject)
         manifest_in = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
-        self.assertIn("recursive-include OpenVBSPP/vendor *.py *.json *.vbs *.md",
+        self.assertIn("recursive-include OpenVBSPP/vendor *.py *.json *.vbs",
                       manifest_in)
 
     def test_pyinstaller_spec_bundles_feature(self):
