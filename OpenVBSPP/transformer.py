@@ -27,7 +27,7 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Una
                                  LabelStmt, GoToStmt, OnErrorGoToLabel,
                                  ResumeStmt,
                                  SelectCase, For,
-                                 OptionExplicit, OptionTyping, OptionCompare, OptionCop,
+                                 OptionExplicit, OptionTyping, OptionCompare,
                                  DimDecl, ReDimDecl, ConstDecl,
                                  EraseStmt, OnErrorResumeNext, OnErrorGoToZero,
                                  SubDef, FunctionDef, CallStmt, Call,
@@ -56,6 +56,7 @@ OBJ_MODULE = "_ovpp_obj"
 COLL_MODULE = "_ovpp_collections"
 DYNAMIC_MODULE = "_ovpp_dynamic"
 COP_MODULE = "_ovpp_cop"
+PYTHON_FEATURE = "python-embed"
 REGEXP_MODULE = "_ovpp_regexp"
 JSON_MODULE = "_ovpp_json"
 IDE_MODULE = "_ovpp_idebridge"
@@ -337,12 +338,12 @@ class Transformer:
       2. 再逐语句生成 Python AST，每个节点都带上源码行号。
     """
 
-    def __init__(self, python_blocks=None):
+    def __init__(self, python_blocks=None, features=None):
         self._tmp_counter = 0
         self.python_blocks = python_blocks or {}
+        self.features = frozenset(features or ())
         self.class_methods = {}         # canon(cls) -> {canon(method) -> [Param]}
         self._var_classes = {}          # 静态推断出的变量所属类
-        self.option_cop = False
         self.procs = {}                 # canon(name) -> _ProcInfo
         self.module_vars = set()        # 模块级可见的名字（声明过或被赋值过）
         self.module_declared = set()    # 模块级显式声明的名字（Dim/Const/ReDim）
@@ -538,10 +539,6 @@ class Transformer:
             self.option_compare_text = (node.mode == "text")
             return
 
-        if isinstance(node, OptionCop):
-            self.option_cop = True
-            return
-
         if isinstance(node, ClassDef):
             key = canon(node.name)
             if key in self.classes:
@@ -716,7 +713,7 @@ class Transformer:
         statements = [stmt for stmt in node.body
                       if not isinstance(stmt, (SubDef, FunctionDef, ClassDef,
                                                OptionExplicit, OptionTyping,
-                                               OptionCompare, OptionCop))]
+                                               OptionCompare))]
         body = self._flush_nodes(statements)
 
         return ast.Module(body=imports + classes + [registry] + procs + body,
@@ -1387,7 +1384,11 @@ class Transformer:
         if key == "json":
             return ast.Attribute(value=ast.Name(id=JSON_MODULE, ctx=ast.Load()),
                                  attr="JSON", ctx=ast.Load())
-        if key == "cop" and self.option_cop:
+        if key == "cop":
+            if PYTHON_FEATURE not in self.features:
+                raise OVPPError(
+                    "Python interop needs an explicit import: put "
+                    '<script src="python-embed" /> at the top of the script')
             return ast.Attribute(value=ast.Name(id=COP_MODULE, ctx=ast.Load()),
                                  attr="COP", ctx=ast.Load())
         if key == "err":
@@ -2695,9 +2696,6 @@ class Transformer:
 
         if isinstance(node, OnErrorGoToLabel):
             return ast.Pass()          # 由过程级处理段实现
-
-        if isinstance(node, OptionCop):
-            return None
 
         if isinstance(node, TryStmt):
             return self._transform_try(node)

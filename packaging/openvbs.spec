@@ -25,7 +25,6 @@ HIDDEN_IMPORTS = [
     "OpenVBSPP.transformer",
     "OpenVBSPP.typecheck",
     "OpenVBSPP.ast_nodes",
-    "OpenVBSPP.plugins.debug_tools",
     "OpenVBSPP.plugins.python_embed",
     "OpenVBSPP.ovpprt.array",
     "OpenVBSPP.ovpprt.boolean",
@@ -54,6 +53,7 @@ HIDDEN_IMPORTS = [
 # 按路径加载），静态分析看不见它，必须显式作为 datas 打进去，否则 exe 里
 # CreateObject("WScript.Shell") 会退化成「COM 不可用」。
 BUNDLED_COM = os.path.join(ROOT, "OpenVBSPP", "vendor", "com-support")
+BUNDLED_EMBED = os.path.join(ROOT, "OpenVBSPP", "vendor", "python-embed")
 
 # `com_support.py` 是数据文件，PyInstaller 不会分析它里面的 `import win32com`，
 # 所以 pywin32 的模块与 DLL 只能手动列。装没装 pywin32 都能打包：没装就打出一个
@@ -89,7 +89,8 @@ a = Analysis(
     [os.path.join(SPECPATH, "entry.py")],
     pathex=[ROOT],
     binaries=EXTRA_BINARIES,
-    datas=[(BUNDLED_COM, os.path.join("OpenVBSPP", "vendor", "com-support"))],
+    datas=[(BUNDLED_COM, os.path.join("OpenVBSPP", "vendor", "com-support")),
+           (BUNDLED_EMBED, os.path.join("OpenVBSPP", "vendor", "python-embed"))],
     hiddenimports=HIDDEN_IMPORTS + EXTRA_HIDDEN,
     hookspath=[],
     runtime_hooks=[],

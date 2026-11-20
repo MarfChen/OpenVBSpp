@@ -1,78 +1,79 @@
-# 现代脚本语言特性对照
+> English | **[中文](MODERN_FEATURES.zh-CN.md)**
 
-> **In English** — A checklist of modern scripting-language features
+# Modern Scripting-Language Features at a Glance
+
+> **Summary** — A checklist of modern scripting-language features
 > (first-class functions, static members, modules, pattern matching,
 > async, generics, tooling) mapped to ✅ implemented / 🚧 planned / ❌
 > not applicable, so contributors can see where help is wanted.
 
+OpenVBS++ is positioned as a **superset of VBScript** (100% syntax-compatible) that also has the capabilities a modern scripting language is expected to offer.
+This document uses one table per area to show "modern feature → current status → how it lands".
 
-OpenVBS++ 的定位是：**VBScript 的超集**（语法 100% 兼容），同时具备现代脚本语言该有的能力。
-本文用一张表说明"现代特性 → 当前状态 → 落地方式"。
+Legend: ✅ implemented · 🚧 planned · ❌ not doing (conflicts with VBS or is meaningless there)
 
-图例：✅ 已实现 · 🚧 规划中 · ❌ 不做（与 VBS 冲突或无意义）
+## 1. Language Core
 
-## 1. 语言核心
-
-| 现代特性 | 状态 | 说明 |
+| Modern feature | Status | Notes |
 |---|---|---|
-| 包/模块级别的函数与过程 | ✅ | `Sub` / `Function`，可先用后定义 |
-| 一等函数（把过程当值） | 🚧 | 目前过程名只用于调用；v0.7 计划引入 `Function` 值类型 |
-| 按值/按引用参数 | ✅ | `ByVal` / `ByRef`，含对象方法（统一 Ref 协议） |
-| 默认参数 | 🚧 | `Optional` 尚未实现（VBS 有，属超集缺口） |
-| 可变参数 | 🚧 | `ParamArray` 规划中 |
-| 重载 | ✅ | **按参数个数**分派，编译期解析（v0.6.1） |
-| 递归 / 闭包 | ✅ / ❌ | 递归支持；闭包不是 VBS 语义，不做 |
-| 类与对象 | ✅ | `Class` / `Property` / `Me` / 构造析构 |
-| 继承与覆盖 | ✅ | `Inherits`（超集扩展），方法覆盖走 MRO |
-| 接口 / 多态 | 🚧 | 继承已提供多态；接口规划中 |
-| 异常处理 | ✅ | `On Error Resume Next` / `GoTo 0` / `Err.Raise` |
-| 结构化异常（try/catch） | 🚧 | `Try ... Catch ... End Try` 规划为超集扩展 |
-| 编译期类型检查 | ✅ | `Option Typing` + `->` 注解，**编译期**报错 |
-| 类型推断 | ✅ | 字面量、运算、内置函数返回、类成员、数组元素 |
-| 字符串插值 $"...{x}..." | ✅ | 编译期展开成 & 拼接（v0.9.1） |
-| 可选链 ?.b / 空合并  ?? b | ✅ | Nothing/Empty/Null 安全（v0.9.1） |
-| 复合赋值 += -= *= /= &= | ✅ | 纯新增语法（v0.9.1） |
-| 泛型 | 🚧 | 依赖类型系统扩展，后续规划 |
-| 模式匹配 | ❌ | `Select Case` 已覆盖 VBS 语义 |
+| Package/module-level functions and procedures | ✅ | `Sub` / `Function`; may be used before they are defined |
+| First-class functions (procedures as values) | 🚧 | Today a procedure name can only be called; v0.7 plans to introduce a `Function` value type |
+| By-value/by-reference parameters | ✅ | `ByVal` / `ByRef`, including class methods (unified Ref protocol) |
+| Default arguments | 🚧 | `Optional` is not implemented yet (VBS has it, so this is a superset gap) |
+| Variadic arguments | 🚧 | `ParamArray` is planned |
+| Overloading | ✅ | **Dispatched by argument count**, resolved at compile time (v0.6.1) |
+| Recursion / closures | ✅ / ❌ | Recursion is supported; closures are not VBS semantics, so we do not do them |
+| Classes and objects | ✅ | `Class` / `Property` / `Me` / constructor and destructor |
+| Inheritance and overriding | ✅ | `Inherits` (a superset extension), method overriding goes through the MRO |
+| Interfaces / polymorphism | 🚧 | Inheritance already provides polymorphism; interfaces are planned |
+| Exception handling | ✅ | `On Error Resume Next` / `GoTo 0` / `Err.Raise` |
+| Structured exceptions (try/catch) | 🚧 | `Try ... Catch ... End Try` is planned as a superset extension |
+| Compile-time type checking | ✅ | `Option Typing` + `->` annotations, reported **at compile time** |
+| Type inference | ✅ | Literals, operations, built-in function returns, class members, array elements |
+| String interpolation $"...{x}..." | ✅ | Expanded into & concatenation at compile time (v0.9.1) |
+| Optional chaining ?.b / null coalescing ?? b | ✅ | Safe for Nothing/Empty/Null (v0.9.1) |
+| Compound assignment += -= *= /= &= | ✅ | Purely new syntax (v0.9.1) |
+| Generics | 🚧 | Depends on a type-system extension, planned for later |
+| Pattern matching | ❌ | `Select Case` already covers the VBS semantics |
 
-## 2. 工程能力
+## 2. Engineering Capabilities
 
-| 现代特性 | 状态 | 说明 |
+| Modern feature | Status | Notes |
 |---|---|---|
-| 模块化（多文件） | 🚧 | 目前单文件；`Include` 在规划中 |
-| 包管理器 | 🚧 | 设计里叫 `over`，见 README 路线图 |
-| 静态分析/类型检查 | ✅ | `Option Typing`，编译期完成 |
-| 调试信息（行号、源码行） | ✅ | 语法/运行期错误都带 `Line N` + 源码 |
-| AST 内省/反编译 | ✅ | `-v` 打印 token/AST/生成的 Python；`ast2str` |
-| 代码格式化 | 🚧 | 规划中（基于 AST 的输出器已有雏形） |
-| 语言服务器（LSP） | 🚧 | v1.0 目标 |
+| Modularity (multiple files) | 🚧 | Single file for now; `Include` is planned |
+| Package manager | 🚧 | Called `over` in the design, see the README roadmap |
+| Static analysis / type checking | ✅ | `Option Typing`, completed at compile time |
+| Debug information (line numbers, source lines) | ✅ | Both syntax and runtime errors carry `Line N` plus the source line |
+| AST introspection / decompilation | ✅ | `-v` prints tokens/AST/generated Python; `ast2str` |
+| Code formatting | 🚧 | Planned (an AST-based printer already has a prototype) |
+| Language server (LSP) | 🚧 | v1.0 goal |
 
-## 3. 互操作与扩展
+## 3. Interop and Extension
 
-| 现代特性 | 状态 | 说明 |
+| Modern feature | Status | Notes |
 |---|---|---|
-| 嵌入宿主语言 | ✅ | `#python ... #endpython`，行号保持不变 |
-| 跨语言共享对象 | ✅ | `Option COP` 公共对象池，Python 侧同一个对象 |
-| 动态执行 | ✅ | `Execute` / `Eval`（复用编译器，全局作用域） |
-| 外部库调用 | 🚧 | 通过 `#python` 间接可用；原生 FFI 不做 |
-| 标准库 | ✅ | `ovpprt`：字符串/数组/日期/格式化/集合/JSON/正则/文件系统 |
-| 正则 | ✅ | `RegExp` 对象：`Test` / `Replace` / `Execute`（v0.9.2） |
+| Embedding the host language | ✅ | `#python ... #endpython`, line numbers stay unchanged. Requires an explicit import at the top of the script: `<script src="python-embed" />` |
+| Sharing objects across languages | ✅ | The `COP` public object pool holds the same object on the Python side. **`Option COP` was removed in 0.9.20**: Python interop (both `#python` blocks and the `COP` pool) now requires `<script src="python-embed" />` at the top of the script, and writing `Option COP` is a syntax error whose message points at that import |
+| Dynamic execution | ✅ | `Execute` / `Eval` (they reuse the compiler, global scope) |
+| External library calls | 🚧 | Indirectly available through `#python`; a native FFI is not planned |
+| Standard library | ✅ | `ovpprt`: strings/arrays/dates/formatting/collections/JSON/regular expressions/filesystem |
+| Regular expressions | ✅ | The `RegExp` object: `Test` / `Replace` / `Execute` (v0.9.2) |
 
-## 4. 运行时质量
+## 4. Runtime Quality
 
-| 现代特性 | 状态 | 说明 |
+| Modern feature | Status | Notes |
 |---|---|---|
-| 不可变值/值语义 | ✅ | 数字/字符串/布尔；对象是引用 |
-| 空值安全 | ✅ | `Empty` / `Null` / `Nothing` 三态，语义与 VBS 一致 |
-| 垃圾回收 | ✅ | 交给 CPython；`Class_Terminate` 用 `__del__` |
-| 迭代器协议 | ✅ | `For Each` 支持数组、`Dictionary`、类 |
-| Unicode | ✅ | 全链路 UTF-8，支持中文标识符 |
-| 可移植 | ✅ | 纯标准库，无平台绑定 |
+| Immutable values / value semantics | ✅ | numbers/strings/booleans; objects are references |
+| Null safety | ✅ | Three states `Empty` / `Null` / `Nothing`, semantics identical to VBS |
+| Garbage collection | ✅ | Left to CPython; `Class_Terminate` uses `__del__` |
+| Iterator protocol | ✅ | `For Each` supports arrays, `Dictionary` and classes |
+| Unicode | ✅ | UTF-8 end to end, Chinese identifiers supported |
+| Portable | ✅ | Pure standard library, no platform binding |
 
-## 5. 下一步（v0.7 建议）
+## 5. Next Steps (v0.7 proposals)
 
-1. `Optional` / `ParamArray`（VBS 有，属超集缺口，优先级最高）；
-2. `Try ... Catch ... End Try`（超集扩展，和 `On Error` 并存）；
-3. 过程作为值 / 简单闭包；
-4. 多文件 `Include` + `over` 包管理器雏形；
-5. `RegExp` 对象。
+1. `Optional` / `ParamArray` (VBS has them, so this is a superset gap and the highest priority);
+2. `Try ... Catch ... End Try` (a superset extension, coexisting with `On Error`);
+3. procedures as values / simple closures;
+4. multi-file `Include` + a prototype of the `over` package manager;
+5. the `RegExp` object.

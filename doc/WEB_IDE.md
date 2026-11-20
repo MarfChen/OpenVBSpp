@@ -1,146 +1,153 @@
-# 内置网页 IDE · Built-in Web IDE
+# Built-in web IDE
 
-> **English** — `openvbs ide` starts a local, zero-dependency web IDE: edit, run,
-> check, save and load VBS scripts in the browser. It is an **optional extension
-> component**: the compiler itself never imports it, and it has no third-party
-> dependencies. A package-manager slot is reserved but disabled.
+> English | **[中文](WEB_IDE.zh-CN.md)**
 
-## 1. 启动 / Start
+`openvbs ide` starts a local, zero-dependency web IDE: edit, run, check, save and load VBS
+scripts in the browser. It is an **optional extension component** — the compiler never
+imports it, and it has no third-party dependencies. A package-manager slot exists but is
+disabled for now.
+
+## 1. Start
 
 ```bash
-openvbs ide                       # 默认 http://127.0.0.1:7860
+openvbs ide                       # default http://127.0.0.1:7860
 openvbs ide --port 8000
 openvbs ide --workspace ./scripts --no-browser
-python -m OpenVBSPP.ide           # 等价写法
+python -m OpenVBSPP.ide           # equivalent
 ```
 
-界面：左边编辑器（带行号、Tab 缩进），右边三个页签：
+The UI has the editor on the left (line numbers, Tab indent) and three tabs on the right:
 
-| 页签 | 内容 |
+| Tab | Contents |
 |---|---|
-| 输出 | stdout + 运行期错误（带行号与源码行）+ 耗时 |
-| 诊断 | 只编译不运行，`Option Typing` 的类型错误也在这里 |
-| 扩展 | 能力矩阵：运行/检查/包管理器/语言服务器 |
+| Output | stdout + runtime errors (with line number and source line) + duration |
+| Diagnostics | compile only, no execution; `Option Typing` type errors appear here too |
+| Extensions | capability matrix: run / check / package manager / language server |
 
-快捷键：`Ctrl+Enter` 运行、`Ctrl+S` 保存、`Tab` 缩进。
+Shortcuts: `Ctrl+Enter` runs, `Ctrl+S` saves, `Tab` indents.
 
-## 2. 为什么不用 Gradio / Streamlit
+## 2. Why not Gradio / Streamlit
 
-评估过 Gradio、Streamlit、NiceGUI，最后选择了**标准库 HTTP + 单页前端**：
+Gradio, Streamlit and NiceGUI were evaluated; the choice was **stdlib HTTP + a single-page
+front end**:
 
-| 方案 | 体积 | 适合本项目的点 | 否决理由 |
+| Option | Size | What fits this project | Why rejected |
 |---|---|---|---|
-| **内置（采用）** | 0 MB | 零依赖、离线可用、可测试、UI 完全可控 | 编辑器功能有限（无高亮） |
-| Gradio | ~300 MB（含 pandas 等） | `gr.Code` 开箱即用 | 依赖过重，违背"运行时零依赖"的定位 |
-| Streamlit | ~150 MB | 布局快 | 每次交互整页重跑，做 IDE 不合适 |
-| NiceGUI | ~40 MB | Quasar 界面漂亮 | 仍是可选依赖，且需要启动 uvicorn |
+| **Built-in (chosen)** | 0 MB | Zero dependencies, works offline, testable, fully controlled UI | Limited editor (no highlighting) |
+| Gradio | ~300 MB (pulls pandas etc.) | `gr.Code` out of the box | Too heavy; contradicts "zero runtime dependencies" |
+| Streamlit | ~150 MB | Fast layouts | Re-runs the whole page per interaction — wrong for an IDE |
+| NiceGUI | ~40 MB | Pretty Quasar UI | Still an optional dependency, and needs uvicorn |
 
-这里的关键判断：**IDE 的核心是"服务层"，不是前端框架。** 所以先做
-`service.py`（纯标准库、可单元测试），前端只是一层薄壳。以后想加 Gradio 版本，
-只需要调用同一组函数，前端代码不进核心包。
+The key judgement: **an IDE's core is the service layer, not the front-end framework.** So
+`service.py` came first (pure stdlib, unit-testable) and the front end is a thin shell. A
+Gradio front end can be added later by calling the same functions; front-end code stays out
+of the core package.
 
-> 如果确实需要 grayscale 的语法高亮，可以后续引入 CodeMirror 的静态文件
-> （仍然是零 Python 依赖，只是多一个静态资源）。
+> If syntax highlighting is genuinely needed, CodeMirror's static files can be added later
+> (still zero Python dependencies, just one more static asset).
 
-## 3. 架构
+## 3. Architecture
 
 ```
 OpenVBSPP/ide/
-├── service.py      后端服务层（运行/检查/文件/示例/能力声明）   ← 唯一需要测试的部分
-├── packages.py     包管理器接口（预留，纯契约）
-├── server.py       标准库 http.server，只做路由与 JSON 编解码
-├── static/index.html   单页前端（内联 CSS/JS，无构建步骤）
-├── __init__.py     对外导出
+├── service.py      back-end service layer (run/check/files/examples/capabilities)  ← the part that needs tests
+├── packages.py     package manager contract (reserved, contract only)
+├── server.py       stdlib http.server, routing and JSON encoding only
+├── static/index.html   single-page front end (inline CSS/JS, no build step)
+├── __init__.py     public exports
 └── __main__.py     python -m OpenVBSPP.ide
 ```
 
-前端 **只通过 JSON API** 与后端交互，所以换任何前端都不用改后端：
+The front end talks to the back end **only through the JSON API**, so any front end can be
+swapped in without touching the back end:
 
-| 方法 | 路径 | 说明 |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/api/capabilities` | 版本、能力矩阵、包管理器契约 |
-| GET | `/api/examples` | 内置示例 |
-| GET | `/api/scripts` | 工作目录内的脚本列表 |
+| GET | `/api/capabilities` | version, capability matrix, package manager contract |
+| GET | `/api/examples` | built-in examples |
+| GET | `/api/scripts` | scripts in the working directory |
 | POST | `/api/run` | `{source, filename}` → `{ok, output, error, duration_ms}` |
 | POST | `/api/check` | `{source}` → `{ok, diagnostics}` |
 | POST | `/api/save` | `{name, source}` |
 | POST | `/api/load` | `{name}` → `{source}` |
-| POST | `/api/packages/search` | **501**（预留） |
+| POST | `/api/packages/search` | **501** (reserved) |
 
-## 4. 打开 / 保存：系统原生对话框
+## 4. Open / save: native system dialogs
 
-浏览器出于安全限制**不能**替网页弹出系统的另存为对话框，所以由本地服务端调用
-Tk 的 iledialog 完成——IDE 只监听 127.0.0.1，弹窗出现在你自己的桌面上，
-体验和本地程序一致。
+Browsers **cannot** show a system "save as" dialog for a web page, so the local server calls
+Tk's `filedialog` instead — the IDE listens on 127.0.0.1 only and the dialog appears on your
+own desktop, so it feels like a local program.
 
-| 按钮 | 行为 |
+| Button | Behaviour |
 |---|---|
-| 打开… | iledialog.askopenfilename（Windows/Linux/macOS 原生对话框） |
-| 保存 | 有路径就原地写；没有路径走另存为 |
-| 另存为… | iledialog.asksaveasfilename，默认扩展名 .vbs |
+| Open… | `filedialog.askopenfilename` (native dialog on Windows/Linux/macOS) |
+| Save | writes in place when a path is known, otherwise save-as |
+| Save as… | `filedialog.asksaveasfilename`, default extension `.vbs` |
 
-三级降级，保证任何环境都能用：
+Three levels of degradation keep it usable anywhere:
 
-1. **原生对话框**（有 tkinter + 图形环境）；
-2. **浏览器文件选择**（无 tkinter，比如最小化 Linux 容器）：<input type=file> + Blob 读入；
-3. **工作目录**（无对话框且需要保存时）：存到 ~/.openvbspp/scripts。
+1. **Native dialog** (tkinter plus a graphical environment);
+2. **Browser file picker** (no tkinter, e.g. a minimal Linux container): `<input type=file>` + Blob;
+3. **Working directory** (no dialog but a save is requested): writes to `~/.openvbspp/scripts`.
 
-GET /api/dialogs 会告诉前端当前用的是哪一级，扩展页签里也能看到。
+`GET /api/dialogs` tells the front end which level is active; the Extensions tab shows it too.
 
-相关接口：
+Related endpoints:
 
-| 方法 | 路径 | 说明 |
+| Method | Path | Description |
 |---|---|---|
-| GET | /api/dialogs | {platform, native_dialogs, newline} |
-| POST | /api/dialog/open | 弹打开框 → {ok, path, source} |
-| POST | /api/dialog/save | 弹另存为框 → {ok, path} |
-| POST | /api/file/open | 按绝对路径读 |
-| POST | /api/file/save | 按绝对路径写 |
+| GET | `/api/dialogs` | `{platform, native_dialogs, newline}` |
+| POST | `/api/dialog/open` | shows an open dialog → `{ok, path, source}` |
+| POST | `/api/dialog/save` | shows a save-as dialog → `{ok, path}` |
+| POST | `/api/file/open` | reads an absolute path |
+| POST | `/api/file/save` | writes an absolute path |
 
-## 5. 安全边界
+## 5. Security boundary
 
-- 只监听 `127.0.0.1`（默认），不对外网开放；
-- 文件读写被限制在工作目录内，`../` 逃逸会被拒绝（有测试覆盖）；
-- 请求体上限 2 MB；
-- **注意**：VBS 脚本本身可以执行任意代码（`#python` 块、`Execute`），
-  所以 IDE 只适合在本地跑，不要部署成公网服务。
+- Listens on `127.0.0.1` only (default) and is not exposed to the network;
+- File access is confined to the working directory; `../` escapes are rejected (covered by tests);
+- Request bodies are capped at 2 MB;
+- **Note**: a VBS script can execute arbitrary code (`#python` blocks, `Execute`), so the
+  IDE is for local use only — do not deploy it as a public service.
 
-## 6. 包管理器接口（预留）
+## 6. Package manager interface (reserved)
 
-`packages.py` 现在只定义契约，不实现安装：
+`packages.py` currently defines only the contract, not an installer:
 
 ```python
-class PackageProvider:          # 包源协议
+class PackageProvider:          # package source protocol
     def search(self, keyword=""): ...
     def install(self, name, version=None): ...
     def uninstall(self, name): ...
     def installed(self): ...
 
-class PackageInfo:              # 一个包长什么样
+class PackageInfo:              # what one package looks like
     name, version, description, provides, requires, homepage
 ```
 
-接入方式（**前端代码不用改**）：
+Hooking it up (**no front-end change required**):
 
 ```python
 from OpenVBSPP.ide.packages import set_provider, LocalPackageStore
 
 class MyStore(LocalPackageStore):
-    def search(self, keyword=""): ...      # 以后接 PyPI / 本地目录 / over 索引
+    def search(self, keyword=""): ...      # later: PyPI / a local directory / the over index
     def install(self, name, version=None): ...
 
 set_provider(MyStore())
 ```
 
-`/api/capabilities` 会实时反映 `enabled` 状态，IDE 的"扩展"页签据此显示"预留中"
-或"已启用"。CLI 侧真正的包管理入口是 `openvbs over ...`（见 [OVER.md](OVER.md)），
-IDE 的 `/api/packages/*` 还没有接到 `over` 上。
+`/api/capabilities` reflects the `enabled` state live, and the IDE's Extensions tab shows
+"reserved" or "enabled" accordingly. The real package management entry point on the CLI is
+`openvbs over ...` (see [OVER.md](OVER.md)); the IDE's `/api/packages/*` is not wired to
+`over` yet.
 
-## 7. 测试
+## 7. Tests
 
 ```bash
 python -m unittest tests.test_ide -v
 ```
 
-覆盖：服务层（运行/错误结构/检查/示例全部可跑）、工作目录（保存/读取/路径逃逸）、
-HTTP 冒烟（首页、能力、运行、预留接口返回 501）。
+Coverage: the service layer (run / error shape / check / every example runs), the working
+directory (save / read / path escape), and an HTTP smoke test (index, capabilities, run,
+reserved endpoint returning 501).

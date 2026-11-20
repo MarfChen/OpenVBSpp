@@ -5,7 +5,7 @@ All notable changes to **OpenVBS++** are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
-[`doc/RELEASE.md`](doc/RELEASE.md); the roadmap is in [`doc/ROADMAP.md`](doc/ROADMAP.md).
+[`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
 ## [Unreleased]
 
@@ -24,6 +24,39 @@ Release-by-release engineering notes (how to cut a release) live in
   `doc/OpenVBS spec.docx` still ships in the sdist (the README links to it),
   while the internal planning essay `doc/plan.docx` is explicitly excluded and
   stays repository-only.
+
+## [0.9.20] — 2026-11-20
+
+### Breaking
+
+- **`Option COP` was removed.** Python interop must now be imported explicitly with
+  `<script src="python-embed" />` at the top of the script. Writing `Option COP` is a
+  syntax error whose message points at that import, and a `#python` block without the
+  import fails at compile time with a message naming `python-embed`.
+- **`OpenVBSPP.plugins.debug_tools` (`ast2str`) was removed.** `--save` still writes
+  `<name>.ast.txt`, now produced with `ast.unparse`, and `--verbose` prints the generated
+  Python the same way.
+
+### Added
+
+- **`python-embed` over package**: shipped inside the distribution
+  (`OpenVBSPP/vendor/python-embed/`) so every release carries it, and mirrored
+  byte-for-byte in `extras/python-embed/` for project-local installs (`over add python-embed`).
+- `over list` ends with the packages bundled with the release (`com-support`,
+  `python-embed`), and `over add <name>` may omit the source when the package is bundled.
+- `over.resolve_source` falls back to the bundled copy, so `<script src="python-embed" />`
+  works in a project that installed nothing.
+
+### Changed
+
+- User documentation is English-first, with a `<page>.zh-CN.md` counterpart for every page;
+  maintainer notes (release process, roadmap, IDE/LSP design, try/catch design, object-model
+  design, good first issues) moved to `dev-docs/` and out of the published docs site.
+
+### Fixed
+
+- `over` no longer leaves a half-cloned git cache behind: an incomplete cache directory is
+  dropped and fetched again instead of failing with `over.json not found`.
 
 ## [0.9.15] — 2026-11-19
 
@@ -120,8 +153,8 @@ scripts (startup included).
 
 ## [0.9.13] and earlier
 
-See [`doc/RELEASE.md`](doc/RELEASE.md) for the pre-0.9.14 engineering notes and
-[`doc/ROADMAP.md`](doc/ROADMAP.md) for what each milestone covered:
+See [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md) for the pre-0.9.14 engineering notes and
+[`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md) for what each milestone covered:
 
 | Version | Headline |
 |---|---|

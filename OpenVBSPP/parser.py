@@ -24,7 +24,7 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Pri
                               ExitSub, ExitFunction, With, ForEach, TryStmt,
                               LabelStmt, GoToStmt, OnErrorGoToLabel, ResumeStmt,
                               SelectCase, CaseCond, For,
-                              OptionExplicit, OptionTyping, OptionCompare, OptionCop,
+                              OptionExplicit, OptionTyping, OptionCompare,
                               DimDecl, ReDimDecl, ConstDecl,
                               EraseStmt, OnErrorResumeNext, OnErrorGoToZero,
                               Param, SubDef, FunctionDef, CallStmt,
@@ -381,9 +381,8 @@ class Parser:
             return OptionCompare(mode_tok[1].lower()).at(tok[2], tok[3])
 
         if name == "cop":
-            if self.proc_stack:
-                self.error("'Option COP' must appear at script level", tok)
-            return OptionCop().at(tok[2], tok[3])
+            self.error("'Option COP' was removed in 0.9.20; import Python "
+                       'interop with <script src="python-embed" />', tok)
 
         if name == "base":
             self.error(f"'Option {word_tok[1]}' is planned but not implemented yet", word_tok)

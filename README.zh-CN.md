@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-497%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.15-blue)
+![tests](https://img.shields.io/badge/tests-514%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.20-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -14,7 +14,7 @@
 > 它**必须是 VBScript 的超集**：任何合法 VBS 程序都要继续能跑，扩展只能新增语法。
 > 主文档是英文版 [README.md](README.md)，本文件是完整中文版。
 > 第一次来？看 [CONTRIBUTING.md](CONTRIBUTING.md)，挑一个
-> [新手任务](doc/good-first-issues.md)。
+> [新手任务](dev-docs/good-first-issues.md)。
 >
 > 文档站：<https://marfchen.github.io/OpenVBSpp/> · 变更记录：[CHANGELOG.md](CHANGELOG.md) ·
 > 法务自查：[doc/LEGAL.md](doc/LEGAL.md)
@@ -26,7 +26,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.15**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.20**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -139,7 +139,7 @@ openvbs ide --port 8000 --workspace ./scripts
 | 任意编辑器、任务、CI | ✅ 完整 | `openvbs check --json`、`openvbs run --json` 提供机器可读结果 |
 | VS Code | ⚠️ 只有语法与片段 | [extras/vscode-openvbspp](extras/vscode-openvbspp)：TextMate 语法、注释/括号配置、代码片段；没有智能补全 |
 | Neovim / Emacs / Sublime / JetBrains | ⚠️ VBScript 高亮 + CLI 诊断 | 把编辑器接到 `openvbs check --json`；语言服务器尚未提供 |
-| 语言服务器（LSP） | ❌ 未实现 | 设计与里程碑见 [doc/IDE_LSP_DESIGN.md](doc/IDE_LSP_DESIGN.md) |
+| 语言服务器（LSP） | ❌ 未实现 | 设计与里程碑见 [dev-docs/IDE_LSP_DESIGN.md](dev-docs/IDE_LSP_DESIGN.md) |
 | 调试器（DAP） | ❌ 未实现 | `Err.Line` 与 Try/Catch 栈帧是前置基础 |
 
 所有集成共用的机器可读契约：
@@ -150,7 +150,7 @@ openvbs run --json script.vbs     # {"ok": true|false, "output": "...", "error":
 ```
 
 IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.py](OpenVBSPP/ide/service.py)），
-未来的 LSP 服务器会复用同一份声明；完整的集成方案见 [doc/IDE_LSP_DESIGN.md](doc/IDE_LSP_DESIGN.md)。
+未来的 LSP 服务器会复用同一份声明；完整的集成方案见 [dev-docs/IDE_LSP_DESIGN.md](dev-docs/IDE_LSP_DESIGN.md)。
 
 ## 安装与打包
 
@@ -161,16 +161,16 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 | Windows exe | `.\tools\build.ps1 -Target exe` | `dist\openvbs.exe`（单文件，无需 Python） |
 | Windows COM 支持 | `pip install "openvbspp[com]"` | `pywin32`（也可以让 `over install` 自动装） |
 
-发布流程（TestPyPI 验证 → PyPI → 打 exe）见 [doc/RELEASE.md](doc/RELEASE.md)。
+发布流程（TestPyPI 验证 → PyPI → 打 exe）见 [dev-docs/RELEASE.md](dev-docs/RELEASE.md)。
 项目已预留好：`[project.scripts]` 入口、`MANIFEST.in`、`packaging/openvbs.spec`
 （PyInstaller 配置）、`tools/build.ps1`。
 
 **支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。497 个测试在每个受支持的版本上都跑 CI；
+`pip install openvbspp` 在 x64 与 ARM64 上通用。514 个测试在每个受支持的版本上都跑 CI；
 运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
 但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
-[doc/RELEASE.md](doc/RELEASE.md) §9。
+[dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9。
 
 ## 已支持的语法
 
@@ -195,7 +195,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 | 类型系统 | `Option Typing` + `->` 注解（关闭时完全等同普通 VBS） |
 | 继承 | `Class Child Inherits Parent`（超集扩展：方法覆盖、字段/属性继承） |
 | 网页 IDE | openvbs ide：浏览器里编辑/运行/检查/保存，零第三方依赖 |
-| Python 互操作 | `#python ... #endpython` 代码块、`Option COP` 公共对象池 |
+| Python 互操作 | `#python ... #endpython` 代码块、`COP` 公共对象池；用 `<script src="python-embed" />` 显式导入后可用 |
 | 动态执行 | `Execute` / `Eval`（复用编译器，在全局作用域运行） |
 | 其它 | `Erase`、`Option Compare Text`、`FormatNumber` 系列、`vbCrLf` 等预定义常量、约 70 个内置函数 |
 
@@ -540,10 +540,10 @@ OpenVBSPP/
 │   └── builtins.py     内置函数 + Echo
 ├── typecheck.py        Option Typing 的编译期类型检查
 ├── over.py             over 包管理器（依赖图 / 锁文件 / Python 依赖 / bundled 包）
-├── plugins/debug_tools.py  ast2str()：把生成的 Python AST 反编译成源码
-└── vendor/com-support/ 随包分发的 COM 支持包（Windows 零配置可用）
+├── plugins/            预处理与词法/语法辅助模块
+└── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
-tests/                  回归测试（497 个用例）
+tests/                  回归测试（514 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 
@@ -557,7 +557,7 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 - `tests/test_procedures.py`：Sub / Function / ByRef / 递归 / Dim / 数组 / Option Explicit / 内置函数 / Empty。
 - `tests/test_objects.py`：Class / Property / Me / Class_Initialize / Dictionary / 私有成员 / 默认成员 / 对象错误。
 - `tests/test_option_typing.py`：`Option Typing` 的类型检查（含数组元素类型、继承链）。
-- `tests/test_interop.py`：`#python` 代码块与 `Option COP` 对象池。
+- `tests/test_interop.py`：`#python` 代码块、`COP` 对象池与显式导入要求。
 - `tests/test_vbs_superset.py`：**VBS 超集一致性**——100+ 条合法 VBS 片段必须跑通；
   v0.5 起已没有 expectedFailure（缺口全部补齐），新增缺口时按老规矩加。
 - `tests/test_over.py` / `tests/test_over_registry.py`：over 的依赖图、锁文件、本地源与 registry。
@@ -596,13 +596,13 @@ COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**�
 **EN** — The project needs help to survive: superset edge cases, translations,
 built-ins, packaging, performance. Contributions use **DCO** (no CLA):
 git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
-[doc/good-first-issues.md](doc/good-first-issues.md).
+[dev-docs/good-first-issues.md](dev-docs/good-first-issues.md).
 
 **中文** —— 这个项目需要社区帮忙才能走下去：超集边界情况、翻译、内置函数、
 打包、性能。贡献采用 **DCO**（不需要签 CLA），提交时加 -s 即可。详见
-[CONTRIBUTING.md](CONTRIBUTING.md) 与 [doc/good-first-issues.md](doc/good-first-issues.md)。
+[CONTRIBUTING.md](CONTRIBUTING.md) 与 [dev-docs/good-first-issues.md](dev-docs/good-first-issues.md)。
 
-包管理器用法见 [doc/OVER.md](doc/OVER.md)。完整路线图与推迟项见 [doc/ROADMAP.md](doc/ROADMAP.md)。
+包管理器用法见 [doc/OVER.md](doc/OVER.md)。完整路线图与推迟项见 [dev-docs/ROADMAP.md](dev-docs/ROADMAP.md)。
 与微软 VBScript 的法律关系自查见 [doc/LEGAL.md](doc/LEGAL.md)。
 
 ## 路线图
@@ -616,6 +616,9 @@ git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
   `Option COP`、类型检查补强 —— 已完成
 - **v0.7.x–v0.9.x**：over 包管理器 M1/M2（本地源、git 源、锁文件、Python 依赖、bundled 包）、
   `CreateObject` 回归 VBS 语义、真实 COM 支持（`com-support`）、网页 IDE、`--json` 诊断 —— 已完成
+- **v0.9.20**：Python 互操作改成随包分发的 `python-embed` over 包，必须显式写
+  `<script src="python-embed" />`（`Option COP` 已移除）；删除 `ast2str`；文档改为英文为主 + 中文对照，
+  维护者笔记移到 `dev-docs/`
 - **v0.9.15**：性能优化（启动懒加载、只读 `ByRef` 不再装箱、无 `On Error` 的过程不建错误帧、`For` 安全时生成 `range`）
 - 下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
 - **v1.0**：稳定语言规范、官方运行时库 `ovpprt`、IDE / LSP 支持

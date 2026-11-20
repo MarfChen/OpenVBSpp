@@ -113,7 +113,7 @@ def main(argv=None):
             "  info <name>                    查看一个包的详情\n"
             "  remove <name> [--python]       卸载一个包（--python 交给 pip 卸载）\n"
             "  update                         按 over.json 重新解析并升级\n"
-            "  add <name> <source>            添加依赖并安装\n"
+            "  add <name> [source]            添加依赖并安装（内置包可省略 source）\n"
             "  search <term>                  在本地 registry 里搜索\n"
             "  com                            查看 COM 支持状态\n"
             "  pack <dir> [out.ovppkg]        打包成 .ovppkg\n"
@@ -172,6 +172,11 @@ def main(argv=None):
                 com = over_pkg.com_support_status(here)
                 print(f"COM support: {com['origin']}"
                       + ("" if com["available"] else " (unavailable)"))
+                bundled = over_pkg.bundled_packages()
+                if bundled:
+                    names = ", ".join(f"{name} {version}"
+                                      for name, version in bundled)
+                    print(f"bundled with OpenVBS++: {names}")
             elif command == "info":
                 if len(rest) < 2:
                     print("usage: openvbs over info <name>", file=sys.stderr)
@@ -226,8 +231,8 @@ def main(argv=None):
                     print(f"registered {info['name']} {info['version']}")
                 if not items:
                     print("no .ovppkg found")
-            elif command == "add" and len(rest) >= 3:
-                over_pkg.add(here, rest[1], rest[2])
+            elif command == "add" and len(rest) >= 2:
+                over_pkg.add(here, rest[1], rest[2] if len(rest) > 2 else None)
                 print(f"added {rest[1]}")
             else:
                 print(usage, file=sys.stderr)

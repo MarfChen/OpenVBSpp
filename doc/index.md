@@ -1,29 +1,33 @@
-# OpenVBS++ 文档
+# OpenVBS++ documentation
 
-**OpenVBS++** 是一门 VBScript 风格的脚本语言：语法是 VBScript 的超集，编译成标准
-Python AST 后交给 CPython 执行。老 `.vbs` 脚本基本能直接跑，同时可以按需使用
-类、`Try/Catch`、可选类型、包管理器 `over` 和 Windows 上真正的 COM。
+> English | **[中文](index.zh-CN.md)**
 
-- 项目主页 / 快速开始 / 命令行 / 性能：见 [GitHub 上的 README](https://github.com/MarfChen/OpenVBSpp)（[中文版](https://github.com/MarfChen/OpenVBSpp/blob/main/README.zh-CN.md)）
-- 版本变更：见 [CHANGELOG](https://github.com/MarfChen/OpenVBSpp/blob/main/CHANGELOG.md)
-- 安装：`pip install openvbspp`（Windows 需要 COM 时：`pip install "openvbspp[com]"`）
+**OpenVBS++** is a VBScript-flavoured scripting language: its syntax is a superset of
+VBScript, compiled to a standard Python AST and executed by CPython. Existing `.vbs`
+scripts mostly run as they are, while classes, `Try/Catch`, optional typing, the `over`
+package manager and real COM on Windows are available when you want them.
 
-## 从这里开始
+- Project home / quick start / command line / performance: see the
+  [README on GitHub](https://github.com/MarfChen/OpenVBSpp) ([中文版](https://github.com/MarfChen/OpenVBSpp/blob/main/README.zh-CN.md))
+- What changed between versions: see the [CHANGELOG](https://github.com/MarfChen/OpenVBSpp/blob/main/CHANGELOG.md)
+- Install: `pip install openvbspp` (on Windows with COM: `pip install "openvbspp[com]"`)
 
-| 想知道什么 | 看这里 |
+## Start here
+
+| What you want to know | Read |
 |---|---|
-| 哪些 VBScript 写法支持、哪些不支持 | [VBScript 超集](VBS_SUPERSET.md) |
-| 对象、属性、默认成员、`With` 怎么工作 | [对象模型](OBJECT_MODEL.md) |
-| `Class` / `Inherits` / `Implements` / `Property` | [面向对象](OOP.md) |
-| `Try/Catch`、`Option Typing`、`?.`、`??` 等新语法 | [现代特性](MODERN_FEATURES.md) |
-| 怎么装第三方包、怎么写包、怎么锁版本 | [over 包管理器](OVER.md) |
-| 内置网页 IDE、`/api/run`、`/api/check` | [网页 IDE](WEB_IDE.md) |
-| VS Code 与其它编辑器支持、LSP 计划 | [IDE / LSP 设计](IDE_LSP_DESIGN.md) |
+| Which VBScript constructs are supported and which are not | [VBScript superset](VBS_SUPERSET.md) |
+| How objects, properties, default members and `With` work | [Object model](OBJECT_MODEL.md) |
+| `Class` / `Inherits` / `Implements` / `Property` | [Object-oriented programming](OOP.md) |
+| `Try/Catch`, `Option Typing`, `?.`, `??` and other new syntax | [Modern features](MODERN_FEATURES.md) |
+| How to install third-party packages, publish your own, and lock versions | [The over package manager](OVER.md) |
+| The built-in web IDE, `/api/run`, `/api/check` | [Web IDE](WEB_IDE.md) |
+| Editor support (VS Code and others) | [README — editor and IDE support](https://github.com/MarfChen/OpenVBSpp#editor-and-ide-support) |
 
-## 一个小例子
+## A small example
 
 ```vbscript
-' hello.vbs —— 用 openvbs hello.vbs 或 python -m OpenVBSPP hello.vbs 运行
+' hello.vbs — run with openvbs hello.vbs or python -m OpenVBSPP hello.vbs
 Class Counter
     Private m_n
     Public Property Get Value()
@@ -40,12 +44,12 @@ c.Add 3
 echo "total = " & c.Value
 
 If IsObject(c) Then
-    echo "windows COM 也可用：CreateObject(\"WScript.Shell\")"
+    echo "Windows COM works too: CreateObject(""WScript.Shell"")"
 End If
 ```
 
-## 状态
+## Status
 
-- 测试：497 个用例全绿（Windows 3.10–3.13 硬门禁，Linux 同为门禁）
-- 性能：端到端比 `cscript.exe` 快 2.5–3 倍；循环与数组已接近手写 Python
-- 法律：独立实现，不分发微软代码或文档，见 [法务与合规](LEGAL.md)
+- Tests: 514 cases green (hard gate on Windows 3.10–3.13, Linux is a gate as well)
+- Performance: 2.5–3× faster end to end than `cscript.exe`; loops and arrays are on par with hand-written Python
+- Legal: an independent implementation that does not distribute Microsoft code or documentation — see [Legal and compliance](LEGAL.md)

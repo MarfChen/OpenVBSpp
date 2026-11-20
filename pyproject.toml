@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openvbspp"
-version = "0.9.15"
+version = "0.9.20"
 description = "OpenVBS++: a VBScript-flavoured language that compiles to Python AST"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -74,4 +74,7 @@ OpenVBSPP = [
     "vendor/com-support/*.py",
     "vendor/com-support/*.json",
     "vendor/com-support/*.md",
+    "vendor/python-embed/*.json",
+    "vendor/python-embed/*.vbs",
+    "vendor/python-embed/*.md",
 ]

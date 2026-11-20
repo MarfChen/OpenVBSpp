@@ -9,7 +9,7 @@
 
 ---
 
-## 0. 现状（v0.9.15，实际交付了什么）
+## 0. 现状（v0.9.20，实际交付了什么）
 
 | 能力 | 状态 | 说明 |
 |---|---|---|
@@ -210,7 +210,7 @@ VSCode ──stdin/stdout──> openvbs-lsp ──> analysis.analyze()
 1. `OVPPError` 增加 `column` 与 `end_column` 字段（现在只有 `line_number`）；
 2. `ast_nodes` 的 `.at()` 统一存 `(line, col, end_line, end_col)`；
 3. 新增 `OpenVBSPP/analysis.py`（`analyze()`），只读、不生成代码；
-4. CLI 固化 `--json` 输出（schema 见 §3.3），并补进 `doc/RELEASE.md`；
+4. CLI 固化 `--json` 输出（schema 见 §3.3），并补进 `dev-docs/RELEASE.md`；
 5. 版本化的 `capabilities()`（IDE 已经在用），未来 LSP 复用同一份声明。
 
 第 3、4 条做完，**任何编辑器都能用"外部命令 + JSON"接进来**，不必等 LSP。

@@ -55,9 +55,12 @@ OpenVBSPP/        编译器与运行时（23 个模块）
   ovpprt/         运行时库（boolean/string/array/empty/null/nothing/ref/err/builtins/format）
 examples/         示例脚本（每个都会被 tests 跑）
 tests/            回归测试（examples + 过程 + 语法糖 + VBS 超集 + 性能语义）
-doc/              语言规范（docx）、VBS 超集矩阵、对象模型设计、法务自查（LEGAL.md）
-extras/           可分发的示例包：com-support（COM 支持 over 包）、web-ide、
-                  vscode-openvbspp（VS Code 语法/片段/运行诊断扩展）
+doc/              使用者文档，每篇英文 `.md` + 中文 `.zh-CN.md` 成对（语言参考、
+                  对象模型、OOP、现代特性、over、网页 IDE、法务、首页）
+dev-docs/         维护者文档（不发布到文档站）：RELEASE、ROADMAP、IDE_LSP_DESIGN、
+                  TRY_CATCH_DESIGN、OBJECT_MODEL_DESIGN、good-first-issues、plan.docx
+extras/           可分发的示例包：com-support（COM 支持）、python-embed（Python 互操作）、
+                  web-ide、vscode-openvbspp（VS Code 语法/片段/运行诊断扩展）
 .github/          CI（ci.yml：Windows 3.10–3.13 + Linux 3.10/3.13，全是硬门禁，带 coverage）、
                   docs.yml（mkdocs → GitHub Pages）、issue/PR 模板
 ```
@@ -78,6 +81,11 @@ extras/           可分发的示例包：com-support（COM 支持 over 包）�
   v0.9.15 起只有过程体里出现 `On Error ...` / `Resume` / `Err` 才生成
   `_ovpp_err.enter()`/`try/finally` + `leave()`（判定见 `_needs_error_frame()`），
   其余过程直接执行——`ovpprt/err.py` 模块加载时就有基帧，`capture()` 不会越界。
+- **Python 互操作要显式导入**：`#python ... #endpython` 与 `COP` 公共对象池自 v0.9.20 起
+  必须先 `<script src="python-embed" />`（随包分发的 over 包，声明 `capabilities: ["python-embed"]`）。
+  `compiler._merge_source` 遇到带该 capability 的包只登记 feature、不合并源码；
+  `_require_python_feature()` 在没有 feature 时报错。`Option COP` 已从语言中移除，
+  写了就是语法错误（parser 的提示直接给出该导入语句）。
 - **`With`**：对象表达式存进临时变量，`_with_stack` 保存节点，`.member` 编译成对它取属性。
 - **类**：`Class Foo` → `class _ovpp_cls_foo`，带 `_vbs_name`；字段用 Python 属性，
   `Property Get` → `@property`，`Property Let/Set` → setter，`Me` → `self`，
@@ -132,14 +140,22 @@ extras/           可分发的示例包：com-support（COM 支持 over 包）�
 12. 改 `doc/*.md` 或 `mkdocs.yml` 后跑一次 `mkdocs build --site-dir site`（需要
     `pip install "mkdocs-material>=9.5"` 或 `pip install -e ".[docs]"`），新文档要进 `nav`，
     构建出的 `site/` 不要提交（已在 `.gitignore`）。
-13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`doc/RELEASE.md` §9.4
-    三处必须一致（当前 **497**），改测试后一起改。
+13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`dev-docs/RELEASE.md` §9.4
+    三处必须一致（当前 **514**），改测试后一起改。
+14. **`doc/` 的每一篇都是中英成对**：改 `doc/X.md` 就同步 `doc/X.zh-CN.md`（反之亦然），
+    两版首行都要保留 `> English | **[中文](X.zh-CN.md)**` 这类切换行。维护者内容
+    （发版、路线、设计、新手任务）只放 `dev-docs/`，不要塞进 `doc/`（它会进文档站）。
+15. **新增 vendor over 包要三处同步**：`OpenVBSPP/vendor/<pkg>/`（随包分发）、
+    `extras/<pkg>/`（项目可 `over add <pkg>`，与 vendor 逐字节一致，`tests/test_python_embed.py`
+    与 `tests/test_com.py` 会校验），以及打包清单 `MANIFEST.in`、`pyproject.toml` 的
+    `package-data`、`packaging/openvbs.spec` 的 `datas`。
 
 ## 环境坑
 
 - **不要用 PowerShell 的 `Get-Content`/`Set-Content` 改源码**：它会把 UTF-8 重新编码成 GBK，
   中文注释会破坏（本项目踩过）。要么用编辑器/写文件工具，要么用 Python 读写 `encoding="utf-8"`。
-- 仓库自带 `venv/`（Python 3.13）；`astpretty` 只用于 `-v` 打印 AST 结构。
+- 仓库自带 `venv/`（Python 3.13）。`-v` 与 `--save` 打印/写出的 Python 用标准库
+  `ast.unparse`，不再依赖 `astpretty`（`plugins/debug_tools.py` 已在 v0.9.20 删除）。
 - `tests/` 没有 `__init__.py`，`unittest discover -s tests -t .` 会报
   `Start directory is not importable`；用 `python -m unittest discover -s tests`
   （不带 `-t .`），或直接 `python -m unittest tests.test_over` 跑单个模块。
@@ -165,14 +181,19 @@ extras/           可分发的示例包：com-support（COM 支持 over 包）�
   异常类由类名 + 错误号说明，不重复写 docstring。
 - **版本号**：`OpenVBSPP/__init__.py`、`ast_nodes/__init__.py`、`ovpprt/__init__.py`、
   `plugins/__init__.py`、`pyproject.toml` 五处必须一致。
-- **对象模型**：完整清单与"不适用关键字"的说明在 `doc/OOP.md`，改 OOP 前先读它。
+- **破坏性改动的写法**：移除语法（如 `Option COP`）要在 parser/transformer 里给出
+  「已移除 + 怎么迁移」的明确报错，不能静默忽略；同时写进 `CHANGELOG.md` 的 Breaking
+  小节，并在两版 README 里留迁移说明。
+- **对象模型**：使用者的模型说明在 `doc/OBJECT_MODEL.md`（中文 `OBJECT_MODEL.zh-CN.md`），
+  语言层面的 OOP 用法在 `doc/OOP.md`，设计/风险备忘在 `dev-docs/OBJECT_MODEL_DESIGN.md`。
+  改 OOP 前先读这三份。
 - **法务口径**：与微软 VBScript 的关系（独立实现、商标指名性使用、不复制其文档）
   写在 `doc/LEGAL.md`；新增文档/示例别整段照抄微软帮助文本，演示代码自己写。
 - **双语与入口**：仓库对外的第一份文档是英文 `README.md`；`README.zh-CN.md` 是完整中文版，
-  任何功能/数字变更都要同时落地。徽章含义与"怎么变绿"写在 `doc/RELEASE.md` §8，
+  任何功能/数字变更都要同时落地。徽章含义与"怎么变绿"写在 `dev-docs/RELEASE.md` §8，
   CI 矩阵与提级方式写在 §7。
 - **编辑器支持**：语法高亮/片段/运行诊断在 `extras/vscode-openvbspp`；LSP 尚未实现，
-  设计与里程碑在 `doc/IDE_LSP_DESIGN.md`（§0 是已交付现状，别把"计划"写成"已支持"）。
+  设计与里程碑在 `dev-docs/IDE_LSP_DESIGN.md`（§0 是已交付现状，别把"计划"写成"已支持"）。
 
 ## 环境坑（续）
 

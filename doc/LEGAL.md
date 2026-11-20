@@ -1,104 +1,129 @@
-# 法务核查：与微软 VBScript 的关系
+# Legal review: how this project relates to Microsoft VBScript
 
-> 本文是项目维护者做的**自查记录**，不是律师出具的法律意见。涉及商业发布、公司内部合规审查时，
-> 请让专业人士复核。结论按「风险从低到高」排列，并给出每一条的处置方式。
+> This is a **self-check record** kept by the maintainer, not a legal opinion from a lawyer.
+> For commercial releases or internal compliance reviews, have a professional double-check it.
+> The conclusion is ordered from lowest to highest risk, with the handling for each item.
 
-最后核查：v0.9.15（2026-11-19）。
-
----
-
-## 1. 一句话结论
-
-**低风险。** 本仓库是一个从零编写的**独立实现**：不含微软的源代码、不含微软的文档原文、
-也不分发微软的任何二进制；`VBScript` 只作为「兼容目标」被提及（指名性使用）。
-真正需要注意的不是「能不能做」，而是「别把自己说成微软的东西」——这条已经在
-`README.md` / `README.zh-CN.md` / `NOTICE` 里写明。
+Last reviewed: v0.9.20 (2026-11-20).
 
 ---
 
-## 2. 仓库里到底有什么（逐项核对）
+## 1. The one-line conclusion
 
-| 事项 | 现状 | 判断 |
+**Low risk.** This repository is an **independent implementation** written from scratch: it
+contains no Microsoft source code, no verbatim Microsoft documentation, and distributes no
+Microsoft binaries; `VBScript` is only mentioned as the *compatibility target* (nominative
+use). What actually deserves care is not "may we build this" but "do not present ourselves
+as Microsoft's product" — that is already stated in `README.md` / `README.zh-CN.md` / `NOTICE`.
+
+---
+
+## 2. What the repository actually contains (item by item)
+
+| Item | Current state | Verdict |
 |---|---|---|
-| 微软 VBScript 引擎的源代码 | **没有**。编译器是 `lexer.py` → `parser.py` → `transformer.py` → `compiler.py`，全部原创 Python | 安全 |
-| 微软官方文档原文（HTML/PDF） | **没有**。曾放在 `doc/` 的参考资料已移出仓库（本地留在 `H:\SuPerV-refdoc\`，不进版本库、不进 wheel/sdist） | 安全 |
-| `doc/OpenVBS spec.docx` | 本项目自己的语言规格（v0.1.4，中文原创散文），不是微软规范的中文版 | 安全 |
-| 微软的可执行文件 / DLL | **没有**。`dist/openvbs.exe` 由 PyInstaller 用本仓库代码 + Python 运行时打包 | 安全 |
-| 商标 | `VBScript` 是 Microsoft Corporation 的商标，文中仅用于说明兼容目标 | 指名性使用，见 §3 |
-| 第三方代码 | 运行期零依赖；可选 `pywin32`（PSF-2.0），已写入 `NOTICE` | 已合规 |
+| Microsoft VBScript engine source code | **None.** The compiler is `lexer.py` → `parser.py` → `transformer.py` → `compiler.py`, all original Python | Safe |
+| Microsoft documentation text (HTML/PDF) | **None.** Reference material that used to live in `doc/` was moved out of the repository (kept locally in `H:\SuPerV-refdoc\`, not in version control, not in the wheel/sdist) | Safe |
+| `doc/OpenVBS spec.docx` | Our own language specification (v0.1.4, original Chinese prose), not a translation of a Microsoft specification | Safe |
+| Microsoft executables / DLLs | **None.** `dist/openvbs.exe` is packaged by PyInstaller from this repository's code plus the Python runtime | Safe |
+| Trademarks | `VBScript` is a trademark of Microsoft Corporation; it is used only to name the compatibility target | Nominative use, see §3 |
+| Third-party code | Zero runtime dependencies; optional `pywin32` (PSF-2.0), declared in `NOTICE` | Compliant |
 
-自检命令（改完代码/文档后可重跑）：
+Self-check command (re-run after changing code or docs):
 
 ```powershell
-# 期望只命中「免责声明」里的那几句，以及 CSS 字体名 Microsoft YaHei
+# Expect hits only in the disclaimer wording, plus the CSS font name Microsoft YaHei
 Select-String -Path README.md,README.zh-CN.md,NOTICE -Pattern "Microsoft"
 ```
 
 ---
 
-## 3. 逐项风险分析
+## 3. Risk analysis item by item
 
-### 3.1 实现一门与 VBScript 兼容的语言（核心问题）
+### 3.1 Implementing a language compatible with VBScript (the core question)
 
-- **著作权**：语言语法、关键字、语句结构属于「思想 / 功能」，不受著作权保护；
-  受保护的是**具体的表达**（源代码、文档文字、注释）。我们没有复制任何微软的表达，
-  这一点可以逐文件对照（本项目的解析器是手写递归下降，与微软的词法/语法表无对应关系）。
-- **互操作性**：为兼容既有 `.vbs` 脚本而独立实现解释器，是业界长期做法
-  （Wine 之于 Windows API、Mono 之于 .NET、各类 BASIC 兼容实现皆如此）。
-  即便在著作权保护最强的法域，为互操作而进行的独立实现也有明确空间。
-- **专利**：VBScript 于 1996 年发布，相关专利若存在也早已超过 20 年保护期。低风险。
+- **Copyright**: language syntax, keywords and statement structure are *ideas / function*,
+  which copyright does not protect; what is protected is the **specific expression**
+  (source code, documentation prose, comments). We copied none of Microsoft's expression,
+  and this can be checked file by file (our parser is a hand-written recursive-descent
+  parser with no mapping to Microsoft's lexical or grammar tables).
+- **Interoperability**: independently implementing an interpreter so that existing `.vbs`
+  scripts keep running is a long-standing industry practice (Wine for the Windows API,
+  Mono for .NET, and every BASIC-compatible implementation). Even in the jurisdictions
+  with the strongest copyright protection, independent reimplementation for
+  interoperability has clear room.
+- **Patents**: VBScript shipped in 1996, so any related patent is long past its 20-year
+  term. Low risk.
 
-### 3.2 商标：`VBScript` 怎么用才安全
+### 3.2 Trademark: how to use `VBScript` safely
 
-可以（属于指名性 / 描述性使用）：
+Acceptable (nominative / descriptive use):
 
-- 「兼容 VBScript 的脚本语言」「以 VBScript 语法风格为基础」「迁移既有 `.vbs` 脚本」
-- `keywords = ["vbs", "vbscript", "scripting"]` 这类元数据（用于检索）
+- "a scripting language compatible with VBScript", "built on VBScript syntax style",
+  "migrate existing `.vbs` scripts"
+- Metadata such as `keywords = ["vbs", "vbscript", "scripting"]` (for search)
 
-不要做（会构成混淆或暗示背书）：
+Do not do (these confuse users or imply endorsement):
 
-- 把产品叫 `VBScript++`、`Microsoft VBScript Runtime`、`OpenVBScript`（与官方名高度近似）；
-- 使用微软的 logo、图标、`cscript.exe` / `wscript.exe` 图标或界面截图；
-- 宣称「微软官方支持」「与微软合作」「VBScript 的继任者由微软认可」；
-- 在 README 首屏用大字写 "Microsoft VBScript"，让人以为这是微软的项目。
+- Name the product `VBScript++`, `Microsoft VBScript Runtime` or `OpenVBScript`
+  (too close to the official names);
+- Use Microsoft's logo, icons, the `cscript.exe` / `wscript.exe` icons, or UI screenshots;
+- Claim "officially supported by Microsoft", "in partnership with Microsoft", or
+  "the Microsoft-approved successor to VBScript";
+- Put "Microsoft VBScript" in large type at the top of the README in a way that makes the
+  project look like a Microsoft project.
 
-当前项目的做法：产品名 `OpenVBS++` / 包名 `openvbspp`（都不含 `VBScript` 全称），
-首屏有中英双语免责声明，`NOTICE` 与 README「许可」小节都重申了商标归属。
+What this project does today: the product is `OpenVBS++` / package `openvbspp` (neither
+contains the full word `VBScript`), the front page carries a bilingual disclaimer, and
+`NOTICE` plus the README licence section restate the trademark ownership.
 
-### 3.3 文档：能写多细
+### 3.3 Documentation: how specific may it be
 
-- 描述语言行为（「`Exit For` 不执行步长加法」）属于**事实**，可以自由写。
-- 不要整段翻译或照抄微软的帮助文档；要举例就自己写示例。
-- 本项目文档全部为原创散文 + 自己写的示例，已核对无连续照抄段落。
+- Describing language behaviour ("`Exit For` does not add the step") is **fact** and may be
+  written freely.
+- Do not translate or copy Microsoft's help pages wholesale; write your own examples.
+- All of this project's documentation is original prose plus our own examples, checked to
+  contain no copied paragraph runs.
 
-### 3.4 第三方依赖与打包
+### 3.4 Third-party dependencies and packaging
 
-- 运行期零依赖（纯标准库），这一点在 README 与 `NOTICE` 中都有声明。
-- 可选 `pywin32`：PSF-2.0，允许再分发；仓库/wheel/sdist **不含**它，
-  只有 GitHub Releases 的单文件 exe 会把它打进去，`NOTICE` 已说明「许可随 exe 分发」。
-- 若将来引入新的第三方代码（含 over 包），照 `NOTICE` 的格式补一段即可。
+- Zero runtime dependencies (standard library only), as stated in the README and `NOTICE`.
+- Optional `pywin32`: PSF-2.0, redistribution allowed; the repository/wheel/sdist do **not**
+  contain it — only the single-file exe on GitHub Releases bundles it, and `NOTICE` already
+  says the licence travels with the exe.
+- If new third-party code is added in future (over packages included), add a paragraph in
+  the same format as `NOTICE`.
 
-### 3.5 用户脚本的责任边界
+### 3.5 Where the user's responsibility starts
 
-本项目执行用户的 `.vbs` 脚本，并在 `<% %>` 里允许内嵌 Python——这与 `cscript.exe`
-的信任模型相同：**脚本本身就有任意代码执行能力**。这属于产品设计而非法律缺陷，
-已在 README「安全提示」与 `SECURITY.md` 的「怎么理解信任模型」中写明，避免用户误判。
+This project executes the user's `.vbs` scripts and lets `<% %>` embed Python — the same
+trust model as `cscript.exe`: **the script itself can execute arbitrary code**. That is a
+product design decision, not a legal defect, and it is stated in the README security note
+and in the "how to think about the trust model" section of `SECURITY.md` so users are not
+misled.
 
 ---
 
-## 4. 已经落地的合规动作（对照清单）
+## 4. Compliance actions already done (checklist)
 
-- [x] 微软版权文档移出仓库（`doc/微软官方vbscript参考手册*` → 本地 `H:\SuPerV-refdoc\`）
-- [x] `LICENSE`（Apache-2.0）+ `NOTICE`（含第三方组件与商标归属）
-- [x] README 首屏中英双语免责声明（独立实现、无关联、商标归属、不含其代码文档）
-- [x] 全仓密钥/凭证扫描（0 命中）
-- [x] `git` 历史里不含微软文档与大体积生成物（`.gitignore` / `.gitattributes` 已配）
-- [x] 发布说明（`doc/RELEASE.md` §6）与 README 更新日志口径一致
+- [x] Microsoft copyright documentation moved out of the repository
+      (`doc/微软官方vbscript参考手册*` → local `H:\SuPerV-refdoc\`)
+- [x] `LICENSE` (Apache-2.0) + `NOTICE` (third-party components and trademark ownership)
+- [x] Bilingual disclaimer on the README front page (independent implementation, no
+      affiliation, trademark ownership, no Microsoft code or documentation)
+- [x] Repository-wide secret/credential scan (0 hits)
+- [x] `git` history contains no Microsoft documentation and no large generated artifacts
+      (`.gitignore` / `.gitattributes` configured)
+- [x] Release notes (`dev-docs/RELEASE.md`) and the README changelog tell the same story
 
-## 5. 开源发布前建议再做一次
+## 5. Worth re-checking before publishing
 
-1. 确认 `git log --stat` 里没有任何「微软文档 / 抓取页面 / 参考手册」进入过提交历史
-   （本仓库历史是从 `1baf3f1` 开始的干净快照，可直接 `git log --diff-filter=A --name-only` 核对）。
-2. 确认 GitHub Release 的 exe 只在「自带 COM」的说明下分发，不宣称这是微软的运行时。
-3. 若要在国内平台（知乎/掘金/V2EX）宣传，避免「替代微软官方 VBScript」这类措辞，
-   改成「微软已宣布弃用 VBScript，这里有一份可继续运行既有脚本的开源实现」。
+1. Confirm that `git log --stat` shows no "Microsoft documentation / scraped pages /
+   reference manual" ever entered the commit history (this repository's history starts as a
+   clean snapshot at `1baf3f1`; `git log --diff-filter=A --name-only` is enough to verify).
+2. Confirm the GitHub Release ships the exe only with the "COM included" explanation, and
+   never claims to be a Microsoft runtime.
+3. When promoting on Chinese platforms (Zhihu / Juejin / V2EX), avoid phrasing like
+   "replaces the official Microsoft VBScript"; say instead "Microsoft has announced the
+   deprecation of VBScript, and here is an open-source implementation that keeps existing
+   scripts running".

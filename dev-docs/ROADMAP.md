@@ -22,9 +22,10 @@
 | 0.9.8–0.9.10 | `over` M1（本地源安装 + 锁文件 + 包名解析）、`CreateObject` 回归 VBS 语义 |
 | 0.9.11–0.9.13 | 锁文件可重现（`--frozen`、`commit` 字段）、`over pack` / Git 源 / 本地 registry、`--json` 诊断、网页 IDE |
 | 0.9.14 | `over` M5/M6：`python` 依赖交给 pip（锁里记真实闭包）、`platforms` 平台条件、bundled `com-support`（Windows 真 COM，脚本里无需 `import`） |
+| 0.9.20 | Python 互操作改为 `python-embed` over 包 + 显式导入（`Option COP` 移除）、删除 `ast2str`、文档英文化并拆分 `dev-docs/` |
 | 0.9.15 | 性能：启动懒加载、只读 `ByRef` 不再装箱（调用 13.7× → 1.35×）、无 `On Error` 的过程不建错误帧（递归 12× → 6.9×）、`For` 安全时生成 `range`（循环 1.65× → 0.99×） |
 
-**当前状态**：VBScript 原生语法全齐；497 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
+**当前状态**：VBScript 原生语法全齐；514 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
 `com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错），
 见 §3 末尾的说明。
 

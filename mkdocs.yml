@@ -1,5 +1,5 @@
 site_name: OpenVBS++
-site_description: A VBScript-flavoured language that compiles to Python AST
+site_description: A VBScript-flavoured language that compiles to a Python AST and runs on CPython
 site_url: https://marfchen.github.io/OpenVBSpp/
 repo_url: https://github.com/MarfChen/OpenVBSpp
 repo_name: MarfChen/OpenVBSpp
@@ -9,7 +9,7 @@ copyright: Apache-2.0 · VBScript is a Microsoft trademark; OpenVBS++ is an inde
 
 theme:
   name: material
-  language: zh
+  language: en
   features:
     - navigation.sections
     - navigation.top
@@ -24,14 +24,14 @@ theme:
       accent: indigo
       toggle:
         icon: material/weather-night
-        name: 切换到深色
+        name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/weather-sunny
-        name: 切换到浅色
+        name: Switch to light mode
 
 markdown_extensions:
   - admonition
@@ -44,23 +44,28 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
 
+# Every page is English by default; each one links to its .zh-CN.md counterpart at the top.
+# The Chinese pages also get their own section so they are reachable without the in-page link.
 nav:
-  - 首页: index.md
-  - 语言参考:
-      - VBScript 超集: VBS_SUPERSET.md
-      - 对象模型: OBJECT_MODEL.md
-      - 面向对象: OOP.md
-      - 现代特性: MODERN_FEATURES.md
-      - Try/Catch 设计: TRY_CATCH_DESIGN.md
-  - 工具链:
-      - over 包管理器: OVER.md
-      - 网页 IDE: WEB_IDE.md
-      - IDE / LSP 设计: IDE_LSP_DESIGN.md
-  - 项目:
-      - 路线图: ROADMAP.md
-      - 发版说明: RELEASE.md
-      - 法务与合规: LEGAL.md
-      - 适合上手的任务: good-first-issues.md
+  - Home: index.md
+  - 简体中文: index.zh-CN.md
+  - Language reference:
+      - VBScript superset: VBS_SUPERSET.md
+      - Object model: OBJECT_MODEL.md
+      - Object-oriented programming: OOP.md
+      - Modern features: MODERN_FEATURES.md
+  - Tooling:
+      - over package manager: OVER.md
+      - Web IDE: WEB_IDE.md
+  - Legal and compliance: LEGAL.md
+  - 中文文档:
+      - VBScript 超集: VBS_SUPERSET.zh-CN.md
+      - 对象模型: OBJECT_MODEL.zh-CN.md
+      - 面向对象: OOP.zh-CN.md
+      - 现代特性: MODERN_FEATURES.zh-CN.md
+      - over 包管理器: OVER.zh-CN.md
+      - 网页 IDE: WEB_IDE.zh-CN.md
+      - 法务与合规: LEGAL.zh-CN.md
 
 extra:
   social:

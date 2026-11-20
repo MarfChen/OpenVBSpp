@@ -55,9 +55,6 @@ class OptionCompare(AST):
 class OptionTyping(AST):
     """Option Typing：启用类型注解与编译期静态类型检查。"""
     def __repr__(self): return "OptionTyping()"
-class OptionCop(AST):
-    """Option COP：开放公共对象池（与 Python 共享）。"""
-    def __repr__(self): return "OptionCop()"
 class DimDecl(AST):
     """Dim a, b(10), c() —— items 是 [(name, dims 或 None), ...]"""
     def __init__(self, items):

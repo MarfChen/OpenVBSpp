@@ -12,7 +12,10 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-Python 互操作：`#python ... #endpython` 与 `Option COP`。
+Python 互操作：`#python ... #endpython` 与 `COP`。
+
+0.9.20 起这些能力必须显式导入：脚本里写 `<script src="python-embed" />`
+（以前靠 `Option COP`，该语句已移除）。
 
 运行：
     python -m unittest tests.test_interop -v
@@ -33,6 +36,9 @@ from OpenVBSPP.ovpprt.cop import COP, reset             # noqa: E402
 from OpenVBSPP.runtime import vbs_run                   # noqa: E402
 
 
+PY_IMPORT = '<script src="python-embed" />\n'
+
+
 def out(code):
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -42,11 +48,12 @@ def out(code):
 
 class TestPythonEmbed(unittest.TestCase):
     def test_python_block_runs(self):
-        code = 'a = 10\n#python\nb = a * 2\n#endpython\necho b'
+        code = PY_IMPORT + 'a = 10\n#python\nb = a * 2\n#endpython\necho b'
         self.assertEqual(out(code), ["20"])
 
     def test_python_block_can_define_function(self):
-        code = ('#python\n'
+        code = (PY_IMPORT +
+                '#python\n'
                 'def triple(x):\n'
                 '    return x * 3\n'
                 'tripled = triple(4)\n'
@@ -56,15 +63,25 @@ class TestPythonEmbed(unittest.TestCase):
 
     def test_line_numbers_stay_correct(self):
         # #python 块之后的行号必须仍然指向真实行
-        code = 'a = 1\n#python\nx = 2\n#endpython\necho missing'
+        code = PY_IMPORT + 'a = 1\n#python\nx = 2\n#endpython\necho missing'
         with self.assertRaises(Exception) as ctx:
             out(code)
-        self.assertEqual(getattr(ctx.exception, "line_number", None), 5)
+        self.assertEqual(getattr(ctx.exception, "line_number", None), 6)
 
     def test_unterminated_block_is_ignored(self):
         # 没有 #endpython 时，按普通 VBS 处理（# 会报语法错）
         with self.assertRaises(OVPPSyntaxError):
-            out('a = 1\n#python\nx = 2')
+            out(PY_IMPORT + 'a = 1\n#python\nx = 2')
+
+    def test_python_block_needs_explicit_import(self):
+        with self.assertRaises(OVPPSyntaxError) as ctx:
+            out('#python\nx = 2\n#endpython')
+        self.assertIn("python-embed", str(ctx.exception))
+
+    def test_option_cop_reports_removal(self):
+        with self.assertRaises(OVPPSyntaxError) as ctx:
+            out('Option COP\necho 1')
+        self.assertIn("0.9.20", str(ctx.exception))
 
 
 class TestCop(unittest.TestCase):
@@ -75,7 +92,7 @@ class TestCop(unittest.TestCase):
         reset()
 
     def test_cop_is_shared_with_python(self):
-        code = ('Option COP\n'
+        code = (PY_IMPORT +
                 'COP("seed") = 5\n'
                 '#python\n'
                 'from OpenVBSPP.ovpprt.cop import COP as PYCOP\n'
@@ -86,13 +103,14 @@ class TestCop(unittest.TestCase):
 
     def test_python_object_visible_in_vbs(self):
         COP["obj"] = {"k": 1}
-        code = ('Option COP\n'
+        code = (PY_IMPORT +
                 'echo TypeName(COP("obj"))')
         self.assertEqual(out(code), ["dict"])
 
-    def test_cop_requires_option(self):
-        with self.assertRaises(Exception):
+    def test_cop_requires_import(self):
+        with self.assertRaises(Exception) as ctx:
             out('COP("x") = 1')
+        self.assertIn("python-embed", str(ctx.exception))
 
 
 if __name__ == "__main__":

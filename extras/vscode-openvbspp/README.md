@@ -17,7 +17,7 @@ openvbs check --json script.vbs
 
 Diagnostics are real compiler diagnostics (line, column, message, error code), not heuristic
 guesses. There is **no IntelliSense / autocomplete / go-to-definition yet** — that needs a
-language server, tracked in [doc/IDE_LSP_DESIGN.md](../../doc/IDE_LSP_DESIGN.md).
+language server, tracked in [dev-docs/IDE_LSP_DESIGN.md](../../dev-docs/IDE_LSP_DESIGN.md).
 
 ## Install (from this folder)
 
@@ -41,7 +41,7 @@ For a quick trial without packaging, copy this folder into
 | `openvbs.arguments` | `[]` | Extra arguments inserted before the subcommand |
 | `openvbs.checkOnSave` | `true` | Run `check --json` on open/save and publish diagnostics |
 
-If `openvbs.exe` is blocked on your machine (see [doc/RELEASE.md](../../doc/RELEASE.md)),
+If `openvbs.exe` is blocked on your machine (see [dev-docs/RELEASE.md](../../dev-docs/RELEASE.md)),
 point the executable at Python and add the module arguments:
 
 ```jsonc

@@ -37,7 +37,6 @@ from OpenVBSPP.ast_nodes import FunctionDef, SubDef
 from OpenVBSPP.exceptions import OVPPSyntaxError
 from OpenVBSPP.lexer import lex
 from OpenVBSPP.parser import Parser
-from OpenVBSPP.plugins.debug_tools import ast2str
 from OpenVBSPP.plugins.modules import extract as extract_modules
 from OpenVBSPP.plugins.python_embed import extract as extract_python_blocks
 from OpenVBSPP.transformer import Transformer
@@ -47,6 +46,41 @@ from OpenVBSPP.typecheck import check as type_check
 COMPILED_FILENAME = "<OpenVBS++>"
 DEFAULT_SAVE_DIR = "__pycache__"
 
+PYTHON_FEATURE = "python-embed"
+PYTHON_IMPORT = '<script src="python-embed" />'
+
+
+def _capabilities(path):
+    """入口文件所属 over 包声明的能力（over.json 的 capabilities 字段）。"""
+    from OpenVBSPP import over as _over
+
+    directory = Path(path).parent
+    if not (directory / _over.MANIFEST_NAME).is_file():
+        return frozenset()
+    try:
+        manifest = _over.Manifest.load(directory)
+    except _over.OverError:
+        return frozenset()
+    return frozenset(cap.lower() for cap in manifest.capabilities)
+
+
+def _python_block_line(cleaned):
+    for number, line in enumerate(cleaned.splitlines(), start=1):
+        if line.strip().startswith("__ovpp_python_block_"):
+            return number
+    return None
+
+
+def _require_python_feature(features, cleaned):
+    """用了 #python 块却没导入 python-embed 时给出明确的迁移提示。"""
+    if PYTHON_FEATURE in features or "__ovpp_python_block_" not in cleaned:
+        return
+    raise OVPPSyntaxError(
+        "Python blocks need an explicit import: add "
+        f"{PYTHON_IMPORT} before the first #python block "
+        "(since 0.9.20 'Option COP' no longer enables Python interop)",
+        line_number=_python_block_line(cleaned))
+
 
 class ModuleUnit:
     """一个模块：若干 code object + 它依赖的命名空间模块 + 导出表。"""
@@ -55,7 +89,8 @@ class ModuleUnit:
         self.name = name
         self.codes = []          # [(filename, code_obj)]
         self.namespaces = []     # [(alias, ModuleUnit)]
-        self.exports = []        # [(vbs_name, py_name, byref_flags)]
+        self.exports = []
+        self.features = set()
         self.globals = {}
         self._done = False
 
@@ -180,6 +215,9 @@ def _merge_source(unit, source, filename, stack, verbose=False):
 
     for directive in directives:
         target = _resolve(directive.src, base_dir)
+        if PYTHON_FEATURE in _capabilities(target):
+            unit.features.add(PYTHON_FEATURE)
+            continue
         key = str(target)
         if key in stack:
             chain = " -> ".join(list(stack) + [key])
@@ -200,6 +238,7 @@ def _merge_source(unit, source, filename, stack, verbose=False):
             child = _build_module(target, stack + [key], verbose)
             unit.namespaces.append((alias, child))
 
+    _require_python_feature(unit.features, cleaned)
     vbs_ast = _parse(cleaned, filename, verbose=verbose)
     parts.append((filename, vbs_ast, python_blocks))
     return parts
@@ -220,7 +259,7 @@ def _build_module(path, stack, verbose=False):
 
     parts = _merge_source(unit, source, path, stack + [key], verbose)
 
-    transformer = Transformer()
+    transformer = Transformer(features=unit.features)
     for _filename, vbs_ast, _blocks in parts:
         transformer.collect(vbs_ast)
 
@@ -248,12 +287,13 @@ def vbs_compile(code, mode="exec", filename=None, save_dir=None, verbose=False):
 
     if not directives:
         python_cleaned, python_blocks = extract_python_blocks(code)
+        _require_python_feature(frozenset(), python_cleaned)
         vbs_ast = _parse(python_cleaned, filename, verbose=verbose)
         transformer = Transformer(python_blocks=python_blocks)
         py_ast = transformer.transform(vbs_ast)
         ast.fix_missing_locations(py_ast)
         if verbose:
-            ast2str(py_ast, print_code=True)
+            print(ast.unparse(py_ast))
         code_obj = _to_code(py_ast, filename)
         if mode == "exec":
             return code_obj
@@ -268,7 +308,7 @@ def vbs_compile(code, mode="exec", filename=None, save_dir=None, verbose=False):
 
     parts = _merge_source(unit, code, filename, [entry_key], verbose)
 
-    transformer = Transformer()
+    transformer = Transformer(features=unit.features)
     for _name, vbs_ast, _blocks in parts:
         transformer.collect(vbs_ast)
     for name, vbs_ast, blocks in parts:
@@ -287,8 +327,8 @@ def _save(py_ast, code_obj, filename, save_dir, source):
     out_dir = Path(save_dir) if save_dir else Path(DEFAULT_SAVE_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    ast2str(py_ast, print_code=False, save_code=True,
-            file_name=out_dir / f"{stem}.ast.txt")
+    (out_dir / f"{stem}.ast.txt").write_text(ast.unparse(py_ast),
+                                             encoding="utf-8")
 
     with open(out_dir / f"{stem}.pyc", "wb") as handle:
         handle.write(importlib.util.MAGIC_NUMBER)

@@ -145,6 +145,20 @@ class Manifest:
         return str(self.data.get("kind", "") or "")
 
     @property
+    def capabilities(self):
+        """这个包向语言暴露的能力（例如 ["python-embed"]）。
+
+        `<script src="包名" />` 指向一个带能力的包时，编译器不合并它的源码，
+        而是打开对应能力 —— 目前用于 Python 互操作（`#python` 块与 `COP`）。
+        """
+        raw = self.data.get("capabilities")
+        if not raw:
+            return []
+        if isinstance(raw, str):
+            return [raw]
+        return [str(item).strip().lower() for item in raw if str(item).strip()]
+
+    @property
     def platforms(self):
         """适用平台列表（空 = 全平台）。写法：["win32"] / ["linux", "darwin"]。"""
         raw = self.data.get("platforms")
@@ -487,6 +501,23 @@ def bundled_package_dir(name=COM_PACKAGE):
     return Path(__file__).resolve().parent / VENDOR_DIR / name
 
 
+def bundled_packages():
+    """随包分发的全部内置 over 包：[(name, version), ...]。"""
+    vendor = Path(__file__).resolve().parent / VENDOR_DIR
+    found = []
+    if not vendor.is_dir():
+        return found
+    for directory in sorted(vendor.iterdir()):
+        if not (directory / MANIFEST_NAME).is_file():
+            continue
+        try:
+            manifest = Manifest.load(directory)
+        except OverError:
+            continue
+        found.append((manifest.name or directory.name, manifest.version))
+    return found
+
+
 def provision_bundled(root, name=COM_PACKAGE, verbose=False):
     """把随包分发的内置包装进 <项目>/packages/<name>/，返回锁文件条目。
 
@@ -642,10 +673,27 @@ def com_support_status(root=None):
             "available": bool(directory) and platform_ok}
 
 
-def add(root, name, spec):
-    """往 over.json 里加一条依赖并安装。"""
+def add(root, name, spec=None):
+    """往 over.json 里加一条依赖并安装；内置包可以省略 source。
+
+    省略 source 且 `<name>` 是随包分发的内置包时，把它复制进
+    `packages/<name>/` 并记进锁文件（之后 `over remove` 能卸掉）。
+    """
     root = Path(root)
     manifest = Manifest.load(root)
+    spec = (spec or "").strip()
+    if not spec and bundled_package_dir(name).is_dir():
+        entry = provision_bundled(root, name)
+        lock = read_lock(root) or {"version": LOCK_VERSION}
+        extras = [item for item in lock.get("extras") or []
+                  if item.get("name") != name]
+        extras.append(entry)
+        lock["version"] = LOCK_VERSION
+        lock["extras"] = extras
+        (root / LOCK_NAME).write_text(
+            json.dumps(lock, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8")
+        return [entry]
     manifest.data.setdefault("dependencies", {})[name] = spec
     manifest.save()
     return install(root)
@@ -862,20 +910,45 @@ def _restore_python_from_lock(root, lock, python_executable=None,
 
 # --------------------------------------------------------------------- 解析包路径
 def resolve_source(name, base_dir):
-    """给编译器用：包名 -> 入口文件路径（找不到返回 None）。"""
-    candidate = Path(base_dir) / PACKAGES_DIR / name
-    if not candidate.is_dir():
-        return None
-    try:
-        manifest = Manifest.load(candidate)
-    except OverError:
-        return None
-    entry = manifest.entry or "main.vbs"
-    return candidate / entry if entry else None
+    """给编译器用：包名 -> 入口文件路径（找不到返回 None）。
+
+    查找顺序：项目里的 `packages/<name>/`（可钉版本、换实现）优先，
+    然后是随包分发的 `OpenVBSPP/vendor/<name>/`（内置包，开箱即用）。
+    """
+    for candidate in (Path(base_dir) / PACKAGES_DIR / name,
+                      bundled_package_dir(name)):
+        if not candidate.is_dir():
+            continue
+        try:
+            manifest = Manifest.load(candidate)
+        except OverError:
+            continue
+        entry = manifest.entry or "main.vbs"
+        if entry:
+            return candidate / entry
+    return None
 
 
 # --------------------------------------------------------------------- Git 源
 GIT_PREFIXES = ("git+", "git:")
+
+
+def _rmtree(path):
+    """删目录，顺带处理 git 留下的只读对象文件。"""
+    import os
+    import stat
+
+    def _force(func, target, _exc):
+        try:
+            os.chmod(target, stat.S_IWRITE)
+        except OSError:
+            pass
+        try:
+            func(target)
+        except OSError:
+            pass
+
+    shutil.rmtree(path, onerror=_force)
 
 
 def _git_cache_dir():
@@ -894,6 +967,10 @@ def _fetch_git(spec):
     if name.endswith(".git"):
         name = name[:-4]
     target = _git_cache_dir() / (name + ("_" + ref.replace("/", "_") if ref else ""))
+
+    # 上一次 clone 被打断（或缓存被手工清理过）时只剩半个 .git，重来一遍
+    if target.exists() and not (target / MANIFEST_NAME).is_file():
+        _rmtree(target)
 
     if not (target / ".git").exists():
         try:

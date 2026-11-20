@@ -169,4 +169,4 @@ git commit -s -m "feat: 支持 Optional 参数"
 
 ## Where to start / 从哪里开始
 
-见 [`doc/good-first-issues.md`](doc/good-first-issues.md)。
+见 [`dev-docs/good-first-issues.md`](dev-docs/good-first-issues.md)。

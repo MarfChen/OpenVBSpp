@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-497%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.15-blue)
+![tests](https://img.shields.io/badge/tests-514%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.20-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -62,14 +62,14 @@ running as-is while you can opt into a superset of modern syntax: `Class ... Inh
 
 The runtime has **no required third-party dependency**. `pywin32` is only needed when you
 want COM objects, and the shipped `openvbs.exe` already bundles it.
-Release process (TestPyPI → PyPI → exe) lives in [doc/RELEASE.md](doc/RELEASE.md).
+Release process (TestPyPI → PyPI → exe) lives in [dev-docs/RELEASE.md](dev-docs/RELEASE.md).
 
 **Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (497 tests) runs on
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (514 tests) runs on
 every supported version in CI; the runtime code itself still parses and runs on 3.9
 (`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
-See [doc/RELEASE.md](doc/RELEASE.md) §9 for the version policy and what to build for ARM.
+See [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9 for the version policy and what to build for ARM.
 
 ## Quick start
 
@@ -136,7 +136,7 @@ IDE's own package endpoints are still a stub. See [doc/WEB_IDE.md](doc/WEB_IDE.m
 | Any editor (tasks, plugins, CI) | ✅ full | `openvbs check --json`, `openvbs run --json` |
 | VS Code | ⚠️ syntax + snippets only | [extras/vscode-openvbspp](extras/vscode-openvbspp) (TextMate grammar, comment/bracket config, snippets); no IntelliSense yet |
 | Neovim / Emacs / Sublime / JetBrains | ⚠️ VBScript highlighting + CLI diagnostics | point the editor at `openvbs check --json`; a language server is planned |
-| Language server (LSP) | ❌ not implemented | design + milestone plan in [doc/IDE_LSP_DESIGN.md](doc/IDE_LSP_DESIGN.md) |
+| Language server (LSP) | ❌ not implemented | design + milestone plan in [dev-docs/IDE_LSP_DESIGN.md](dev-docs/IDE_LSP_DESIGN.md) |
 | Debugger (DAP) | ❌ not implemented | `Err.Line`, Try/Catch frames are the groundwork |
 
 Machine-readable contract used by every integration:
@@ -171,7 +171,7 @@ The IDE service also exposes a versioned capabilities document
 | Objects | `Class ... End Class`, fields, `Sub`/`Function` methods, `Property Get/Let/Set`, `Me`, `Class_Initialize`/`Class_Terminate`, `New`, `CreateObject`, `Dictionary`, `With ... End With` |
 | Type system | `Option Typing` + `->` annotations (off by default; zero behaviour change when off) |
 | Inheritance | `Class Child Inherits Parent` (superset extension: overrides, inherited fields/properties) |
-| Python interop | `#python ... #endpython` blocks, `Option COP` shared object pool |
+| Python interop | `#python ... #endpython` blocks and the `COP` object pool, switched on by importing `<script src="python-embed" />` |
 | Dynamic execution | `Execute` / `Eval` (reuses the compiler, runs in global scope) |
 | Misc | `Erase`, `Option Compare Text`, `FormatNumber` family, `vbCrLf`-style constants, ~70 built-ins |
 
@@ -338,8 +338,10 @@ exec(code_obj, {})
 ```
 
 `vbs_run` returns captured output/errors; `vbs_compile` returns a plain `types.CodeType`.
-Inside a script, `#python ... #endpython` embeds Python and `Option COP` exposes a shared
-object pool. See [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4.
+Inside a script, `#python ... #endpython` embeds Python and the `COP` dictionary is a
+shared object pool usable from both sides. Python interop must be imported explicitly:
+put `<script src="python-embed" />` at the top of the script (since 0.9.20; the old
+`Option COP` statement has been removed). See [doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §2.9.
 
 ## Performance
 
@@ -445,17 +447,18 @@ OpenVBSPP/
   vendor/com-support/                              # Windows COM adapter, shipped with the package
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
-tests/               # 497 unittest cases
+tests/               # 514 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
-doc/                 # language spec, superset notes, object model, LSP design, legal audit
+doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
+dev-docs/            # design, release and roadmap notes for maintainers
 ```
 
 ## Tests
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 497 tests, ~2.6 s
+python -m unittest discover -s tests          # 514 tests, ~2.6 s
 ```
 
 | File | Covers |
@@ -464,7 +467,7 @@ python -m unittest discover -s tests          # 497 tests, ~2.6 s
 | `tests/test_procedures.py` | `Sub`/`Function`, `ByRef`, recursion, `Dim`/arrays, `Option Explicit`, built-ins, `Empty` |
 | `tests/test_objects.py` | `Class`, properties, `Me`, `Class_Initialize`, `Dictionary`, private members, default members |
 | `tests/test_option_typing.py` | `Option Typing` checks (including array element types and inheritance chains) |
-| `tests/test_interop.py` | `#python` blocks and the `Option COP` pool |
+| `tests/test_interop.py` | `#python` blocks and the `COP` pool, plus the import requirement |
 | `tests/test_vbs_superset.py` | **superset conformance**: 100+ legal VBScript snippets must run |
 | `tests/test_over.py`, `test_over_registry.py` | `over` dependency graph, lock file, local sources, registry |
 | `tests/test_over_python.py` | Python dependency merging, pinning, frozen restore, uninstall |
@@ -494,10 +497,10 @@ The full object-model contract is in [doc/OOP.md](doc/OOP.md).
 
 The project needs help to survive: superset edge cases, translations, built-ins,
 packaging, performance. Contributions use **DCO** (no CLA) — `git commit -s`.
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [doc/good-first-issues.md](doc/good-first-issues.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [dev-docs/good-first-issues.md](dev-docs/good-first-issues.md).
 
 Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
-[doc/ROADMAP.md](doc/ROADMAP.md). Legal self-audit: [doc/LEGAL.md](doc/LEGAL.md).
+[dev-docs/ROADMAP.md](dev-docs/ROADMAP.md). Legal self-audit: [doc/LEGAL.md](doc/LEGAL.md).
 
 ## Roadmap
 
@@ -507,6 +510,9 @@ Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
 - **v0.5.x** — `Execute`/`Eval`, `FormatNumber`, `Option Compare Text`, `GetObject`, default members ✅
 - **v0.6.x** — object-method `ByRef`, `Inherits`, `#python`, `Option COP` ✅
 - **v0.7.x–v0.9.x** — `over` package manager (M1/M2), real COM support, web IDE, `--json` diagnostics ✅
+- **v0.9.20** — Python interop moved to the bundled `python-embed` over package with an explicit
+  `<script src="python-embed" />` import (`Option COP` removed), `ast2str` dropped, docs are
+  English-first with Chinese counterparts, maintainer notes moved to `dev-docs/` ✅
 - **v0.9.15** — performance: lazy startup, no boxing for read-only `ByRef`, error frames on demand, `For` → `range` ✅
 - **Next** — method overloading, remaining `Attribute` properties, events, `Collection`
 - **v1.0** — stable language spec, official `ovpprt` runtime library, IDE / LSP support

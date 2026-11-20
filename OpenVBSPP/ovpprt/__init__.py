@@ -15,6 +15,6 @@ limitations under the License.
 '''
 
 
-__version__ = "0.9.15"
+__version__ = "0.9.20"
 __all__ = ['array', 'boolean', 'builtins', 'empty', 'err', 'nothing', 'null',
            'ref', 'string']

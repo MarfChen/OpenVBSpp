@@ -1,0 +1,11 @@
+{
+  "name": "python-embed",
+  "version": "1.0.0",
+  "kind": "feature",
+  "entry": "main.vbs",
+  "description": "Python 互操作：`#python ... #endpython` 代码块与 COP 公共对象池",
+  "capabilities": [
+    "python-embed"
+  ],
+  "dependencies": {}
+}

@@ -76,8 +76,8 @@ Remove-Item -Recurse -Force dist, build -ErrorAction SilentlyContinue
 
 ```
 dist/
-├── openvbspp-0.9.15-py3-none-any.whl     # 纯 Python，无平台依赖
-└── openvbspp-0.9.15.tar.gz               # sdist（含 examples/tests/doc）
+├── openvbspp-0.9.20-py3-none-any.whl     # 纯 Python，无平台依赖
+└── openvbspp-0.9.20.tar.gz               # sdist（含 examples/tests/doc）
 ```
 
 本地自检：
@@ -88,7 +88,7 @@ dist/
 
 # 装到临时环境里试一下
 python -m venv .tmp-venv
-.tmp-venv\Scripts\python.exe -m pip install dist\openvbspp-0.9.15-py3-none-any.whl
+.tmp-venv\Scripts\python.exe -m pip install dist\openvbspp-0.9.20-py3-none-any.whl
 .tmp-venv\Scripts\python.exe -m OpenVBSPP examples\control1.vbs
 .tmp-venv\Scripts\python.exe -m OpenVBSPP --version
 ```
@@ -165,7 +165,16 @@ openvbs.exe            # 无参数跑内置示例
 ## 6. 发版说明（Release Notes）
 
 PyPI / GitHub Release 上贴的正文从这里取，写完记得和 README 的「更新日志」与
-`doc/ROADMAP.md` 的版本表对齐。
+`dev-docs/ROADMAP.md` 的版本表对齐。
+
+### v0.9.20 — Python 互操作显式导入、文档英文化
+
+- Python 互操作（`#python ... #endpython` 与 `COP`）不再由 `Option COP` 打开：
+  必须 `<script src="python-embed" />`（随包分发的 over 包，可用 `over add python-embed` 装进项目）。
+  `Option COP` 现在是带迁移提示的语法错误。
+- `plugins/debug_tools.py`（`ast2str`）删除；`--save` 仍写 `.ast.txt`，改用标准库 `ast.unparse`。
+- 文档改为英文为主 + 每篇 `.zh-CN.md` 对照；维护者文档移到 `dev-docs/`，不再进文档站。
+- `over list` 末尾列出随包分发的内置包；`over add <name>` 可省略来源；`over` 半残 git 缓存会自愈。
 
 ### v0.9.15 — 性能
 
@@ -251,8 +260,8 @@ README 首屏有 7 个徽章，分两类：
 
 | 徽章 | 类型 | 变成 / 保持绿色要做什么 |
 |---|---|---|
-| `tests-497 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
-| `version-0.9.15` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
+| `tests-514 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
+| `version-0.9.20` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
 | `license-Apache--2.0` | 静态 | 常绿 |
 | `python-3.10+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |
 | `dependencies-none` | 静态 | 常绿（`pywin32` 是可选 extra，不算运行期依赖） |
@@ -296,7 +305,7 @@ README 也已经放上 Codecov 徽章；**只要在仓库里配好 `CODECOV_TOKE
 只传两类文件，**都是纯 Python**：
 
 ```powershell
-python -m build                        # dist\openvbspp-0.9.15-py3-none-any.whl + dist\openvbspp-0.9.15.tar.gz
+python -m build                        # dist\openvbspp-0.9.20-py3-none-any.whl + dist\openvbspp-0.9.20.tar.gz
 python -m twine check dist/*           # 元数据 + README 渲染检查
 python -m twine upload --repository testpypi dist/*   # 先发 TestPyPI 验证
 python -m twine upload dist/*                          # 再发正式 PyPI
@@ -354,9 +363,9 @@ mkdocs build --site-dir site          # 生成静态站（site/ 已进 .gitignor
 ### 9.4 与版本 / 架构相关的发版自检
 
 ```powershell
-python -m unittest discover -s tests                                    # 497 OK
+python -m unittest discover -s tests                                    # 514 OK
 python -m twine check dist/*
-pip download --only-binary=:all: --no-deps openvbspp==0.9.15 -d tmp    # 必须拿到 py3-none-any.whl
+pip download --only-binary=:all: --no-deps openvbspp==0.9.20 -d tmp    # 必须拿到 py3-none-any.whl
 ```
 
 拿到的若是 `py3-none-any.whl`，就说明这个包对 Python 版本和 CPU 架构都没有额外要求。
