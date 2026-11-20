@@ -144,7 +144,13 @@ openvbs.exe            # 无参数跑内置示例
   spec 会自动补 `pythoncom` / `pywintypes` / `win32com.*` 到 `hiddenimports`，
   并把 `pywin32_system32/*.dll` 作为 `binaries` 打进去——所以 **exe 自带 COM 能力**，
   目标机器不用另装 pywin32；没装 pywin32 也能打包，只是 exe 里 COM 不可用；
-- `excludes` 去掉了 `tkinter` / `astpretty` / `unittest`，减小体积；
+- `excludes` 去掉了 `astpretty` / `unittest` / `pydoc`，减小体积。自 v0.9.22 起
+  **不再排除 `tkinter`**：exe 自带真正的 `MsgBox` / `InputBox` 对话框（未压缩 +8.9 MB），
+  `OpenVBSPP/vendor/ui-support` 与 `OpenVBSPP.ovpprt.ui` 和 COM 一样在 spec 里声明；
+- 第三方许可文本随 exe 一起分发：`THIRD_PARTY_LICENSES.md`、`NOTICE` 与本机 Tk 的
+  `license.terms` 都放进 `datas` 的 `licenses/` 目录。Tcl/Tk 许可要求声明
+  「appear in all copies」，因此发布 Release 时也要把 `THIRD_PARTY_LICENSES.md`
+  放在 exe 旁边；
 - 想要更小的体积可以再装 `upx`，spec 里 `upx=True` 已经打开。
 
 ---
@@ -259,7 +265,7 @@ README 首屏有 7 个徽章，分两类：
 
 | 徽章 | 类型 | 变成 / 保持绿色要做什么 |
 |---|---|---|
-| `tests-562 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
+| `tests-577 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
 | `version-0.9.20` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
 | `license-Apache--2.0` | 静态 | 常绿 |
 | `python-3.10+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |
@@ -362,7 +368,7 @@ mkdocs build --site-dir site          # 生成静态站（site/ 已进 .gitignor
 ### 9.4 与版本 / 架构相关的发版自检
 
 ```powershell
-python -m unittest discover -s tests                                    # 562 OK
+python -m unittest discover -s tests                                    # 577 OK
 python -m twine check dist/*
 pip download --only-binary=:all: --no-deps openvbspp==0.9.20 -d tmp    # 必须拿到 py3-none-any.whl
 ```

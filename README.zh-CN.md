@@ -1,6 +1,6 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-562%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-577%20passing-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.21-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
@@ -26,7 +26,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.21**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.22**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -167,7 +167,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 
 **支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。562 个测试在每个受支持的版本上都跑 CI；
+`pip install openvbspp` 在 x64 与 ARM64 上通用。577 个测试在每个受支持的版本上都跑 CI；
 运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
 但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
 [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9。
@@ -390,7 +390,7 @@ On Error GoTo 0
 | 格式化 | `Format FormatNumber FormatCurrency FormatDateTime FormatPercent` |
 | 运行时信息 | `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale` |
 | 过程 | `Execute` / `ExecuteGlobal` / `Eval` / `GetRef` / `LoadPicture`（没有图形库，会报错） |
-| 交互 | `MsgBox`（打印到标准输出）、`InputBox`（读标准输入） |
+| 交互 | `MsgBox` / `InputBox`（命令行交互时弹真对话框，否则控制台替身 —— 见[已知限制](#与规范的差距--已知限制)） |
 
 预定义常量：`vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`。
 
@@ -567,7 +567,7 @@ OpenVBSPP/
 └── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
 examples/demo/          录屏用六段演示项目（旧脚本 / 类与 Try / Python / COM / 命名空间 / 包管理器）
-tests/                  回归测试（562 个用例）
+tests/                  回归测试（577 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 
@@ -588,6 +588,7 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 - `tests/test_over.py` / `tests/test_over_registry.py`：over 的依赖图、锁文件、本地源与 registry。
 - `tests/test_over_python.py`：over 声明 Python 依赖时的合并、钉版本、frozen 还原与卸载。
 - `tests/test_com.py`：COM 桥的定位优先级、开关、错误翻译与适配层行为（不依赖真实 COM）。
+- `tests/test_ui_dialogs.py`：`ui-support` 的按钮/图标/默认按钮映射、启用规则与控制台回退。
 
 ## 与规范的差距 / 已知限制
 
@@ -595,16 +596,23 @@ doc/                    语言规范、VBS 超集矩阵、对象模型设计
 
 - `Collection` 内置类（VBScript 本身没有，属于 VBA）
 - `Declare`（声明外部 DLL 函数）
-- `MsgBox` / `InputBox` 不是真正的对话框 —— 它们是控制台替身（`MsgBox` 打印文本并返回 1，
-  `InputBox` 从标准输入读一行）。计划用内置 `ui-support` 包通过 `tkinter` 提供真对话框，
-  设计与许可分析见 [dev-docs/GUI_DIALOGS_DESIGN.zh-CN.md](dev-docs/GUI_DIALOGS_DESIGN.zh-CN.md)，
-  安排在 0.9.22
 - `LoadPicture` 直接报错而不加载图片
 - `ExecuteGlobal` 在运行期定义的过程无法按名字调用（改用 `GetRef` 绑定），且只支持向前 `GoTo`
+
+`MsgBox` 与 `InputBox` **已经支持**：自 v0.9.22 起，内置的 `ui-support` 包在脚本由
+`openvbs` 命令行交互式启动时用 `tkinter` 弹出真对话框（按钮组合、图标、默认按钮与
+返回码都按 VBScript 的语义）。在 CI、管道、Python 里嵌入 `vbs_run()` 以及 Tk 不可用
+的场合，它们退回控制台行为（`MsgBox` 打印并返回 1，`InputBox` 读一行）。详见
+[doc/VBS_SUPERSET.zh-CN.md §3.10](doc/VBS_SUPERSET.zh-CN.md) 与
+[dev-docs/GUI_DIALOGS_DESIGN.zh-CN.md](dev-docs/GUI_DIALOGS_DESIGN.zh-CN.md)。
 
 COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**：Windows 上由
 `com-support` 包真连，非 Windows 平台、`OPENVBS_COM=0`、或没装 `pywin32` 时会给出明确报错
 （不再按"未实现"处理）。
+
+Tcl/Tk 的许可与义务见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)：它是 BSD 风格、
+允许任意目的使用，但**不是 OSI 认证**的许可；只接受 OSI 清单的组织可设
+`OPENVBS_UI=console`，走不含 Tk 的路径。
 
 其它已知限制：
 

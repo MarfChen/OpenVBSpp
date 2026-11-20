@@ -4,7 +4,7 @@ Copyright 2027 Marf Chen (MarfChen)
 This product includes software developed as part of the OpenVBS++ project
 (https://github.com/MarfChen/OpenVBSpp).
 
---------------------------------------------------------------------------
+-------------------------------------------------------------------------
 中文
 
 本产品包含 OpenVBS++ 项目（https://github.com/MarfChen/OpenVBSpp）
@@ -13,8 +13,28 @@ This product includes software developed as part of the OpenVBS++ project
 依据 Apache License 2.0 分发。下游分发本软件或其衍生作品时，
 必须保留本 NOTICE 文件的内容。
 
---------------------------------------------------------------------------
+第三方组件的完整许可文本见 THIRD_PARTY_LICENSES.md；该文件必须与
+任何包含第三方代码的产物（尤其是单文件 exe）一同分发。
+
+-------------------------------------------------------------------------
 第三方组件 / Third-party components
+
+* Python (CPython 3.13) —— Python Software Foundation License 2.0
+  (PSF-2.0)，版权归 Python Software Foundation 所有。
+  - 源码仓库、wheel、sdist **不包含** CPython 运行时。
+  - 发布到 GitHub Releases 的**单文件 exe** 内嵌 CPython，其许可随 exe
+    分发，原文见 THIRD_PARTY_LICENSES.md。
+
+* Tcl/Tk 8.6 —— Tcl/Tk license (SPDX: TCL)，版权归 Regents of the
+  University of California、Sun Microsystems、Scriptics、ActiveState、
+  Apple Inc. 及其他方所有。
+  - 只有启用图形对话框（`ui-support` 包，`MsgBox` / `InputBox`）并打包成
+    单文件 exe 时才会带入 Tcl/Tk；wheel 与 sdist 不含。
+  - 该许可要求在任何分发中逐字包含其声明全文，因此
+    THIRD_PARTY_LICENSES.md 收录了完整原文，且随 exe 一同分发。
+  - 该许可为 BSD 风格、允许任意目的使用，但不是 OSI 认证的许可；
+    若所在组织只接受 OSI 许可清单，请设置 `OPENVBS_UI=console`
+    或使用不含 Tk 的构建。
 
 * pywin32 (Python for Windows Extensions) —— Python Software Foundation
   License 2.0 (PSF-2.0)。

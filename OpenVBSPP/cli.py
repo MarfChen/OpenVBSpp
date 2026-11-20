@@ -300,6 +300,12 @@ def main(argv=None):
         # needs it.
         # 中文：（约 27 ms），而 `openvbs --version`、`openvbs over ...` 根本用不到。
         from OpenVBSPP.runtime import vbs_run
+        from OpenVBSPP.ovpprt import ui
+
+        # Scripts started from the command line are the ones allowed to open
+        # dialogs; the library entry point `vbs_run` deliberately is not.
+        # 中文：只有从命令行启动的脚本才允许弹窗；库入口 `vbs_run` 刻意不算。
+        ui.mark_cli_entry()
 
         vbs_run(code, filename=filename, verbose=args.verbose,
                 mode="save" if args.save else "exec",

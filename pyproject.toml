@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openvbspp"
-version = "0.9.21"
+version = "0.9.22"
 description = "OpenVBS++: a VBScript-flavoured language that compiles to Python AST"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICE"]
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_LICENSES.md"]
 authors = [{ name = "Marf Chen (MarfChen)" }]
 keywords = ["vbscript", "vbs", "compiler", "transpiler", "education", "interpreter"]
 classifiers = [
@@ -77,4 +77,7 @@ OpenVBSPP = [
     "vendor/python-embed/*.json",
     "vendor/python-embed/*.vbs",
     "vendor/python-embed/*.md",
+    "vendor/ui-support/*.py",
+    "vendor/ui-support/*.json",
+    "vendor/ui-support/*.md",
 ]

@@ -1,6 +1,6 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-562%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-577%20passing-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.21-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
@@ -66,7 +66,7 @@ Release process (TestPyPI → PyPI → exe) lives in [dev-docs/RELEASE.md](dev-d
 
 **Supported Python: 3.10 – 3.13 (CPython).** The package is pure Python and ships as a
 `py3-none-any` wheel, so there is nothing to compile and no per-version build:
-`pip install openvbspp` works on x64 and ARM64 alike. The full suite (562 tests) runs on
+`pip install openvbspp` works on x64 and ARM64 alike. The full suite (577 tests) runs on
 every supported version in CI; the runtime code itself still parses and runs on 3.9
 (`vermin` reports 3.9 as the floor), but **0.9.14 is the last release that declares 3.9**.
 See [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9 for the version policy and what to build for ARM.
@@ -312,7 +312,7 @@ Source: echo 1
 | Formatting | `Format FormatNumber FormatCurrency FormatDateTime FormatPercent` |
 | Runtime info | `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale` |
 | Procedures | `Execute` / `ExecuteGlobal` / `Eval` / `GetRef` / `LoadPicture` (raises: no picture library) |
-| Interaction | `MsgBox` (prints to stdout), `InputBox` (reads stdin) |
+| Interaction | `MsgBox` / `InputBox` (real dialogs from the CLI, console stand-ins otherwise — see [Status](#status-and-known-limitations)) |
 
 Constants: `vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`.
 
@@ -476,7 +476,7 @@ OpenVBSPP/
   ast_nodes/ plugins/
 examples/            # 23 runnable .vbs examples
 examples/demo/       # 6-step demo project for the screen recording
-tests/               # 562 unittest cases
+tests/               # 577 unittest cases
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
@@ -487,7 +487,7 @@ dev-docs/            # design, release and roadmap notes for maintainers
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 562 tests, ~2.6 s
+python -m unittest discover -s tests          # 577 tests, ~2.6 s
 ```
 
 | File | Covers |
@@ -502,6 +502,7 @@ python -m unittest discover -s tests          # 562 tests, ~2.6 s
 | `tests/test_over.py`, `test_over_registry.py` | `over` dependency graph, lock file, local sources, registry |
 | `tests/test_over_python.py` | Python dependency merging, pinning, frozen restore, uninstall |
 | `tests/test_com.py` | COM bridge lookup order, kill switch, error translation, adapter behaviour (no real COM needed) |
+| `tests/test_ui_dialogs.py` | `ui-support`: button/icon/default mapping, activation rules, console fallbacks |
 | `tests/test_perf_semantics.py` | semantics pinned by the v0.9.15 optimizations (`For`→`range`, `ByRef`, error frames, lazy imports) |
 
 ## Status and known limitations
@@ -510,17 +511,23 @@ Not implemented yet ([doc/VBS_SUPERSET.md](doc/VBS_SUPERSET.md) §4):
 
 - the `Collection` built-in class (that is VBA, not VBScript)
 - `Declare` (binding external DLL functions)
-- `MsgBox` / `InputBox` as real dialogs — they are console stand-ins (`MsgBox` prints its
-  text and returns 1, `InputBox` reads one line from stdin). A bundled `ui-support`
-  package that shows real dialogs through `tkinter` is designed, and its licensing
-  checked, in [dev-docs/GUI_DIALOGS_DESIGN.md](dev-docs/GUI_DIALOGS_DESIGN.md); it is
-  planned for 0.9.22
 - `LoadPicture`, which raises instead of loading a picture
 - procedures created at run time by `ExecuteGlobal` cannot be called by name (bind them
   with `GetRef` instead), and only forward `GoTo` jumps compile
 
+`MsgBox` and `InputBox` **are** supported: as of v0.9.22 the bundled `ui-support` package
+shows real `tkinter` dialogs (correct button set, icon, default button and return codes)
+when a script is started interactively from the `openvbs` command line. In CI, in pipes,
+in embedded `vbs_run()` calls and when Tk is missing they fall back to the console
+(`MsgBox` prints and returns 1, `InputBox` reads one line). See
+[doc/VBS_SUPERSET.md §3.10](doc/VBS_SUPERSET.md) and
+[dev-docs/GUI_DIALOGS_DESIGN.md](dev-docs/GUI_DIALOGS_DESIGN.md).
+
 COM host objects **are** supported: real connections on Windows through `com-support`;
 on other platforms, with `OPENVBS_COM=0`, or without `pywin32` you get an explicit error.
+Tcl/Tk licensing is documented in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md):
+the license is BSD-style and permissive but not OSI-approved, so `OPENVBS_UI=console`
+gives a Tk-free build path.
 
 Other known limits:
 

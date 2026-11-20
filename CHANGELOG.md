@@ -9,14 +9,32 @@ Release-by-release engineering notes (how to cut a release) live in
 
 ## [Unreleased]
 
+## [0.9.22] — 2026-11-20
+
 ### Added
 
-- **GUI dialog design and licensing report**: `dev-docs/GUI_DIALOGS_DESIGN.md` and its
-  Chinese pair cover whether `tkinter` can back real `MsgBox` / `InputBox` dialogs (it
-  can, all six button sets and the `1`–`7` return codes), the bundled `ui-support`
-  package and its activation rules, the packaging cost, and the Tcl/Tk licensing
-  obligations for the wheel (none) and the exe (notice retention only). Design only —
-  behaviour is unchanged until the package lands.
+- **Real `MsgBox` / `InputBox` dialogs**: the bundled `ui-support` package draws them with
+  `tkinter`/Tk. The button set (`vbOKOnly` … `vbRetryCancel`), the icon, the default button
+  and the modal flag are honoured, and the call returns the VBScript codes `1`–`7`;
+  `InputBox` pre-fills the default text and returns `""` on cancel. Dialogs appear only for
+  interactive `openvbs` command-line runs: stdin/stdout must be a terminal, `CI` must be
+  unset, and Tk must be importable. Everything else (pipes, embedded `vbs_run()`, the IDE,
+  `-c` code runs) keeps the console behaviour, so batch jobs never block.
+- `OPENVBS_UI` (`auto` by default, `console`/`off`, `gui`/`on`) and `OVPP_UI_PATH` switch
+  the behaviour; `python -m OpenVBSPP` reports the resolved mode via `ui.describe()`.
+- `tests/test_ui_dialogs.py`: 12 cases over the button/icon mapping, activation rules and
+  the console fallback.
+
+### Added (docs and licensing)
+
+- `dev-docs/GUI_DIALOGS_DESIGN.md` and its Chinese pair: feasibility, package shape,
+  packaging cost, Tcl/Tk licensing and the risk table.
+- **`THIRD_PARTY_LICENSES.md`**: verbatim CPython (PSF-2.0) and Tcl/Tk (`TCL`) license
+  texts plus the libtommath / zlib / X11 notes, so an exe can be redistributed lawfully.
+- `NOTICE` gained the Python and Tcl/Tk entries (they only reach an artifact through the
+  single-file exe).
+- `packaging/openvbs.spec`: `OpenVBSPP.ovpprt.ui` is declared, `tkinter` is no longer
+  excluded, `vendor/ui-support` and the license files ship as data.
 
 ## [0.9.21] — 2026-11-20
 

@@ -1,0 +1,11 @@
+{
+  "name": "ui-support",
+  "version": "1.0.0",
+  "entry": "",
+  "kind": "feature",
+  "description": "MsgBox and InputBox as real GUI dialogs (Tkinter). Scripts never import it; OpenVBS++ enables it for interactive CLI runs and falls back to the console otherwise.",
+  "capabilities": [
+    "ui"
+  ],
+  "dependencies": {}
+}

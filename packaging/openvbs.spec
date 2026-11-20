@@ -9,6 +9,7 @@
 """
 
 import os
+import sys as _sys
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 
@@ -45,6 +46,8 @@ HIDDEN_IMPORTS = [
     "OpenVBSPP.ovpprt.ref",
     "OpenVBSPP.ovpprt.regexp",
     "OpenVBSPP.ovpprt.string",
+    # MsgBox / InputBox 的 GUI 分发层，builtins 里延迟 import
+    "OpenVBSPP.ovpprt.ui",
     # over 包管理器，cli 里按需 import；也被 compiler._resolve 用于按包名解析
     "OpenVBSPP.over",
 ]
@@ -54,6 +57,28 @@ HIDDEN_IMPORTS = [
 # CreateObject("WScript.Shell") 会退化成「COM 不可用」。
 BUNDLED_COM = os.path.join(ROOT, "OpenVBSPP", "vendor", "com-support")
 BUNDLED_EMBED = os.path.join(ROOT, "OpenVBSPP", "vendor", "python-embed")
+BUNDLED_UI = os.path.join(ROOT, "OpenVBSPP", "vendor", "ui-support")
+
+# 第三方许可文本必须随二进制一起分发（Tcl/Tk 要求声明 "appear in all copies"）。
+# `THIRD_PARTY_LICENSES.md` 与 `NOTICE` 打进 exe 内部的 licenses 目录，Release 里
+# 也会把这两个文件放在 exe 旁边。
+NOTICES = [
+    (os.path.join(ROOT, "THIRD_PARTY_LICENSES.md"), "licenses"),
+    (os.path.join(ROOT, "NOTICE"), "licenses"),
+]
+
+# 本机 Tk 的 license.terms 再单独附一份，避免发行包只带了自己的汇总而漏掉原文。
+TK_LICENSE = None
+for _candidate in (
+    os.path.join(_sys.base_prefix, "Library", "lib", "tk8.6", "license.terms"),
+    os.path.join(_sys.base_prefix, "tcl", "tk8.6", "license.terms"),
+    os.path.join(_sys.base_prefix, "share", "tk8.6", "license.terms"),
+):
+    if os.path.isfile(_candidate):
+        TK_LICENSE = _candidate
+        break
+if TK_LICENSE:
+    NOTICES.append((TK_LICENSE, "licenses/tcl-tk"))
 
 # `com_support.py` 是数据文件，PyInstaller 不会分析它里面的 `import win32com`，
 # 所以 pywin32 的模块与 DLL 只能手动列。装没装 pywin32 都能打包：没装就打出一个
@@ -81,7 +106,6 @@ if HAVE_PYWIN32:
         "win32com.client.util",
     ]
     import glob
-    import sys as _sys
     _dll_dir = os.path.join(_sys.prefix, "Lib", "site-packages", "pywin32_system32")
     EXTRA_BINARIES += [(dll, ".") for dll in glob.glob(os.path.join(_dll_dir, "*.dll"))]
 
@@ -90,11 +114,12 @@ a = Analysis(
     pathex=[ROOT],
     binaries=EXTRA_BINARIES,
     datas=[(BUNDLED_COM, os.path.join("OpenVBSPP", "vendor", "com-support")),
-           (BUNDLED_EMBED, os.path.join("OpenVBSPP", "vendor", "python-embed"))],
+           (BUNDLED_EMBED, os.path.join("OpenVBSPP", "vendor", "python-embed")),
+           (BUNDLED_UI, os.path.join("OpenVBSPP", "vendor", "ui-support"))] + NOTICES,
     hiddenimports=HIDDEN_IMPORTS + EXTRA_HIDDEN,
     hookspath=[],
     runtime_hooks=[],
-    excludes=["tkinter", "astpretty", "unittest", "pydoc"],
+    excludes=["astpretty", "unittest", "pydoc"],
     noarchive=False,
 )
 

@@ -186,7 +186,7 @@ available as well.
 - dates: `Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff DatePart DateSerial DateValue TimeSerial TimeValue MonthName WeekdayName`
 - formatting: `Format FormatNumber FormatCurrency FormatDateTime FormatPercent`
 - runtime information: `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale`
-- interaction: `MsgBox InputBox` (console stand-ins, see §4)
+- interaction: `MsgBox InputBox` (real dialogs when interactive, console stand-ins otherwise, see §3.10)
 
 Also supported since v0.9.21: `#date#` literals (for example `#2020-05-06#` and
 `#1/2/2020 3:04:05 PM#`) and the `&H` / `&O` numeric literals.
@@ -275,18 +275,36 @@ statement-index state machine. Both only make sense inside a procedure that has 
 Do not confuse them with `On Error Resume Next`, which is a mode statement, is supported
 everywhere, and does not need a handler.
 
-### 3.10 `MsgBox` and `InputBox` are console stand-ins
+### 3.10 `MsgBox` and `InputBox` show real dialogs when they can
 
 VBScript's `MsgBox` opens a window and returns the button the user pressed; `InputBox`
-opens a text field. OpenVBS++ targets consoles, pipes and batch jobs, so both are
-stand-ins:
+opens a text field. OpenVBS++ does both through the bundled `ui-support` package, drawn
+by Tkinter, and falls back to a console stand-in whenever a window would be wrong.
 
-- `MsgBox text [, buttons] [, title]` prints the text on stdout and returns `1` (the
-  "OK" button). `buttons` and `title` are accepted and ignored.
-- `InputBox(prompt [, title] [, default])` prints the prompt, reads one line from stdin
-  and returns it as a string. `title` and `default` are ignored; a closed stdin raises.
+A dialog is shown only when all of these hold:
 
-Nothing blocks and nothing is drawn, so the same script runs unattended in CI.
+- the script was started by the `openvbs` command line (not by the IDE, and not by
+  embedding `vbs_run` in a Python program);
+- stdin and stdout are a terminal, and `CI` is not set;
+- the `ui-support` package loaded and Tkinter can create a window.
+
+With a window, the arguments mean what they mean in VBScript:
+
+- `MsgBox text [, buttons] [, title]` becomes a message box with the requested button
+  set (`vbOKOnly` … `vbRetryCancel`), icon, default button and modal flag, and returns
+  the codes `1`–`7` (`vbOK`, `vbCancel`, `vbAbort`, `vbRetry`, `vbIgnore`, `vbYes`,
+  `vbNo`).
+- `InputBox(prompt [, title] [, default])` becomes a text dialog with `default`
+  pre-filled; pressing Cancel or closing the window returns `""`.
+
+Everywhere else the console behaviour applies: `MsgBox` prints the text and returns `1`,
+`InputBox` prints the prompt and reads one line from stdin. That is what happens in CI,
+in pipes, and whenever the package or Tk is unavailable — a batch job never blocks on a
+window.
+
+`OPENVBS_UI` overrides the decision: `console` (or `off`) always uses the stand-ins,
+`gui` (or `on`) asks for dialogs, and the default `auto` applies the rules above.
+`openvbs --version` style runs and `python -m OpenVBSPP check` never open windows.
 
 ### 3.11 `Declare` and native code
 
@@ -323,7 +341,7 @@ implementation does not have, and things we deliberately decline.
 | COM host objects (`Excel.Application`, `WScript.Shell`, …) | Supported on Windows since v0.9.14 through the `com-support` package; on other platforms they raise `OVPPObjectNotSupportedError` instead of simulating COM |
 | The `Collection` built-in class | VBScript itself has none (it belongs to VBA) |
 | Other `Attribute` properties (`VB_Name` etc.) | Only `VB_UserMemId` is parsed |
-| `MsgBox` / `InputBox` | Console stand-ins: `MsgBox` prints its text, ignores the buttons and the title, and returns 1; `InputBox` reads one line from stdin, ignores the default value, and has no GUI. Neither blocks a host window (see §3.10) |
+| `MsgBox` / `InputBox` | Real dialogs through the bundled `ui-support` package when the run is interactive (see §3.10); console stand-ins in CI, pipes and embedded runs, where `MsgBox` prints its text and returns 1 and `InputBox` reads one line from stdin |
 | `LoadPicture` | The function exists so old scripts fail with a clear message: there is no GUI picture library (`OVPPObjectNotSupportedError`) |
 | Procedures defined at run time by `ExecuteGlobal` | They can update variables but cannot be called by name, because procedure names bind at compile time. Use `GetRef` on an existing procedure, or put the code in its own module |
 | Backward `GoTo` | Only forward jumps are compiled; a jump to an earlier label raises `Recursive GoTo ... is not supported` |
@@ -344,7 +362,7 @@ Run through this before and after touching the compiler:
 > The full object-model inventory (including keywords that do not apply) is in
 > [OBJECT_MODEL.md](OBJECT_MODEL.md) and [OOP.md](OOP.md).
 
-## 6. Status update (v0.9.5 - v0.9.21)
+## 6. Status update (v0.9.5 - v0.9.22)
 
 Resume / Resume Next are implemented: a procedure containing Resume compiles into a
 "statement index dispatch" state machine, one `_pc` branch per statement; on error the
@@ -354,8 +372,9 @@ works inside nested If / loops as well. Procedures without Resume keep the origi
 sequential compilation, with unchanged behaviour and performance.
 
 After the v0.9.21 audit every native VBScript statement form is supported, with one
-deliberate exception: `Declare`. The remaining gaps are host integration rather than
-syntax: `MsgBox` / `InputBox` are console stand-ins, `LoadPicture` reports that there is
-no GUI picture library, procedures defined at run time by `ExecuteGlobal` cannot be
-called by name (use `GetRef`), and only forward `GoTo` is allowed. The section 4 table
-above is the complete list.
+deliberate exception: `Declare`. As of v0.9.22 `MsgBox` and `InputBox` show real Tk
+dialogs in interactive command-line runs (see §3.10), so the remaining gaps are host
+integration rather than syntax: `LoadPicture` reports that there is no GUI picture
+library, procedures defined at run time by `ExecuteGlobal` cannot be called by name
+(use `GetRef`), and only forward `GoTo` is allowed. The section 4 table above is the
+complete list.

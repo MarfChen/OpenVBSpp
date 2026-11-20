@@ -982,21 +982,43 @@ def _echo_text(value):
 
 
 # --------------------------------------------------------------------- Interaction / 中文：交互
-def MsgBox(message="", *args):
-    """No GUI here: the message goes to stdout and 1 is returned (as if OK was
-    clicked).
+def MsgBox(message="", buttons=0, title=""):
+    """Show a modal message box and return the button the user clicked.
 
-    中文：无 GUI —— 把消息打印到标准输出，返回 1（相当于点了「确定」）。
+    The result is a VBScript code: `1` vbOK, `2` vbCancel, `3` vbAbort,
+    `4` vbRetry, `5` vbIgnore, `6` vbYes, `7` vbNo. Dialogs come from the
+    bundled `ui-support` over package; when they are not enabled (library use,
+    tests, CI, a non-interactive run, or no `tkinter`) the message is printed to
+    stdout and `1` is returned, which is the historical behaviour.
+
+    中文：弹出模态消息框，返回用户点击的按钮码：`1` vbOK、`2` vbCancel、
+    `3` vbAbort、`4` vbRetry、`5` vbIgnore、`6` vbYes、`7` vbNo。
+    对话框由内置 `ui-support` 包提供；未启用时（库调用、测试、CI、非交互运行、
+    或没有 `tkinter`）退回「打印文本并返回 1」的历史行为。
     """
-    print(_to_str(message))
-    return 1
+    from OpenVBSPP.ovpprt import ui
+
+    answer = ui.msgbox(_to_str(message), buttons, _to_str(title))
+    if answer is None:
+        print(_to_str(message))
+        return 1
+    return answer
 
 
-def InputBox(prompt="", *args):
-    """Read one line from stdin (the command-line stand-in for a dialog).
+def InputBox(prompt="", title="", default=""):
+    """Show a modal single-line prompt and return the typed text.
 
-    中文：从标准输入读一行（命令行环境下的替代实现）。
+    Cancel returns `""`, exactly like VBScript. Without dialogs the prompt is
+    printed and one line is read from stdin (the command-line stand-in).
+
+    中文：弹出模态单行输入框，返回输入的文本。取消时返回 `""`，与 VBScript 一致。
+    没有对话框时把提示打印出来，再从标准输入读一行（命令行环境下的替代实现）。
     """
+    from OpenVBSPP.ovpprt import ui
+
+    answer = ui.inputbox(_to_str(prompt), _to_str(title), _to_str(default))
+    if answer is not None:
+        return answer
     print(_to_str(prompt))
     return input()
 

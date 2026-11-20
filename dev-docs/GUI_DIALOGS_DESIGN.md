@@ -144,8 +144,9 @@ forces GUI even without a TTY (useful under `pythonw.exe`).
 | Windows exe | **+8.9 MB uncompressed** | measured on this machine: `tcl86t.dll` 1.82 MB, `tk86t.dll` 1.59 MB, `lib\tcl8.6` 3.14 MB, `lib\tk8.6` 1.56 MB, `Lib\tkinter` 0.72 MB, `_tkinter.pyd` 0.06 MB; UPX/PyInstaller compress this to roughly half |
 | Linux install | — | document `apt install python3-tk`; without it the console fallback engages |
 
-`packaging/openvbs.spec` currently excludes `tkinter`; shipping GUI dialogs in
-the exe means removing that exclude and adding the Tcl/Tk license file to
+`packaging/openvbs.spec` excluded `tkinter` before v0.9.22; it now declares
+`OpenVBSPP.ovpprt.ui` as a hidden import, ships `vendor/ui-support` as data, and
+adds `THIRD_PARTY_LICENSES.md`, `NOTICE` and the local Tk `license.terms` to
 `datas` (see §5). Keeping a console-only exe and a separate GUI exe is possible
 but doubles the release matrix for little gain.
 
@@ -195,17 +196,18 @@ Key properties, checked against the local copy and SPDX:
 
 ### Obligations, concretely
 
-1. Ship the Tcl/Tk license text verbatim inside the exe's data directory and
-   reference it from `NOTICE`.
-2. Add a `THIRD_PARTY_LICENSES.md` (or `LICENSES/`) with the two texts
-   (PSF-2.0 for the embedded CPython, TCL for Tcl/Tk) and link it from
-   `README`'s Licensing section.
-3. Keep `NOTICE`'s existing Apache-2.0 and pywin32 entries.
-4. Do not name the product after Tk ("OpenVBS Tk Edition") and do not imply
-   endorsement by the copyright holders; a factual sentence such as "optional
-   GUI dialogs use Python's `tkinter` (Tcl/Tk 8.6)" is nominative use and fine.
-5. State the Linux dependency (`python3-tk`) in the install docs so users do
-   not file "MsgBox does nothing" bugs.
+All five are in place as of v0.9.22:
+
+1. ✅ `THIRD_PARTY_LICENSES.md` carries the Tcl/Tk text verbatim; `NOTICE` points
+   at it; `packaging/openvbs.spec` packs it (plus the local `license.terms`) into
+   the exe's `licenses` directory.
+2. ✅ The same file carries CPython's PSF-2.0 text, and the README Licensing
+   section links it.
+3. ✅ `NOTICE` keeps the Apache-2.0 and pywin32 entries.
+4. ✅ No Tk branding anywhere; the README says "optional GUI dialogs use
+   Python's `tkinter` (Tcl/Tk 8.6)".
+5. ✅ Install docs state the Linux dependency (`python3-tk`) and the console
+   fallback.
 
 ### Risk assessment
 
@@ -240,12 +242,15 @@ already covers them.
 ## 7. Test plan
 
 - Unit tests keep the console path: they call `vbs_run()` directly, which is
-  rule 2 of §3, and additionally pin `OPENVBS_UI=console` in
-  `tests/test_vbs_coverage.py` so a future refactor cannot make CI block on a
-  dialog.
-- A GUI smoke test guarded by `OPENVBS_UI_TEST=1` creates a hidden root,
-  asserts the button-set/icon/default mapping table, and closes the dialog with
-  `after(0, …)`-style automation; it never runs in CI.
+  rule 2 of §3, and `tests/test_ui_dialogs.py` forces `OPENVBS_UI=console` in
+  `setUpModule` so a future refactor cannot make CI block on a dialog.
+- The mapping table is unit-tested without a window (`dialog_spec`), and the
+  activation rules are unit-tested with `_is_a_terminal` patched.
+- A GUI smoke test stays manual (and out of CI): run `openvbs` on a script that
+  calls `MsgBox` with each button set and compare the returned code; the
+  v0.9.22 development build was verified this way with an external window
+  closer that pressed Return — `vbYesNo + vbQuestion` returned `6` (vbYes) and
+  `InputBox` returned the pre-filled text.
 - Manual matrix: interactive console (dialogs appear), `pythonw` (dialogs
   appear), service/session-0 (falls back), Linux without `python3-tk` (falls
   back), `CI=1` (falls back).
@@ -256,6 +261,6 @@ already covers them.
 
 | Version | Scope |
 | --- | --- |
-| 0.9.22 | `ui-support` package, `MsgBox`/`InputBox` dialogs, activation rules, tests, docs |
+| 0.9.22 | ✅ `ui-support` package, `MsgBox`/`InputBox` dialogs, activation rules, tests, docs, `THIRD_PARTY_LICENSES.md` |
 | 0.9.23 | optional `ui` API for file/folder pickers (a clearly-marked superset, not VBScript) |
 | later | `ctypes` Windows backend if exe size becomes a problem |

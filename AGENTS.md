@@ -141,16 +141,19 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
     `pip install "mkdocs-material>=9.5"` 或 `pip install -e ".[docs]"`），新文档要进 `nav`，
     构建出的 `site/` 不要提交（已在 `.gitignore`）。
 13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`dev-docs/RELEASE.md` §9.4
-    三处必须一致（当前 **562**），改测试后一起改。
+    三处必须一致（当前 **577**），改测试后一起改。
 14. **`doc/` 的每一篇都是中英成对**：改 `doc/X.md` 就同步 `doc/X.zh-CN.md`（反之亦然），
     两版首行都要保留 `> English | **[中文](X.zh-CN.md)**` 这类切换行。维护者内容
     （发版、路线、设计、新手任务）只放 `dev-docs/`，不要塞进 `doc/`（它会进文档站）。
     `dev-docs/` 同样逐篇中英成对（`X.md` 英文主文 + `X.zh-CN.md` 中文），新增维护者
     文档必须一次交两版；唯一例外是 `plan.docx`（二进制，无法双语）。
 15. **新增 vendor over 包要三处同步**：`OpenVBSPP/vendor/<pkg>/`（随包分发）、
-    `extras/<pkg>/`（项目可 `over add <pkg>`，与 vendor 逐字节一致，`tests/test_python_embed.py`
-    与 `tests/test_com.py` 会校验），以及打包清单 `MANIFEST.in`、`pyproject.toml` 的
-    `package-data`、`packaging/openvbs.spec` 的 `datas`。
+    `extras/<pkg>/`（项目可 `over add <pkg>`，与 vendor 逐字节一致，`tests/test_python_embed.py`、
+    `tests/test_com.py` 与 `tests/test_ui_dialogs.py` 会校验），以及打包清单 `MANIFEST.in`、
+    `pyproject.toml` 的 `package-data`、`packaging/openvbs.spec` 的 `datas`。
+16. **第三方代码/许可**：新增会随产物分发的第三方代码（如 Tcl/Tk）时，必须更新
+    `THIRD_PARTY_LICENSES.md` 与 `NOTICE`，并把许可文件加进 `packaging/openvbs.spec`
+    的 `datas`。许可原文逐字保留英文，不得改写或翻译。
 
 ## 环境坑
 

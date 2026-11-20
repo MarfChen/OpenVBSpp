@@ -180,7 +180,7 @@ VBScript 的内置函数除 `LoadPicture` 外全部可用（`LoadPicture` 只用
 - 日期：`Now Date Time Timer Year Month Day Hour Minute Second Weekday DateAdd DateDiff DatePart DateSerial DateValue TimeSerial TimeValue MonthName WeekdayName`
 - 格式化：`Format FormatNumber FormatCurrency FormatDateTime FormatPercent`
 - 运行时信息：`RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale`
-- 交互：`MsgBox InputBox`（控制台替身，见 §4）
+- 交互：`MsgBox InputBox`（交互式运行时弹真窗口，否则是控制台替身，见 §3.10）
 
 自 v0.9.21 起还支持 `#date#` 字面量（例如 `#2020-05-06#`、`#1/2/2020 3:04:05 PM#`）
 以及 `&H` / `&O` 数字字面量。
@@ -262,17 +262,31 @@ x = _ref_1.v            # 写回
 
 注意不要与 `On Error Resume Next` 混淆：后者是模式语句，任何地方都能用，不需要处理段。
 
-### 3.10 `MsgBox` 与 `InputBox` 是控制台替身
+### 3.10 `MsgBox` 与 `InputBox` 在能弹窗时弹真窗口
 
 VBScript 的 `MsgBox` 会弹窗并返回用户点击的按钮，`InputBox` 会弹出输入框。
-OpenVBS++ 面向控制台、管道与批处理，所以两者都是替身：
+OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两者，在不适合弹窗的
+场合自动退回控制台替身。
 
-- `MsgBox 文本 [, 按钮] [, 标题]` 把文本打印到 stdout 并返回 `1`（即"确定"按钮）；
-  `按钮` 与 `标题` 接受但忽略。
-- `InputBox(提示 [, 标题] [, 默认值])` 打印提示，从 stdin 读一行作为字符串返回；
-  `标题` 与 `默认值` 被忽略，stdin 已关闭时抛错。
+只有同时满足以下条件才弹窗：
 
-两者都不阻塞、不绘图，所以同一个脚本可以在 CI 里无人值守运行。
+- 脚本由 `openvbs` 命令行启动（不是 IDE，也不是在 Python 程序里嵌入 `vbs_run`）；
+- stdin 与 stdout 是终端，且没有设置 `CI`；
+- `ui-support` 包能加载，且 Tkinter 能创建窗口。
+
+弹窗时参数含义与 VBScript 一致：
+
+- `MsgBox 文本 [, 按钮] [, 标题]` 按请求的按钮组合（`vbOKOnly` … `vbRetryCancel`）、
+  图标、默认按钮与模态标志弹出消息框，返回 `1`–`7`（`vbOK`、`vbCancel`、`vbAbort`、
+  `vbRetry`、`vbIgnore`、`vbYes`、`vbNo`）。
+- `InputBox(提示 [, 标题] [, 默认值])` 弹出输入框并预填 `默认值`；点取消或关闭窗口
+  返回 `""`。
+
+其余场合走控制台行为：`MsgBox` 打印文本并返回 `1`，`InputBox` 打印提示并从 stdin
+读一行。CI、管道、包缺失或 Tk 不可用时都是这种情况 —— 批处理永远不会卡在窗口上。
+
+`OPENVBS_UI` 可以覆盖这个判断：`console`（或 `off`）始终用替身，`gui`（或 `on`）要求
+弹窗，默认的 `auto` 按上面的规则决定。`python -m OpenVBSPP check` 之类的运行从不弹窗。
 
 ### 3.11 `Declare` 与原生代码
 
@@ -305,7 +319,7 @@ OpenVBS++ 面向控制台、管道与批处理，所以两者都是替身：
 | COM 宿主对象（`Excel.Application`、`WScript.Shell` 等） | 自 v0.9.14 起在 Windows 上由 `com-support` 包真连；其它平台抛 `OVPPObjectNotSupportedError`，不模拟 COM |
 | `Collection` 内置类 | VBScript 本身没有（属于 VBA） |
 | `Attribute` 的其它属性（`VB_Name` 等） | 只解析 `VB_UserMemId` |
-| `MsgBox` / `InputBox` | 控制台替身：`MsgBox` 打印文本、忽略按钮与标题、恒返回 1；`InputBox` 从 stdin 读一行、忽略默认值、没有 GUI。都不会弹出宿主窗口（见 §3.10） |
+| `MsgBox` / `InputBox` | 交互式运行时有 `ui-support` 包就弹真窗口（见 §3.10）；CI、管道与嵌入运行时退回控制台：`MsgBox` 打印文本并返回 1，`InputBox` 从 stdin 读一行 |
 | `LoadPicture` | 函数存在，只为让老脚本得到明确报错：没有图形图像库（`OVPPObjectNotSupportedError`） |
 | `ExecuteGlobal` 在运行期新定义的过程 | 可以修改全局变量，但无法按名字调用 —— 过程名在编译期就绑定了。需要间接调用时用 `GetRef` 引用已有过程，或把代码放进独立模块 |
 | 向后 `GoTo` | 只编译向前跳转；跳到更早的标签会报 `Recursive GoTo ... is not supported` |
@@ -324,7 +338,7 @@ OpenVBS++ 面向控制台、管道与批处理，所以两者都是替身：
 
 > 完整的对象模型清单（含"不适用"的关键字说明）见 [OOP.md](OOP.md)。
 
-## 6. 状态更新（v0.9.5 - v0.9.21）
+## 6. 状态更新（v0.9.5 - v0.9.22）
 
 Resume / Resume Next 已实现：含 Resume 的过程会编译成"语句下标分派"的状态机，
 每条语句一个 _pc 分支，出错时记录失败下标并跳到 On Error GoTo 的处理段；
@@ -332,6 +346,7 @@ Resume 回到失败语句，Resume Next 跳到下一条。因此 Resume 在嵌�
 不含 Resume 的过程保持原来的顺序编译，行为与性能都不受影响。
 
 经过 v0.9.21 的审计，VBScript 原生语句形式已全部支持，只有一处有意例外：`Declare`。
-剩下的缺口都属于宿主集成而不是语法：`MsgBox` / `InputBox` 是控制台替身、`LoadPicture`
-报告没有图形图像库、`ExecuteGlobal` 在运行期定义的过程无法按名字调用（改用 `GetRef`）、
-只允许向前 `GoTo`。上面 §4 的表格就是完整清单。
+自 v0.9.22 起 `MsgBox` / `InputBox` 在交互式命令行运行时会弹出真实的 Tk 对话框
+（见 §3.10），因此剩下的缺口都属于宿主集成而不是语法：`LoadPicture` 报告没有图形
+图像库、`ExecuteGlobal` 在运行期定义的过程无法按名字调用（改用 `GetRef`）、只允许
+向前 `GoTo`。上面 §4 的表格就是完整清单。

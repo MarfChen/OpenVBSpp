@@ -27,9 +27,11 @@
 | 0.9.15 | 性能：启动懒加载、只读 `ByRef` 不再装箱（调用 13.7× → 1.35×）、无 `On Error` 的过程不建错误帧（递归 12× → 6.9×）、`For` 安全时生成 `range`（循环 1.65× → 0.99×） |
 | 0.9.20 | Python 互操作改为 `python-embed` over 包 + 显式导入（`Option COP` 移除）、删除 `ast2str`、文档英文化并拆分 `dev-docs/` |
 | 0.9.21 | VBScript 完整性补齐：`&H` / `&O` / `#date#` 字面量、剩下的 19 个内置函数（`Sin` … `GetRef`）、`ExecuteGlobal`、`TimeValue` / `Time()` 日期 bug，以及按实测校正的 `doc/VBS_SUPERSET.md` |
+| 0.9.22 | 内置 `ui-support` 包提供真正的 `MsgBox` / `InputBox` 对话框（Tk），CI/管道/嵌入运行时退回控制台，并新增 `THIRD_PARTY_LICENSES.md`（CPython 与 Tcl/Tk 原文） |
 
-**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；562 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
-`com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错），
+**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；577 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
+`com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错）；
+`MsgBox` / `InputBox` 在交互式命令行运行时会弹真窗口，其余场合仍是控制台行为，
 见 §3 末尾的说明。
 
 ---
@@ -52,7 +54,9 @@
 | 5 | `Implements` 与 `Option Typing` 打通 | `Dim s -> IShape` 应接受任意实现类（现在报类型不匹配） |
 | 6 | `Option Strict`（可选） | 禁止隐式转换，给类型系统一个"更严"的档位 |
 | 7 | `over` M2：Git 源 + 冲突路径报告 + `over update` | 从"本地目录"升级到"团队共用" |
-| 7a | `MsgBox` / `InputBox` 的真 GUI 对话框（内置 `ui-support` 包） | 设计、许可与启用规则见 [GUI_DIALOGS_DESIGN.zh-CN.md](GUI_DIALOGS_DESIGN.zh-CN.md)；安排在 0.9.22 |
+| 7a | `MsgBox` / `InputBox` 的真 GUI 对话框（内置 `ui-support` 包） | ✅ 已在 v0.9.22 完成 —— 交互式命令行运行弹 Tk 对话框，其余场合仍是控制台替身；见 [GUI_DIALOGS_DESIGN.zh-CN.md](GUI_DIALOGS_DESIGN.zh-CN.md) |
+| 7b | `ui-support` 的文件选择框（`AskOpenFileName` 一类） | 7a 的下一步，同一个包、`tkinter.filedialog` |
+| 7c | 用 `ctypes` 实现 `Declare ... Lib` | 仅提议、未排期：`Declare` 是 VBA 的语法（VBScript 没有），且原生调用可能以 `On Error` 无法捕获的方式崩掉进程 |
 
 ### P2 · 体验（按需）
 

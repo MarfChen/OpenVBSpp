@@ -144,7 +144,14 @@ Implementation notes (`packaging/openvbs.spec`):
   `hiddenimports` and packs `pywin32_system32/*.dll` as `binaries` — so **the exe
   carries COM support** and the target machine needs no pywin32; building without
   pywin32 still works, COM is just unavailable;
-- `excludes` drops `tkinter` / `astpretty` / `unittest` to shrink the binary;
+- `excludes` drops `astpretty` / `unittest` / `pydoc` to shrink the binary. `tkinter` is
+  **not** excluded since v0.9.22: the exe ships real `MsgBox` / `InputBox` dialogs
+  (+8.9 MB uncompressed), and `OpenVBSPP/vendor/ui-support` plus
+  `OpenVBSPP.ovpprt.ui` are declared like the COM ones;
+- third-party license texts travel with the exe: `THIRD_PARTY_LICENSES.md`, `NOTICE` and
+  the local Tk `license.terms` go into `datas` under `licenses/`. The Tcl/Tk license
+  requires the notice to "appear in all copies", so also attach
+  `THIRD_PARTY_LICENSES.md` to the GitHub Release next to the exe;
 - install `upx` for a smaller file; `upx=True` is already set in the spec.
 
 ---
@@ -280,7 +287,7 @@ The README hero has 7 badges in two categories:
 
 | Badge | Type | What keeps it green |
 |---|---|---|
-| `tests-562 passing` | static (a hand-written shields.io string) | always green; **changing the case count means changing both `README.md` and `README.zh-CN.md`**, otherwise it is fake green |
+| `tests-577 passing` | static (a hand-written shields.io string) | always green; **changing the case count means changing both `README.md` and `README.zh-CN.md`**, otherwise it is fake green |
 | `version-0.9.20` | static | bump together with the five version locations on release (two README files plus two body mentions) |
 | `license-Apache--2.0` | static | always green |
 | `python-3.10+` | static | always green; update when `requires-python` changes |
@@ -398,7 +405,7 @@ decided by `nav`. When adding a document, remember to add it to `nav` in
 ### 9.4 Version / architecture release self-check
 
 ```powershell
-python -m unittest discover -s tests                                    # 562 OK
+python -m unittest discover -s tests                                    # 577 OK
 python -m twine check dist/*
 pip download --only-binary=:all: --no-deps openvbspp==0.9.20 -d tmp    # must yield py3-none-any.whl
 ```
