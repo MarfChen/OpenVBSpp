@@ -1,6 +1,6 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-645%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-645%20cases-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.26-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
@@ -652,7 +652,7 @@ COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**�
 `WScript` 宿主对象**已经提供**：`WScript.Echo`、`Arguments`（0 起始，另有 `Named`）、
 `ScriptName`、`ScriptFullName`、`StdOut`/`StdErr`/`StdIn`、`Sleep`、`Timeout`、`Quit`、
 `CreateObject`、`GetObject` 都可用，为 `cscript.exe` 写的老脚本可以直接跑；见
-[doc/VBS_SUPERSET.zh-CN.md §3.12](doc/VBS_SUPERSET.zh-CN.md)。
+[doc/VBS_SUPERSET.zh-CN.md §3.13](doc/VBS_SUPERSET.zh-CN.md)。
 
 Tcl/Tk 的许可与义务见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)：它是 BSD 风格、
 允许任意目的使用，但**不是 OSI 认证**的许可；只接受 OSI 清单的组织可设

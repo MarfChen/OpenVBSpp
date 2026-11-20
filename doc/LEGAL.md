@@ -23,7 +23,7 @@ as Microsoft's product" — that is already stated in `README.md` / `README.zh-C
 | Item | Current state | Verdict |
 |---|---|---|
 | Microsoft VBScript engine source code | **None.** The compiler is `lexer.py` → `parser.py` → `transformer.py` → `compiler.py`, all original Python | Safe |
-| Microsoft documentation text (HTML/PDF) | **None.** Reference material that used to live in `doc/` was moved out of the repository (kept locally in `H:\SuPerV-refdoc\`, not in version control, not in the wheel/sdist) | Safe |
+| Microsoft documentation text (HTML/PDF) | **None.** Reference material that used to live in `doc/` was moved out of the repository (moved to a local folder outside this repository, not in version control, not in the wheel/sdist) | Safe |
 | `doc/OpenVBS spec.docx` | Our own language specification (v0.1.4, original Chinese prose), not a translation of a Microsoft specification | Safe |
 | Microsoft executables / DLLs | **None.** `dist/openvbs.exe` is packaged by PyInstaller from this repository's code plus the Python runtime | Safe |
 | Trademarks | `VBScript` is a trademark of Microsoft Corporation; it is used only to name the compatibility target | Nominative use, see §3 |
@@ -107,7 +107,7 @@ misled.
 ## 4. Compliance actions already done (checklist)
 
 - [x] Microsoft copyright documentation moved out of the repository
-      (`doc/微软官方vbscript参考手册*` → local `H:\SuPerV-refdoc\`)
+      (`doc/微软官方vbscript参考手册*` → a local folder outside the repository)
 - [x] `LICENSE` (Apache-2.0) + `NOTICE` (third-party components and trademark ownership)
 - [x] Bilingual disclaimer on the README front page (independent implementation, no
       affiliation, trademark ownership, no Microsoft code or documentation)

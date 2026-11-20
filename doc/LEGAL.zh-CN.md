@@ -21,7 +21,7 @@
 | 事项 | 现状 | 判断 |
 |---|---|---|
 | 微软 VBScript 引擎的源代码 | **没有**。编译器是 `lexer.py` → `parser.py` → `transformer.py` → `compiler.py`，全部原创 Python | 安全 |
-| 微软官方文档原文（HTML/PDF） | **没有**。曾放在 `doc/` 的参考资料已移出仓库（本地留在 `H:\SuPerV-refdoc\`，不进版本库、不进 wheel/sdist） | 安全 |
+| 微软官方文档原文（HTML/PDF） | **没有**。曾放在 `doc/` 的参考资料已移出仓库（已移到仓库之外的本地目录，不进版本库、不进 wheel/sdist） | 安全 |
 | `doc/OpenVBS spec.docx` | 本项目自己的语言规格（v0.1.4，中文原创散文），不是微软规范的中文版 | 安全 |
 | 微软的可执行文件 / DLL | **没有**。`dist/openvbs.exe` 由 PyInstaller 用本仓库代码 + Python 运行时打包 | 安全 |
 | 商标 | `VBScript` 是 Microsoft Corporation 的商标，文中仅用于说明兼容目标 | 指名性使用，见 §3 |
@@ -88,7 +88,7 @@ Select-String -Path README.md,README.zh-CN.md,NOTICE -Pattern "Microsoft"
 
 ## 4. 已经落地的合规动作（对照清单）
 
-- [x] 微软版权文档移出仓库（`doc/微软官方vbscript参考手册*` → 本地 `H:\SuPerV-refdoc\`）
+- [x] 微软版权文档移出仓库（`doc/微软官方vbscript参考手册*` → 仓库之外的本地目录）
 - [x] `LICENSE`（Apache-2.0）+ `NOTICE`（含第三方组件与商标归属）
 - [x] README 首屏中英双语免责声明（独立实现、无关联、商标归属、不含其代码文档）
 - [x] 全仓密钥/凭证扫描（0 命中）

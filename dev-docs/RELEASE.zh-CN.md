@@ -266,7 +266,7 @@ README 首屏有 7 个徽章，分两类：
 
 | 徽章 | 类型 | 变成 / 保持绿色要做什么 |
 |---|---|---|
-| `tests-645 passing` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
+| `tests-645 cases` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
 | `version-0.9.20` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
 | `license-Apache--2.0` | 静态 | 常绿 |
 | `python-3.10+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |

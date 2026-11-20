@@ -8,14 +8,17 @@ include CONTRIBUTING.md
 include AGENTS.md
 include pyproject.toml
 include mkdocs.yml
+include SECURITY.md
+include CODE_OF_CONDUCT.md
+include cli.py
 
 recursive-include OpenVBSPP *.py py.typed
 recursive-include OpenVBSPP/vendor *.py *.json *.vbs
 recursive-include extras *.py *.json *.md *.vbs *.js
 recursive-include examples *.vbs *.ps1 *.md
-recursive-include packaging *
+recursive-include packaging *.spec *.py
 recursive-include tests *.py
-recursive-include tools *.py
+recursive-include tools *.py *.ps1
 recursive-include doc *.md *.docx
 recursive-include dev-docs *.md
 # Pattern-based on purpose: MANIFEST.in splits paths on spaces, so
@@ -25,3 +28,6 @@ recursive-include dev-docs *.md
 prune venv
 prune .vs
 prune __pycache__
+
+# Never ship compiled artefacts: they are machine- and Python-version-specific.
+global-exclude *.pyc *.pyo *.pyd

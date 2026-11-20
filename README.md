@@ -1,6 +1,6 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-645%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-645%20cases-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.26-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
@@ -517,9 +517,9 @@ OpenVBSPP/
                                                    # dictionary-compatible object model, COM bridge
   vendor/com-support/                              # Windows COM adapter, shipped with the package
   ast_nodes/ plugins/
-examples/            # 23 runnable .vbs examples
+examples/            # 24 runnable .vbs examples
 examples/demo/       # 6-step demo project for the screen recording
-tests/               # 645 unittest cases
+tests/               # 645 unittest cases (642 pass, 3 documented expected failures)
 tools/               # bench.py, build.ps1
 extras/              # over package examples (web-ide, com-support), VS Code grammar
 doc/                 # user documentation: English .md + Chinese .zh-CN.md pairs
@@ -530,8 +530,15 @@ dev-docs/            # design, release and roadmap notes for maintainers
 
 ```bash
 .\venv\Scripts\python.exe -m unittest discover -s tests -v
-python -m unittest discover -s tests          # 645 tests, ~2.6 s
+python -m unittest discover -s tests          # 645 tests, ~3.5 s
 ```
+
+`unittest` reports `OK (expected failures=3)`: those three cases are VBScripts whose
+comparison semantics OpenVBS++ has not reproduced yet (see
+[Status and known limitations](#status-and-known-limitations) and
+[doc/VBS_SUPERSET.md §4.1](doc/VBS_SUPERSET.md)). They are marked with
+`@unittest.expectedFailure`, so fixing one turns the run into `unexpected success` —
+a deliberate loud signal, not a silently green suite.
 
 | File | Covers |
 |---|---|
@@ -569,7 +576,7 @@ in embedded `vbs_run()` calls and when Tk is missing they fall back to the conso
 COM host objects **are** supported: real connections on Windows through `com-support`;
 on other platforms, with `OPENVBS_COM=0`, or without `pywin32` you get an explicit error.
 Failure codes match VBScript: an unregistered ProgID reports 429, a failed attach reports 432, and `TypeName` reports the coclass name. `GetObject` accepts monikers (`winmgmts:`) and the `GetObject(, "class")` form.
-The `WScript` host object **is** provided: `WScript.Echo`, `Arguments` (indexed from zero, plus `Named`), `ScriptName`, `ScriptFullName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout`, `Quit`, `CreateObject` and `GetObject` all work, so scripts written for `cscript.exe` keep running. See [doc/VBS_SUPERSET.md §3.12](doc/VBS_SUPERSET.md).
+The `WScript` host object **is** provided: `WScript.Echo`, `Arguments` (indexed from zero, plus `Named`), `ScriptName`, `ScriptFullName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout`, `Quit`, `CreateObject` and `GetObject` all work, so scripts written for `cscript.exe` keep running. See [doc/VBS_SUPERSET.md §3.13](doc/VBS_SUPERSET.md).
 Tcl/Tk licensing is documented in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md):
 the license is BSD-style and permissive but not OSI-approved, so `OPENVBS_UI=console`
 gives a Tk-free build path.
