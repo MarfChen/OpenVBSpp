@@ -17,7 +17,7 @@ lexer.py → parser.py → transformer.py → compiler.py → (runtime.py 执行
    扩展只能新增语法，不能改变已有 VBS 语义。改动后必须跑
    `python -m unittest tests.test_vbs_superset`，并在该文件里维护用例。
 2. **错误类统一用 `OVPP*` 前缀**（`OVPPError` / `OVPPSyntaxError` / …），编号沿用 VBS 约定。
-3. **版权头统一为 `Copyright 2027 Marf Chen(MarfChen)`**，新文件也要带。
+3. **版权头统一为 `Copyright 2026 Marf Chen(MarfChen)`**，新文件也要带。
 4. **运行时不引入第三方依赖**（只允许标准库；`astpretty` 是可选的调试依赖）。
 5. **错误必须带行号与源码行**：语法错误抛 `OVPPSyntaxError(..., line_number=, source_line=)`，
    运行期异常由 `runtime.wrap_runtime_error()` 翻译。
@@ -141,7 +141,7 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
     `pip install "mkdocs-material>=9.5"` 或 `pip install -e ".[docs]"`），新文档要进 `nav`，
     构建出的 `site/` 不要提交（已在 `.gitignore`）。
 13. 用例数统计口径：README 徽章、README 的 `## Tests` 行、`dev-docs/RELEASE.md` §9.4
-    三处必须一致（当前 **577**），改测试后一起改。
+    三处必须一致（当前 **618**），改测试后一起改。
 14. **`doc/` 的每一篇都是中英成对**：改 `doc/X.md` 就同步 `doc/X.zh-CN.md`（反之亦然），
     两版首行都要保留 `> English | **[中文](X.zh-CN.md)**` 这类切换行。维护者内容
     （发版、路线、设计、新手任务）只放 `dev-docs/`，不要塞进 `doc/`（它会进文档站）。
@@ -179,7 +179,7 @@ extras/           可分发的示例包：com-support（COM 支持）、python-e
 ## 文档约定
 
 - **版权头**：所有 `.py` 文件（含 `tests/`、`cli.py`、`packaging/`）开头统一是
-  `Copyright 2027 Marf Chen(MarfChen)` + Apache 2.0 全文。已经有模块 docstring 的，
+  `Copyright 2026 Marf Chen(MarfChen)` + Apache 2.0 全文。已经有模块 docstring 的，
   把版权插在同一个 docstring 的开头，不要出现两个 docstring。
 - **注释与 docstring 一律中英双语、面向使用者**（v0.9.20 起）：先英文、再
   `中文：…`。模块 docstring 在版权块之后先写英文段落再写 `中文：…` 段落；类/函数

@@ -7,7 +7,25 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
-## [Unreleased]
+## [0.9.23] — 2026-11-20
+
+### Added
+
+- **The `WScript` host object**: scripts started by `openvbs` now get the global object
+  Windows Script Host provides, so legacy `cscript.exe` code runs unchanged.
+  `WScript.Echo` prints its values separated by spaces; `WScript.Arguments` is indexed
+  from zero and also exposes the `/name:value` form through `.Named`; `ScriptName` and
+  `ScriptFullName` name the running file; `StdOut` / `StdErr` / `StdIn` are `TextStream`
+  objects with `Write`, `WriteLine`, `WriteBlankLines`, and on input also `ReadLine`,
+  `ReadAll`, `AtEndOfStream`, `Skip` and `SkipLine`; `Name`, `Version`, `FullName`,
+  `Path`, `Interactive`, `Timeout`, `Sleep`, `Quit`, `CreateObject` and `GetObject`
+  round out the surface. `WScript` is read-only (assigning to it is a syntax error).
+  Documented in `doc/VBS_SUPERSET.md` §3.13.
+- Script arguments reach the host: `openvbs script.vbs a b` puts `a` and `b` into
+  `WScript.Arguments`, and `vbs_run(..., args=[...])` does the same when the runtime is
+  embedded.
+- `tests/test_host.py`: 27 cases over the identity properties, arguments, streams,
+  `Quit`/`Sleep`/`Timeout` and the read-only rule.
 
 ### Fixed
 
@@ -31,6 +49,7 @@ Release-by-release engineering notes (how to cut a release) live in
   `ctypes` binding is feasible but a mistyped native call terminates the process with an
   access violation that no `On Error` / `Try Catch` can intercept
   (`doc/VBS_SUPERSET.md` §3.11, `dev-docs/ROADMAP.md` 7c).
+- The copyright year is now 2026 in `LICENSE`, `NOTICE` and every source header.
 
 ## [0.9.22] — 2026-11-20
 

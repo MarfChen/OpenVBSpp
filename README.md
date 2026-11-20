@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-577%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.21-blue)
+![tests](https://img.shields.io/badge/tests-618%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.23-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -313,6 +313,7 @@ Source: echo 1
 | Runtime info | `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale` |
 | Procedures | `Execute` / `ExecuteGlobal` / `Eval` / `GetRef` / `LoadPicture` (raises: no picture library) |
 | Interaction | `MsgBox` / `InputBox` (real dialogs from the CLI, console stand-ins otherwise — see [Status](#status-and-known-limitations)) |
+| Host object | `WScript` with `Echo`, `Arguments` (zero-based, plus `.Named`), `ScriptName`, `ScriptFullName`, `StdOut` / `StdErr` / `StdIn`, `Sleep`, `Timeout`, `Quit`, `CreateObject`, `GetObject` — see [doc/VBS_SUPERSET.md §3.13](doc/VBS_SUPERSET.md) |
 
 Constants: `vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`.
 
@@ -525,7 +526,8 @@ in embedded `vbs_run()` calls and when Tk is missing they fall back to the conso
 
 COM host objects **are** supported: real connections on Windows through `com-support`;
 on other platforms, with `OPENVBS_COM=0`, or without `pywin32` you get an explicit error.
-Failure codes match VBScript: an unregistered ProgID reports 429, a failed attach reports 432, and `TypeName` reports the coclass name. `GetObject` accepts monikers (`winmgmts:`) and the `GetObject(, "class")` form. The `WScript` host object itself is missing — `WScript.Echo` and friends raise `Variable 'WScript' is undefined` (1001); use `echo` and `CreateObject("WScript.Shell")` instead.
+Failure codes match VBScript: an unregistered ProgID reports 429, a failed attach reports 432, and `TypeName` reports the coclass name. `GetObject` accepts monikers (`winmgmts:`) and the `GetObject(, "class")` form.
+The `WScript` host object **is** provided: `WScript.Echo`, `Arguments` (indexed from zero, plus `Named`), `ScriptName`, `ScriptFullName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout`, `Quit`, `CreateObject` and `GetObject` all work, so scripts written for `cscript.exe` keep running. See [doc/VBS_SUPERSET.md §3.12](doc/VBS_SUPERSET.md).
 Tcl/Tk licensing is documented in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md):
 the license is BSD-style and permissive but not OSI-approved, so `OPENVBS_UI=console`
 gives a Tk-free build path.
@@ -536,7 +538,8 @@ Other known limits:
 - `Exit For` inside a `Do` loop only exits the innermost loop
 - `#python` blocks run in global scope and cannot touch procedure locals directly
 - `Class_Terminate` depends on reference counting/GC; timing is not guaranteed
-- the `WScript` host object is not provided (`WScript.Echo`, `.Arguments`, `.Sleep`, `.Quit`)
+- `WScript` describes the OpenVBS++ console host, not `cscript.exe` (`FullName` is the
+  Python interpreter and `Interactive` follows the terminal, not a desktop session)
 
 The full object-model contract is in [doc/OOP.md](doc/OOP.md).
 

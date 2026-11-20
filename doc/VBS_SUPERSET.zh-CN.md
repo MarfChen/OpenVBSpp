@@ -314,6 +314,27 @@ OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两�
 - `Stop` 在 VBScript 里是调试断点。这里没有调试器可停，因此接受该语句但什么也不做。
   它不算语法错误，因为真实脚本常故意留着 `Stop` 调用。
 
+### 3.13 `WScript` 宿主对象
+
+用 `openvbs` 启动的脚本会得到与 Windows Script Host 相同的全局 `WScript` 对象，因此按老习惯
+写 `WScript.Echo` 的代码可以继续用：
+
+| 成员 | 行为 |
+|---|---|
+| `WScript.Echo a, b` | 用空格分隔输出各值，与 `Echo` 语句一致 |
+| `WScript.Arguments` | 脚本路径之后的参数；`Count`、`Arguments(0)`（从 0 开始）、`Item(n)`、`For Each` 都可用。下标越界报错误 9 |
+| `WScript.Arguments.Named` | `/name:value` 与 `/name=value` 形式的具名参数：`Exists(name)`、`Item(name)`、`Count` |
+| `WScript.ScriptName`、`.ScriptFullName` | 正在运行脚本的文件名与完整路径（`-c`/标准输入运行时代码为 `""`） |
+| `WScript.StdOut`、`.StdErr`、`.StdIn` | `TextStream` 对象：`Write`、`WriteLine`、`WriteBlankLines`；`StdIn` 另有 `ReadLine`、`ReadAll`、`AtEndOfStream`、`Skip`、`SkipLine`（读到文件尾时 `ReadLine` 报错误 62） |
+| `WScript.Name`、`.Version` | `"Windows Script Host"` 与 `"5.812"`，老脚本会用它们做判断 |
+| `WScript.FullName`、`.Path` | 运行脚本的解释器及其所在目录（OpenVBS++ 是 Python 宿主，不是 `cscript.exe`） |
+| `WScript.Interactive`、`.Timeout` | `Interactive` 表示 stdin/stdout 是否为终端；`Timeout` 只保存、不强制 |
+| `WScript.Sleep ms` | 休眠；`WScript.Quit code` 以该退出码结束 |
+| `WScript.CreateObject`、`.GetObject` | 与同名全局函数一致，错误码见 §2.6 |
+
+`WScript` 本身是只读的：给它赋值会报语法错误。命令行参数从
+`openvbs script.vbs a b` 形式传入；嵌入运行时可写 `vbs_run(..., args=[...])`。
+
 ## 4. 已知缺口
 
 `tests/test_vbs_superset.py` 里已经没有 expectedFailure：`VBS_FEATURES` 里的每一段都能跑。
@@ -325,7 +346,7 @@ OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两�
 | 项 | 说明 |
 |---|---|
 | COM 宿主对象（`Excel.Application`、`WScript.Shell` 等） | 自 v0.9.14 起在 Windows 上由 `com-support` 包真连；其它平台抛 `OVPPObjectNotSupportedError`，不模拟 COM |
-| `WScript` 宿主对象 | 不提供：`WScript.Echo`、`.Arguments`、`.Sleep`、`.StdOut`、`.Quit` 报 `Variable 'WScript' is undefined`（1001）。输出用 `echo`，shell 功能用 `CreateObject("WScript.Shell")` |
+| `WScript` 宿主对象 | 自 v0.9.23 起提供（见 §3.13）：`Echo`、`Arguments`（从 0 开始，另有 `Named`）、`ScriptName`、`StdOut`/`StdErr`/`StdIn`、`Sleep`、`Timeout`、`Quit`、`CreateObject`、`GetObject`。它描述的是 OpenVBS++ 控制台宿主，所以 `FullName`/`Path` 指向 Python 解释器而不是 `cscript.exe`，`Interactive` 取决于终端 |
 | `Collection` 内置类 | VBScript 本身没有（属于 VBA） |
 | `Attribute` 的其它属性（`VB_Name` 等） | 只解析 `VB_UserMemId` |
 | `MsgBox` / `InputBox` | 交互式运行时有 `ui-support` 包就弹真窗口（见 §3.10）；CI、管道与嵌入运行时退回控制台：`MsgBox` 打印文本并返回 1，`InputBox` 从 stdin 读一行 |
@@ -347,7 +368,7 @@ OpenVBS++ 通过自带的 `ui-support` 包（由 Tkinter 绘制）实现这两�
 
 > 完整的对象模型清单（含"不适用"的关键字说明）见 [OOP.md](OOP.md)。
 
-## 6. 状态更新（v0.9.5 - v0.9.22）
+## 6. 状态更新（v0.9.5 - v0.9.23）
 
 Resume / Resume Next 已实现：含 Resume 的过程会编译成"语句下标分派"的状态机，
 每条语句一个 _pc 分支，出错时记录失败下标并跳到 On Error GoTo 的处理段；
@@ -356,6 +377,6 @@ Resume 回到失败语句，Resume Next 跳到下一条。因此 Resume 在嵌�
 
 经过 v0.9.21 的审计，VBScript 原生语句形式已全部支持，只有一处有意例外：`Declare`。
 自 v0.9.22 起 `MsgBox` / `InputBox` 在交互式命令行运行时会弹出真实的 Tk 对话框
-（见 §3.10），因此剩下的缺口都属于宿主集成而不是语法：`LoadPicture` 报告没有图形
-图像库、`ExecuteGlobal` 在运行期定义的过程无法按名字调用（改用 `GetRef`）、只允许
-向前 `GoTo`。上面 §4 的表格就是完整清单。
+（见 §3.10），自 v0.9.23 起提供 `WScript` 宿主对象（见 §3.13），因此剩下的缺口都属于
+宿主细节而不是语法：`LoadPicture` 报告没有图形图像库、`ExecuteGlobal` 在运行期定义的
+过程无法按名字调用（改用 `GetRef`）、只允许向前 `GoTo`。上面 §4 的表格就是完整清单。

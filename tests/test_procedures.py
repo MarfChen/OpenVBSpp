@@ -1,6 +1,6 @@
 """Regression tests for procedural features (Sub / Function / Dim / ReDim / Const / Option Explicit / arrays / built-ins).
 
-Copyright 2027 Marf Chen(MarfChen)
+Copyright 2026 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

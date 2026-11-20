@@ -1,5 +1,5 @@
 '''
-Copyright 2027 Marf Chen(MarfChen)
+Copyright 2026 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,6 +47,8 @@ def build_arg_parser():
     )
     parser.add_argument("script", nargs="?",
                         help="Script to run; omit to run the built-in demo / 要运行的 .vbs 文件，省略则运行内置示例")
+    parser.add_argument("script_args", nargs=argparse.REMAINDER,
+                        help=argparse.SUPPRESS)
     parser.add_argument("--save", action="store_true",
                         help="Also write .pyc and .ast.txt / 同时写出 .pyc 与 .ast.txt")
     parser.add_argument("--save-dir", default=None,
@@ -309,7 +311,8 @@ def main(argv=None):
 
         vbs_run(code, filename=filename, verbose=args.verbose,
                 mode="save" if args.save else "exec",
-                save_dir=args.save_dir)
+                save_dir=args.save_dir,
+                args=list(args.script_args or ()))
     except OVPPError as err:
         print(err, file=sys.stderr)
         return 1

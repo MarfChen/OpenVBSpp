@@ -1,6 +1,6 @@
 """Python interop: `#python ... #endpython` and `COP`. Since 0.9.20 both need an explicit `<script src="python-embed" />`.
 
-Copyright 2027 Marf Chen(MarfChen)
+Copyright 2026 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

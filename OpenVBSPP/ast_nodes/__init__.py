@@ -1,5 +1,5 @@
 '''
-Copyright 2027 Marf Chen(MarfChen)
+Copyright 2026 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from ._classes import *
 from ._statements import *
 
 
-__version__ = "0.9.22"
+__version__ = "0.9.23"
 __all__ = [
     "AST",
     "Program",

@@ -5,10 +5,11 @@ Dim i, total
 For i = 1 To 5
     total = total + i * i
 Next
-echo "sum of squares 1..5 = " & total
+WScript.Echo "sum of squares 1..5 = " & total
 
 Function Greet(name)
     Greet = "Hello, " & name & "!"
 End Function
 
-echo Greet("VBScript")
+WScript.Echo Greet("VBScript")
+WScript.Echo "running " & WScript.ScriptName

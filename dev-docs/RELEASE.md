@@ -147,7 +147,8 @@ Implementation notes (`packaging/openvbs.spec`):
 - `excludes` drops `astpretty` / `unittest` / `pydoc` to shrink the binary. `tkinter` is
   **not** excluded since v0.9.22: the exe ships real `MsgBox` / `InputBox` dialogs
   (+8.9 MB uncompressed), and `OpenVBSPP/vendor/ui-support` plus
-  `OpenVBSPP.ovpprt.ui` are declared like the COM ones;
+  `OpenVBSPP.ovpprt.ui` are declared like the COM ones. `OpenVBSPP.ovpprt.host` (the
+  `WScript` object, v0.9.23) is declared in the same list;
 - third-party license texts travel with the exe: `THIRD_PARTY_LICENSES.md`, `NOTICE` and
   the local Tk `license.terms` go into `datas` under `licenses/`. The Tcl/Tk license
   requires the notice to "appear in all copies", so also attach

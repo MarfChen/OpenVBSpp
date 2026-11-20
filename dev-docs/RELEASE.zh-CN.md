@@ -146,7 +146,8 @@ openvbs.exe            # 无参数跑内置示例
   目标机器不用另装 pywin32；没装 pywin32 也能打包，只是 exe 里 COM 不可用；
 - `excludes` 去掉了 `astpretty` / `unittest` / `pydoc`，减小体积。自 v0.9.22 起
   **不再排除 `tkinter`**：exe 自带真正的 `MsgBox` / `InputBox` 对话框（未压缩 +8.9 MB），
-  `OpenVBSPP/vendor/ui-support` 与 `OpenVBSPP.ovpprt.ui` 和 COM 一样在 spec 里声明；
+  `OpenVBSPP/vendor/ui-support` 与 `OpenVBSPP.ovpprt.ui` 和 COM 一样在 spec 里声明。
+  `WScript` 宿主对象（v0.9.23）对应的 `OpenVBSPP.ovpprt.host` 也在同一清单里；
 - 第三方许可文本随 exe 一起分发：`THIRD_PARTY_LICENSES.md`、`NOTICE` 与本机 Tk 的
   `license.terms` 都放进 `datas` 的 `licenses/` 目录。Tcl/Tk 许可要求声明
   「appear in all copies」，因此发布 Release 时也要把 `THIRD_PARTY_LICENSES.md`

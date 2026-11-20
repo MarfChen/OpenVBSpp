@@ -53,7 +53,7 @@ Checklist:
 - [ ] New syntax → `README.md` + `doc/VBS_SUPERSET.md` + a superset test.
 - [ ] New example → update `EXPECTED` in `tests/test_openvbspp.py`.
 - [ ] Version strings (4 places) unchanged unless you are releasing.
-- [ ] Copyright header `Copyright 2027 Marf Chen(MarfChen)` on new files.
+- [ ] Copyright header `Copyright 2026 Marf Chen(MarfChen)` on new files.
 - [ ] Commit signed off (see DCO below).
 
 ### Developer Certificate of Origin (DCO)
@@ -138,7 +138,7 @@ python -m compileall -q OpenVBSPP tests  # 必须无错
 - [ ] 新语法 → 同步 `README.md` + `doc/VBS_SUPERSET.md` + 超集用例。
 - [ ] 新示例 → 同步 `tests/test_openvbspp.py` 的 `EXPECTED`。
 - [ ] 非发版 PR 不改版本号（四处保持一致）。
-- [ ] 新文件带 `Copyright 2027 Marf Chen(MarfChen)` 版权头。
+- [ ] 新文件带 `Copyright 2026 Marf Chen(MarfChen)` 版权头。
 - [ ] 提交带 `Signed-off-by`（见下面的 DCO）。
 
 ### DCO（开发者原创声明）

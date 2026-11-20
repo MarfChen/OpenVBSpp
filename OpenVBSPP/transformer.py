@@ -1,5 +1,5 @@
 '''
-Copyright 2027 Marf Chen(MarfChen)
+Copyright 2026 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ PYTHON_FEATURE = "python-embed"
 REGEXP_MODULE = "_ovpp_regexp"
 JSON_MODULE = "_ovpp_json"
 IDE_MODULE = "_ovpp_idebridge"
+HOST_MODULE = "_ovpp_host"
 CLASSES_NAME = "_ovpp_classes"
 EMPTY_NAME = "_ovpp_empty"
 NULL_NAME = "_ovpp_null"
@@ -142,7 +143,8 @@ VBS_CONSTANTS = {
 }
 
 # These names never need an Option Explicit declaration / 中文：这些名字不需要 Option Explicit 声明
-SPECIAL_NAMES = frozenset(VBS_CONSTANTS) | {"err", "vbtrue", "vbfalse", "cop"}
+SPECIAL_NAMES = frozenset(VBS_CONSTANTS) | {"err", "vbtrue", "vbfalse", "cop",
+                                            "wscript"}
 
 _FROM_OVPPRT = (
     ("boolean", BOOL_MODULE),
@@ -158,6 +160,7 @@ _FROM_OVPPRT = (
     ("regexp", REGEXP_MODULE),
     ("jsonobj", JSON_MODULE),
     ("ide_bridge", IDE_MODULE),
+    ("host", HOST_MODULE),
 )
 
 op_map = {
@@ -1578,6 +1581,9 @@ class Transformer:
         if key == "err":
             return ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
                                  attr="ERR", ctx=ast.Load())
+        if key == "wscript":
+            return ast.Attribute(value=ast.Name(id=HOST_MODULE, ctx=ast.Load()),
+                                 attr="HOST", ctx=ast.Load())
         if key in VBS_CONSTANTS:
             return ast.Constant(value=VBS_CONSTANTS[key])
         if key == "vbtrue":
@@ -1592,6 +1598,10 @@ class Transformer:
         if key == "me":
             raise OVPPSyntaxError("'Me' is read-only: you cannot assign to it",
                                   line_number=getattr(node, "line", None))
+        if key == "wscript":
+            raise OVPPSyntaxError(
+                "'WScript' is read-only: the host object cannot be replaced",
+                line_number=getattr(node, "line", None))
         shared = self._shared_target(key)
         if shared is not None:
             return ast.Attribute(value=shared,

@@ -28,11 +28,12 @@
 | 0.9.20 | Python 互操作改为 `python-embed` over 包 + 显式导入（`Option COP` 移除）、删除 `ast2str`、文档英文化并拆分 `dev-docs/` |
 | 0.9.21 | VBScript 完整性补齐：`&H` / `&O` / `#date#` 字面量、剩下的 19 个内置函数（`Sin` … `GetRef`）、`ExecuteGlobal`、`TimeValue` / `Time()` 日期 bug，以及按实测校正的 `doc/VBS_SUPERSET.md` |
 | 0.9.22 | 内置 `ui-support` 包提供真正的 `MsgBox` / `InputBox` 对话框（Tk），CI/管道/嵌入运行时退回控制台，并新增 `THIRD_PARTY_LICENSES.md`（CPython 与 Tcl/Tk 原文） |
+| 0.9.23 | `WScript` 宿主对象（`Echo`、0 起始的 `Arguments` 与 `Named`、`ScriptName`、`StdOut`/`StdErr`/`StdIn`、`Sleep`、`Timeout`、`Quit`）与命令行脚本参数；COM 保真修复（属性返回对象、`GetObject` moniker、429/432、组件类名 `TypeName`、省略实参、`Files`/`SubFolders` 集合）；版权年份改为 2026 |
 
-**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；577 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
+**当前状态**：VBScript 原生语句形式全齐（只有 `Declare` 是主动不做）；618 个测试全绿；进程内的循环/数组/函数调用已与手写 Python 同量级（0.99×–1.35×）。COM 在 Windows 上由
 `com-support` 包真连（非 Windows、或 `OPENVBS_COM=0`、或没装 `pywin32` 时给明确报错）；
-`MsgBox` / `InputBox` 在交互式命令行运行时会弹真窗口，其余场合仍是控制台行为，
-见 §3 末尾的说明。
+`MsgBox` / `InputBox` 在交互式命令行运行时会弹真窗口，其余场合仍是控制台行为；`WScript`
+按 Windows Script Host 的方式描述这个控制台宿主，见 §3 末尾的说明。
 
 ---
 
@@ -57,6 +58,7 @@
 | 7a | `MsgBox` / `InputBox` 的真 GUI 对话框（内置 `ui-support` 包） | ✅ 已在 v0.9.22 完成 —— 交互式命令行运行弹 Tk 对话框，其余场合仍是控制台替身；见 [GUI_DIALOGS_DESIGN.zh-CN.md](GUI_DIALOGS_DESIGN.zh-CN.md) |
 | 7b | `ui-support` 的文件选择框（`AskOpenFileName` 一类） | 7a 的下一步，同一个包、`tkinter.filedialog` |
 | 7c | 用 `ctypes` 实现 `Declare ... Lib` | 仅提议、未排期：`Declare` 是 VBA 的语法（VBScript 没有），且原生调用可能以 `On Error` 无法捕获的方式崩掉进程 |
+| 7d | `WScript` 宿主对象 | ✅ 已在 v0.9.23 完成 —— `Echo`、`Arguments`、`ScriptName`、`StdOut`/`StdErr`/`StdIn`、`Sleep`、`Timeout`、`Quit`；见 `doc/VBS_SUPERSET.zh-CN.md` §3.13 |
 
 ### P2 · 体验（按需）
 

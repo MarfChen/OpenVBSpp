@@ -337,6 +337,28 @@ The supported routes to native code are:
   so the statement is accepted and does nothing. It is not a syntax error, because real
   scripts leave `Stop` calls behind on purpose.
 
+### 3.13 The `WScript` host object
+
+Scripts started by `openvbs` get the same global `WScript` object that Windows Script
+Host provides, so legacy code that reaches for it keeps working:
+
+| Member | Behaviour |
+|---|---|
+| `WScript.Echo a, b` | Prints the values separated by spaces, like the `Echo` statement |
+| `WScript.Arguments` | The arguments after the script path; `Count`, `Arguments(0)` (indexed from zero), `Item(n)` and `For Each` work. Out-of-range indexes raise error 9 |
+| `WScript.Arguments.Named` | `/name:value` and `/name=value` arguments: `Exists(name)`, `Item(name)`, `Count` |
+| `WScript.ScriptName`, `.ScriptFullName` | The file name and full path of the running script (`""` for `-c`/stdin code) |
+| `WScript.StdOut`, `.StdErr`, `.StdIn` | `TextStream` objects: `Write`, `WriteLine`, `WriteBlankLines`, and on `StdIn` also `ReadLine`, `ReadAll`, `AtEndOfStream`, `Skip`, `SkipLine` (`ReadLine` at end of file raises error 62) |
+| `WScript.Name`, `.Version` | `"Windows Script Host"` and `"5.812"`, the values old scripts test |
+| `WScript.FullName`, `.Path` | The running interpreter and its directory (OpenVBS++ is a Python host, not `cscript.exe`) |
+| `WScript.Interactive`, `.Timeout` | `Interactive` reports whether stdin and stdout are a terminal; `Timeout` is stored but not enforced |
+| `WScript.Sleep ms` | Sleeps; `WScript.Quit code` exits with that code |
+| `WScript.CreateObject`, `.GetObject` | Same as the global functions, with the COM error codes of section 2.6 |
+
+`WScript` itself is read-only: assigning to it is a syntax error. Command-line arguments
+reach it from the `openvbs script.vbs a b` form (or `vbs_run(..., args=[...])` when the
+runtime is embedded).
+
 ## 4. Known gaps
 
 `tests/test_vbs_superset.py` carries no `expectedFailure` any more: every fragment in
@@ -349,7 +371,7 @@ implementation does not have, and things we deliberately decline.
 | Item | Explanation |
 |---|---|
 | COM host objects (`Excel.Application`, `WScript.Shell`, …) | Supported on Windows since v0.9.14 through the `com-support` package; on other platforms they raise `OVPPObjectNotSupportedError` instead of simulating COM |
-| The `WScript` host object | Not provided: `WScript.Echo`, `.Arguments`, `.Sleep`, `.StdOut` and `.Quit` report `Variable 'WScript' is undefined` (1001). Use `echo`, `CreateObject("WScript.Shell")` for shell features, and the native `Sleep`-free waits |
+| The `WScript` host object | Provided since v0.9.23 (§3.13): `Echo`, `Arguments` (indexed from zero, plus `Named`), `ScriptName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout`, `Quit`, `CreateObject` and `GetObject`. It describes the OpenVBS++ console host, so `FullName`/`Path` point at the Python interpreter rather than `cscript.exe`, and `Interactive` follows the terminal |
 | The `Collection` built-in class | VBScript itself has none (it belongs to VBA) |
 | Other `Attribute` properties (`VB_Name` etc.) | Only `VB_UserMemId` is parsed |
 | `MsgBox` / `InputBox` | Real dialogs through the bundled `ui-support` package when the run is interactive (see §3.10); console stand-ins in CI, pipes and embedded runs, where `MsgBox` prints its text and returns 1 and `InputBox` reads one line from stdin |
@@ -373,7 +395,7 @@ Run through this before and after touching the compiler:
 > The full object-model inventory (including keywords that do not apply) is in
 > [OBJECT_MODEL.md](OBJECT_MODEL.md) and [OOP.md](OOP.md).
 
-## 6. Status update (v0.9.5 - v0.9.22)
+## 6. Status update (v0.9.5 - v0.9.23)
 
 Resume / Resume Next are implemented: a procedure containing Resume compiles into a
 "statement index dispatch" state machine, one `_pc` branch per statement; on error the
@@ -384,8 +406,8 @@ sequential compilation, with unchanged behaviour and performance.
 
 After the v0.9.21 audit every native VBScript statement form is supported, with one
 deliberate exception: `Declare`. As of v0.9.22 `MsgBox` and `InputBox` show real Tk
-dialogs in interactive command-line runs (see §3.10), so the remaining gaps are host
-integration rather than syntax: `LoadPicture` reports that there is no GUI picture
-library, procedures defined at run time by `ExecuteGlobal` cannot be called by name
-(use `GetRef`), and only forward `GoTo` is allowed. The section 4 table above is the
-complete list.
+dialogs in interactive command-line runs (see §3.10), and as of v0.9.23 the `WScript`
+host object is provided (§3.13), so the remaining gaps are host details rather than
+syntax: `LoadPicture` reports that there is no GUI picture library, procedures defined at
+run time by `ExecuteGlobal` cannot be called by name (use `GetRef`), and only forward
+`GoTo` is allowed. The section 4 table above is the complete list.

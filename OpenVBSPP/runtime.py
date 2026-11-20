@@ -1,5 +1,5 @@
 '''
-Copyright 2027 Marf Chen(MarfChen)
+Copyright 2026 Marf Chen(MarfChen)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -120,7 +120,8 @@ def _bundle_line(code_obj, exc):
 
 
 def vbs_run(code: str, globals: dict = None, filename: str = None,
-            mode: str = "exec", save_dir: str = None, verbose: bool = False):
+            mode: str = "exec", save_dir: str = None, verbose: bool = False,
+            args=None):
     """Compile and execute OpenVBS++ source.
 
     :returns: the globals dict the code ran in
@@ -136,6 +137,12 @@ def vbs_run(code: str, globals: dict = None, filename: str = None,
 
     g = {} if globals is None else globals
     compiled_name = str(filename) if filename else COMPILED_FILENAME
+
+    # The `WScript` host object needs to know which file is running and with which
+    # arguments before the program starts.
+    # 中文：`WScript` 宿主对象需要在程序开始前知道正在运行的文件与收到的参数。
+    from OpenVBSPP.ovpprt import host
+    host.bind(filename, args)
 
     try:
         if hasattr(code_obj, "exec"):

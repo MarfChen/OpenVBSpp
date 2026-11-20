@@ -1,7 +1,7 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-577%20passing-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.21-blue)
+![tests](https://img.shields.io/badge/tests-618%20passing-brightgreen)
+![version](https://img.shields.io/badge/version-0.9.23-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -26,7 +26,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.22**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.23**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -391,6 +391,7 @@ On Error GoTo 0
 | 运行时信息 | `RGB ScriptEngine ScriptEngineMajorVersion ScriptEngineMinorVersion ScriptEngineBuildVersion GetLocale SetLocale` |
 | 过程 | `Execute` / `ExecuteGlobal` / `Eval` / `GetRef` / `LoadPicture`（没有图形库，会报错） |
 | 交互 | `MsgBox` / `InputBox`（命令行交互时弹真对话框，否则控制台替身 —— 见[已知限制](#与规范的差距--已知限制)） |
+| 宿主对象 | `WScript`：`Echo`、`Arguments`（0 起始，另有 `.Named`）、`ScriptName`、`ScriptFullName`、`StdOut` / `StdErr` / `StdIn`、`Sleep`、`Timeout`、`Quit`、`CreateObject`、`GetObject` —— 见 [doc/VBS_SUPERSET.zh-CN.md §3.13](doc/VBS_SUPERSET.zh-CN.md) |
 
 预定义常量：`vbCrLf vbCr vbLf vbTab vbNullString vbNullChar vbBack vbFormFeed vbVerticalTab vbTrue vbFalse`。
 
@@ -610,8 +611,10 @@ COM 宿主对象（`Excel.Application`、`WScript.Shell` 等）**已经支持**�
 `com-support` 包真连，非 Windows 平台、`OPENVBS_COM=0`、或没装 `pywin32` 时会给出明确报错
 （不再按"未实现"处理）。失败编号与 VBScript 一致：找不到 ProgID 报 429，连接失败报 432，
 `TypeName` 返回组件类名；`GetObject` 支持 moniker（`winmgmts:`）与 `GetObject(, "类名")` 形式。
-`WScript` 宿主对象本身没有提供 —— `WScript.Echo` 等会报 `Variable 'WScript' is undefined`（1001），
-输出请用 `echo`，shell 功能用 `CreateObject("WScript.Shell")`。
+`WScript` 宿主对象**已经提供**：`WScript.Echo`、`Arguments`（0 起始，另有 `Named`）、
+`ScriptName`、`ScriptFullName`、`StdOut`/`StdErr`/`StdIn`、`Sleep`、`Timeout`、`Quit`、
+`CreateObject`、`GetObject` 都可用，为 `cscript.exe` 写的老脚本可以直接跑；见
+[doc/VBS_SUPERSET.zh-CN.md §3.12](doc/VBS_SUPERSET.zh-CN.md)。
 
 Tcl/Tk 的许可与义务见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)：它是 BSD 风格、
 允许任意目的使用，但**不是 OSI 认证**的许可；只接受 OSI 清单的组织可设
@@ -623,7 +626,8 @@ Tcl/Tk 的许可与义务见 [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)�
 - `Exit For` 若嵌在 `Do` 循环里，只跳出最内层循环（Python 没有具名循环）。
 - `#python` 代码块在全局作用域运行（不能直接改过程的局部变量）。
 - `Class_Terminate` 依赖 Python 的引用计数/GC，时机不保证。
-- 没有 `WScript` 宿主对象（`WScript.Echo`、`.Arguments`、`.Sleep`、`.Quit`）。
+- `WScript` 描述的是 OpenVBS++ 控制台宿主而非 `cscript.exe`（`FullName` 是 Python 解释器，
+  `Interactive` 取决于终端而不是桌面会话）。
 
 完整的对象模型清单见 [doc/OOP.md](doc/OOP.md)（继承、重载、`Set/Get`，以及"为什么不做 abstract/static"的说明）。
 

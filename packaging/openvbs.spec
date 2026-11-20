@@ -48,6 +48,7 @@ HIDDEN_IMPORTS = [
     "OpenVBSPP.ovpprt.string",
     # MsgBox / InputBox 的 GUI 分发层，builtins 里延迟 import
     "OpenVBSPP.ovpprt.ui",
+    "OpenVBSPP.ovpprt.host",
     # over 包管理器，cli 里按需 import；也被 compiler._resolve 用于按包名解析
     "OpenVBSPP.over",
 ]

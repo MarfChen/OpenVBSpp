@@ -28,14 +28,16 @@
 | 0.9.20 | Python interop becomes the `python-embed` over package with an explicit import (`Option COP` removed), `ast2str` deleted, docs rewritten English-first with `dev-docs/` split out |
 | 0.9.21 | VBScript completeness pass: `&H` / `&O` / `#date#` literals, the 19 remaining built-ins (`Sin` … `GetRef`), `ExecuteGlobal`, the `TimeValue` / `Time()` date bug, and a `doc/VBS_SUPERSET.md` corrected against the implementation |
 | 0.9.22 | Real `MsgBox` / `InputBox` dialogs through the bundled `ui-support` package (Tk), console fallbacks for CI/pipe/embedded runs, `THIRD_PARTY_LICENSES.md` with the verbatim CPython and Tcl/Tk texts |
+| 0.9.23 | The `WScript` host object (`Echo`, zero-based `Arguments` with `Named`, `ScriptName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout`, `Quit`) plus script arguments on the command line; COM fidelity fixes (property-valued objects, `GetObject` monikers, 429/432, coclass `TypeName`, omitted arguments, `Files`/`SubFolders` collections); copyright year set to 2026 |
 
 **Current status**: every native VBScript statement form is in place (only `Declare`
-is declined by design); 577 tests green;
+is declined by design); 618 tests green;
 in-process loops, arrays and calls are now on par with hand-written Python
 (0.99×–1.35×). On Windows COM is real through the `com-support` package — and
 on non-Windows platforms, with `OPENVBS_COM=0`, or without `pywin32`, you get an
 explicit error instead. `MsgBox` / `InputBox` open real Tk dialogs in interactive
-command-line runs and stay console-based everywhere else. See the note at the end of §3.
+command-line runs and stay console-based everywhere else, and `WScript` describes the
+console host the way Windows Script Host does. See the note at the end of §3.
 
 ---
 
@@ -60,6 +62,7 @@ command-line runs and stay console-based everywhere else. See the note at the en
 | 7a | Real GUI dialogs for `MsgBox` / `InputBox` through a bundled `ui-support` package | ✅ done in v0.9.22 — Tk dialogs for interactive CLI runs, console stand-ins everywhere else; see [GUI_DIALOGS_DESIGN.md](GUI_DIALOGS_DESIGN.md) |
 | 7b | File pickers (`AskOpenFileName` style) for `ui-support` | next step after 7a; the same package, `tkinter.filedialog` |
 | 7c | `Declare ... Lib` over `ctypes` | proposed only, not scheduled: the syntax is VBA's (VBScript has no `Declare`), and a native call can crash the process in ways no `On Error` can catch |
+| 7d | The `WScript` host object | ✅ done in v0.9.23 — `Echo`, `Arguments`, `ScriptName`, `StdOut`/`StdErr`/`StdIn`, `Sleep`, `Timeout` and `Quit`; see `doc/VBS_SUPERSET.md` §3.13 |
 
 ### P2 · experience (as needed)
 
