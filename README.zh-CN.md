@@ -1,7 +1,7 @@
 # OpenVBS++
 
 ![tests](https://img.shields.io/badge/tests-645%20cases-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.26-blue)
+![version](https://img.shields.io/badge/version-0.9.27-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -26,7 +26,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.24**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.27**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -707,6 +707,8 @@ git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
 - **v0.9.15**：性能优化（启动懒加载、只读 `ByRef` 不再装箱、无 `On Error` 的过程不建错误帧、`For` 安全时生成 `range`）
 - **v0.9.24**：取值语义对齐 VBScript —— `+ - * / ^` 按 VBS 规则做强制转换、`Null` 在内置函数里传播、
   未声明变量读作 `Empty`（`Option Explicit` 下仍然报错）
+- **v0.9.27**：`FileSystemObject` 的路径函数在任何主机上保持 Windows 语义；Linux CI 不再误报
+  （COM 相关用例在非 Windows 上跳过）
 - 下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
 - **v1.0**：稳定语言规范、官方运行时库 `ovpprt`、IDE / LSP 支持
 

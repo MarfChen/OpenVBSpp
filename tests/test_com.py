@@ -45,6 +45,13 @@ from OpenVBSPP.runtime import vbs_run                       # noqa: E402
 VENDOR = ROOT / "OpenVBSPP" / "vendor" / "com-support"
 EXTRAS = ROOT / "extras" / "com-support"
 
+# COM itself is Windows-only, so the tests that need a live provider only run
+# there; the packaging and manifest checks below stay platform independent.
+# 中文：COM 本身只在 Windows 上可用，因此需要真实 provider 的用例只在 Windows
+# 跑；下面的打包与清单检查仍然与平台无关。
+WINDOWS_ONLY = unittest.skipUnless(sys.platform == "win32",
+                                  "com-support targets Windows")
+
 
 def out(code):
     """Run a piece of VBS and return its output.
@@ -232,11 +239,13 @@ class TestPackageLayout(unittest.TestCase):
 
 
 class TestBridgeResolution(ComTestCase):
+    @WINDOWS_ONLY
     def test_falls_back_to_bundled_copy(self):
         directory, origin = com.resolve()
         self.assertEqual(origin, "bundled")
         self.assertEqual(Path(directory).resolve(), VENDOR.resolve())
 
+    @WINDOWS_ONLY
     def test_project_package_wins(self):
         write_package(Path("packages") / "com-support")
         directory, origin = com.resolve()
@@ -245,6 +254,7 @@ class TestBridgeResolution(ComTestCase):
                          (Path.cwd() / "packages" / "com-support").resolve())
         self.assertEqual(com.provider().version, "9.9.9")
 
+    @WINDOWS_ONLY
     def test_env_path_wins(self):
         custom = write_package(Path("elsewhere"), version="8.8.8")
         os.environ[com.ENV_PATH] = str(custom)
@@ -298,6 +308,7 @@ class TestCreateObject(ComTestCase):
         self.assertIn("COM", message)
         self.assertIn(com.ENV_DISABLE, message)
 
+    @WINDOWS_ONLY
     def test_script_gets_provider_object_without_import(self):
         write_package(Path("packages") / "com-support")
         code = ('Set o = CreateObject("Fake.Thing")\n'
@@ -314,6 +325,7 @@ class TestCreateObject(ComTestCase):
                 'echo d("a")')
         self.assertEqual(out(code), "1\n")
 
+    @WINDOWS_ONLY
     def test_provider_errors_are_translated(self):
         write_package(Path("packages") / "com-support",
                       source=BROKEN_SUPPORT, version="0.0.1")
@@ -325,12 +337,14 @@ class TestCreateObject(ComTestCase):
         self.assertIn("COM", message)
         self.assertIn("not registered", message)
 
+    @WINDOWS_ONLY
     def test_get_object_uses_provider(self):
         write_package(Path("packages") / "com-support")
         provider = com.provider()
         self.assertEqual(provider.get("Fake.Thing").progid, "Fake.Thing")
 
 
+@WINDOWS_ONLY
 class TestErrorNumbers(ComTestCase):
     """`Err.Number` must match the codes a real VBScript host reports.
 

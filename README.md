@@ -1,7 +1,7 @@
 # OpenVBS++
 
 ![tests](https://img.shields.io/badge/tests-645%20cases-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.26-blue)
+![version](https://img.shields.io/badge/version-0.9.27-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
@@ -620,6 +620,8 @@ Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
   built-ins, and an undeclared variable reads as `Empty` unless `Option Explicit` is on ✅
 - **v0.9.26** — `Option Native` (opt-in native arithmetic, implied by `Option Typing`), option
   statements pinned to the top of the script, `Option`/comparison limits documented ✅
+- **v0.9.27** — `FileSystemObject` path helpers keep Windows semantics on every host, and the
+  Linux CI gate reports honest results (COM cases skip where COM cannot exist) ✅
 - **Next** — method overloading, remaining `Attribute` properties, events, `Collection`,
   VBScript-accurate comparison coercion (see [doc/VBS_SUPERSET.md §4.1](doc/VBS_SUPERSET.md))
 - **v1.0** — stable language spec, official `ovpprt` runtime library, IDE / LSP support

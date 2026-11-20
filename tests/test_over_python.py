@@ -122,9 +122,13 @@ class TestPythonDependencies(OverPythonBase):
         self.assertEqual(recorder.calls[0], ["six>=1.16,<2"])
 
     def test_python_deps_of_incompatible_platform_are_skipped(self):
-        write_manifest(self.pkgs / "linux-only", "linux-only",
-                       python={"uvloop": ">=0.19"}, platforms=["linux"])
-        self.add_dependency("linux-only")
+        # Pick the platform the test host is *not* running on, so the case is
+        # genuinely incompatible on Windows and on Linux alike.
+        # 中文：选一个当前主机跑不了的平台，这样在 Windows 和 Linux 上都真的不兼容。
+        other = "win32" if sys.platform != "win32" else "linux"
+        write_manifest(self.pkgs / "other-platform", "other-platform",
+                       python={"uvloop": ">=0.19"}, platforms=[other])
+        self.add_dependency("other-platform")
         recorder = Recorder()
         over.install(self.root, pip_runner=recorder)
         self.assertEqual(recorder.calls, [])
@@ -218,6 +222,8 @@ class TestComSupportPackage(OverPythonBase):
         self.assertEqual(over.list_installed(self.root),
                          [("com-support", "1.0.0")])
 
+    @unittest.skipUnless(sys.platform == "win32",
+                         "com-support targets Windows")
     def test_install_with_com_records_extra_and_python_dep(self):
         recorder = Recorder(installed=[
             {"name": "pywin32", "version": "312", "requested": True}])

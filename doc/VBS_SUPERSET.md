@@ -480,7 +480,7 @@ Run through this before and after touching the compiler:
 > The full object-model inventory (including keywords that do not apply) is in
 > [OBJECT_MODEL.md](OBJECT_MODEL.md) and [OOP.md](OOP.md).
 
-## 6. Status update (v0.9.5 - v0.9.26)
+## 6. Status update (v0.9.5 - v0.9.27)
 
 Resume / Resume Next are implemented: a procedure containing Resume compiles into a
 "statement index dispatch" state machine, one `_pc` branch per statement; on error the

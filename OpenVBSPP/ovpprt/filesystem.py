@@ -31,11 +31,26 @@ Only plain text is covered: no COM, no registry, no binary I/O.
   f.Close
 '''
 
+import ntpath
 import os
 import tempfile
 from pathlib import Path
 
 from OpenVBSPP.exceptions import OVPPRuntimeError
+
+
+def _path_lib(text):
+    """Return `ntpath` for Windows-style paths, `os.path` for everything else.
+
+    VBScript only ever ran on Windows, so `fso.GetFileName("C:\\data\\r.txt")`
+    has to keep Windows semantics even when the interpreter runs on Linux.
+    中文：VBScript 只在 Windows 上存在，因此 `C:\\data\\r.txt` 这类路径必须
+    保持 Windows 语义，即便解释器跑在 Linux 上。
+    """
+    text = str(text)
+    if "\\" in text or (len(text) > 1 and text[1] == ":"):
+        return ntpath
+    return os.path
 
 
 # TextStream open modes / 中文：TextStream 的打开模式
@@ -173,17 +188,23 @@ class FileSystemObject:
         return Folder(target)
 
     def GetParentFolderName(self, path):
-        return str(Path(str(path)).parent)
+        text = str(path)
+        return _path_lib(text).dirname(text)
 
     # Paths / 中文：路径
     def GetFileName(self, path):
-        return Path(str(path)).name
+        text = str(path)
+        return _path_lib(text).basename(text)
 
     def GetBaseName(self, path):
-        return Path(str(path)).stem
+        text = str(path)
+        lib = _path_lib(text)
+        return lib.splitext(lib.basename(text))[0]
 
     def GetExtensionName(self, path):
-        return Path(str(path)).suffix.lstrip(".")
+        text = str(path)
+        lib = _path_lib(text)
+        return lib.splitext(lib.basename(text))[1].lstrip(".")
 
     def BuildPath(self, folder, name):
         return str(Path(str(folder)) / str(name))

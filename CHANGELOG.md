@@ -7,6 +7,22 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [0.9.27] — 2026-11-21
+
+### Fixed
+
+- **`Scripting.FileSystemObject` path helpers keep Windows semantics on every
+  host**: `GetFileName`, `GetBaseName` and `GetExtensionName` used the host's own
+  path flavour, so `"C:\data\r.txt"` came back as the whole string on Linux.
+  They now pick `ntpath` for Windows-style paths and `os.path` otherwise, and
+  `GetParentFolderName` follows the same rule.
+- **`over list` / `over info com-support` report the bundled directory off
+  Windows** instead of an empty path, while still telling you the bridge cannot
+  load there — the platform gate now only blocks loading, not bookkeeping.
+- **The COM suite only runs where COM exists**: provider-dependent cases are
+  skipped on non-Windows runners, and the incompatible-platform dependency test
+  picks the platform the host is not running on, so the Linux CI gate is honest.
+
 ## [0.9.26] — 2026-11-20
 
 ### Added

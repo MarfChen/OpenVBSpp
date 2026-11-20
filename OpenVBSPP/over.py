@@ -767,6 +767,15 @@ def com_support_status(root=None):
     from OpenVBSPP.ovpprt import com as bridge
 
     directory, origin = bridge.resolve()
+    if directory is None:
+        # Report where com-support *would* load from, even on a platform that
+        # cannot run it: `over list` stays informative off Windows.
+        # 中文：即便当前平台跑不了 COM，也报告会从哪里加载，让 `over list` 在非
+        # Windows 上仍有诊断价值。
+        for candidate, candidate_origin in bridge.candidates():
+            if (Path(candidate) / "com_support.py").is_file():
+                directory, origin = Path(candidate), candidate_origin
+                break
     platform_ok = sys.platform == "win32"
     return {"platform_ok": platform_ok,
             "directory": str(directory) if directory else "",
