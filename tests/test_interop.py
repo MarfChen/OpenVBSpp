@@ -13,7 +13,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-Python 互操作：`#python ... #endpython` 与 `COP`。
+
+中文：Python 互操作：`#python ... #endpython` 与 `COP`。
 
 0.9.20 起这些能力必须显式导入：脚本里写 `<script src="python-embed" />`
 （以前靠 `Option COP`，该语句已移除）。
