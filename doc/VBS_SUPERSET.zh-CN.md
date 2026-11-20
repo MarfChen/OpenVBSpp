@@ -70,6 +70,8 @@
 | `Do [While\|Until] ... Loop [While\|Until]` | ✅ |
 | `While ... Wend` | ✅ |
 | `Exit Do` / `Exit For` / `Exit Sub` / `Exit Function` | ✅ |
+| 单独的 `End`（结束整个脚本） | ✅ | 立即结束脚本；`On Error Resume Next` 与 `Try` 都接不住 |
+| `Stop`（调试断点） | ⚠️ | 接受但忽略 —— 这里没有调试器可以停下来 |
 
 ### 2.4 过程与作用域
 
@@ -279,6 +281,16 @@ OpenVBS++ 面向控制台、管道与批处理，所以两者都是替身：
 
 - COM：Windows 上用 `com-support` 包执行 `CreateObject("ProgID")`。
 - 原生 Python：写一个 `over` 包，或用 `#python` 代码块（见 §2.9）。
+
+### 3.12 `End` 与 `Stop`
+
+- 单独一行的 `End` 立即结束整个脚本，与 VBScript 的 `End` 语句一致。它编译成一个
+  继承自 `BaseException` 的 `ScriptEnd` 异常，因此 `On Error Resume Next` 与
+  `Try ... Catch` 都接不住；运行器把它当作正常结束（进程退出码 0）。而 `End If`、
+  `End Sub`、`End With`、`End Select`、`End Try`、`End Function`、`End Property`、
+  `End Class` 仍然保持「结束当前块」的含义。
+- `Stop` 在 VBScript 里是调试断点。这里没有调试器可停，因此接受该语句但什么也不做。
+  它不算语法错误，因为真实脚本常故意留着 `Stop` 调用。
 
 ## 4. 已知缺口
 

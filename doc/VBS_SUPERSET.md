@@ -72,6 +72,8 @@ Legend: ✅ supported · ⚠️ supported with semantic differences (see §3) ·
 | `Do [While\|Until] ... Loop [While\|Until]` | ✅ |
 | `While ... Wend` | ✅ |
 | `Exit Do` / `Exit For` / `Exit Sub` / `Exit Function` | ✅ |
+| A bare `End` (stop the whole script) | ✅ | Ends the script at once; neither `On Error Resume Next` nor `Try` can catch it |
+| `Stop` (debugger breakpoint) | ⚠️ | Accepted and ignored — there is no debugger to break into |
 
 ### 2.4 Procedures and scope
 
@@ -294,6 +296,18 @@ nothing. The supported routes are:
 
 - COM: `CreateObject("ProgID")`, on Windows, through the `com-support` package.
 - Native Python: an `over` package, or a `#python` block (see section 2.9).
+
+### 3.12 `End` and `Stop`
+
+- A bare `End` on its own line stops the script immediately, exactly like VBScript's
+  `End` statement. It compiles to a `ScriptEnd` exception that derives from
+  `BaseException`, so neither `On Error Resume Next` nor `Try ... Catch` can swallow it;
+  the runner treats it as a normal exit (process exit code 0). `End If`, `End Sub`,
+  `End With`, `End Select`, `End Try`, `End Function`, `End Property` and `End Class`
+  keep their block-closing meaning.
+- `Stop` is a debugger breakpoint in VBScript. OpenVBS++ has no debugger to break into,
+  so the statement is accepted and does nothing. It is not a syntax error, because real
+  scripts leave `Stop` calls behind on purpose.
 
 ## 4. Known gaps
 

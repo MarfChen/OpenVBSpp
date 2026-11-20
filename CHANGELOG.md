@@ -21,7 +21,13 @@ Release-by-release engineering notes (how to cut a release) live in
   `OVPPObjectNotSupportedError`: there is no picture library).
 - **`ExecuteGlobal`**: the statement form runs its code in the global scope; `Execute`
   accepts the same form.
-- `tests/test_vbs_coverage.py`: 35 regression cases pinning every item in this release.
+- **A bare `End`** stops the whole script, as in VBScript. It raises a `ScriptEnd`
+  (`BaseException`), so neither `On Error Resume Next` nor `Try ... Catch` can swallow it;
+  the runner treats it as a normal exit. The block closers (`End If`, `End Sub`, ...) are
+  unchanged.
+- **`Stop`** is accepted and does nothing: it is a debugger breakpoint and there is no
+  debugger here.
+- `tests/test_vbs_coverage.py`: 43 regression cases pinning every item in this release.
 
 ### Fixed
 

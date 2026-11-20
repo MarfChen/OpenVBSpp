@@ -1,6 +1,6 @@
 # OpenVBS++
 
-![tests](https://img.shields.io/badge/tests-549%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-557%20passing-brightgreen)
 ![version](https://img.shields.io/badge/version-0.9.21-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
@@ -167,7 +167,7 @@ IDE 服务还导出带版本号的 capabilities 文档（[OpenVBSPP/ide/service.
 
 **支持的 Python：3.10 – 3.13（CPython）。** 本项目是纯 Python，发布的是
 `py3-none-any` 通用 wheel，没有需要编译的东西，也不需要按版本分别打包：
-`pip install openvbspp` 在 x64 与 ARM64 上通用。549 个测试在每个受支持的版本上都跑 CI；
+`pip install openvbspp` 在 x64 与 ARM64 上通用。557 个测试在每个受支持的版本上都跑 CI；
 运行期代码本身仍然能被 3.9 解析并运行（`vermin` 给出的下限就是 3.9），
 但**声明支持 3.9 的最后一个版本是 0.9.14**。版本策略与 ARM 相关要做的事见
 [dev-docs/RELEASE.md](dev-docs/RELEASE.md) §9。
@@ -567,7 +567,7 @@ OpenVBSPP/
 └── vendor/             随包分发的 over 包：com-support（COM 支持）、python-embed（Python 互操作）
 examples/               示例脚本（控制流 / 过程 / 数组 / 语法糖 / 错误处理 / 类 / 类型 / FizzBuzz）
 examples/demo/          录屏用六段演示项目（旧脚本 / 类与 Try / Python / COM / 命名空间 / 包管理器）
-tests/                  回归测试（549 个用例）
+tests/                  回归测试（557 个用例）
 doc/                    语言规范、VBS 超集矩阵、对象模型设计
 ```
 

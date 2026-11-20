@@ -297,3 +297,72 @@ class TestTimeOnly(unittest.TestCase):
     def test_time_is_convertible(self):
         value = out("""echo Hour(Time())""")[0]
         self.assertTrue(0 <= int(value) <= 23)
+
+
+class TestScriptEndAndStop(unittest.TestCase):
+    """A bare `End` stops the script; `Stop` is a debugger no-op.
+
+    中文：单独的 `End` 结束整个脚本；`Stop` 是调试断点，这里接受但不做任何事。
+    """
+
+    def test_end_stops_the_script(self):
+        self.assertEqual(out("""echo 1
+End
+echo 2"""), ["1"])
+
+    def test_end_at_end_of_file(self):
+        self.assertEqual(out("""echo 1
+End"""), ["1"])
+
+    def test_end_inside_a_block(self):
+        code = """Dim x
+x = 1
+If x = 1 Then
+echo 1
+End
+echo 2
+End If
+echo 3"""
+        self.assertEqual(out(code), ["1"])
+
+    def test_end_inside_a_procedure(self):
+        code = """Sub Boom()
+echo 1
+End
+echo 2
+End Sub
+Boom
+echo 3"""
+        self.assertEqual(out(code), ["1"])
+
+    def test_try_cannot_catch_end(self):
+        code = """Try
+echo 1
+End
+echo 2
+Catch e
+echo "caught"
+End Try
+echo 3"""
+        self.assertEqual(out(code), ["1"])
+
+    def test_on_error_resume_next_cannot_swallow_end(self):
+        code = """On Error Resume Next
+echo 1
+End
+echo 2"""
+        self.assertEqual(out(code), ["1"])
+
+    def test_stop_is_a_no_op(self):
+        self.assertEqual(out("""echo 1
+Stop
+echo 2"""), ["1", "2"])
+
+    def test_end_and_stop_still_need_their_blocks_closed(self):
+        # The parser still checks block balance; only the block-closing forms
+        # (End If / End Sub / ...) take a keyword after them.
+        # 中文：块结构仍然要闭合；只有 `End If` 这类块结束符才带关键字。
+        with self.assertRaises(OVPPError):
+            out("""If 1 = 1 Then
+echo 1
+""")

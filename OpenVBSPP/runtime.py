@@ -29,6 +29,7 @@ from OpenVBSPP.exceptions import (OVPPError, OVPPRuntimeError, OVPPTypeError,
                                   OVPPArgumentError, OVPPObjectNotSupportedError,
                                   OVPPPermissionDeniedError, OVPPFileNotFoundError,
                                   OVPPOutOfRangeError, OVPPInvalidProcedureCallError)
+from OpenVBSPP.ovpprt.builtins import ScriptEnd
 
 
 # Order matters: subclasses must come before their base classes.
@@ -143,6 +144,10 @@ def vbs_run(code: str, globals: dict = None, filename: str = None,
             exec(code_obj, g)
     except (SystemExit, KeyboardInterrupt):
         raise
+    except ScriptEnd:
+        # A bare `End` finished the script on purpose: not an error.
+        # 中文：单独的 `End` 是脚本主动结束，不是错误。
+        return g
     except OVPPError:
         raise
     except Exception as exc:

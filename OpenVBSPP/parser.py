@@ -23,6 +23,7 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Pri
                               While, If, DoLoop, ExitDo, ExitFor,
                               ExitSub, ExitFunction, With, ForEach, TryStmt,
                               LabelStmt, GoToStmt, OnErrorGoToLabel, ResumeStmt,
+                              ScriptEnd, StopStmt,
                               SelectCase, CaseCond, For,
                               OptionExplicit, OptionTyping, OptionCompare,
                               DimDecl, ReDimDecl, ConstDecl,
@@ -159,9 +160,24 @@ class Parser:
                            f"while reading the {block_name} block", tok)
 
             if tok[0] == "IDENT" and tok[1].lower() in stop_words:
-                return body
+                # A bare `End` is the End statement, not the block's `End If`.
+                # 中文：单独的 `End` 是 End 语句，而不是本块的 `End If`。
+                if not (tok[1].lower() == "end" and self._bare_end_here()):
+                    return body
 
             body.append(self.statement())
+
+    def _bare_end_here(self):
+        """True when the current `End` stands alone, i.e. it is the End statement.
+
+        `End If` / `End Sub` / `End With` etc. have a keyword after `End`.
+
+        中文：当前 `End` 是否是单独出现（即 End 语句）。`End If`、`End Sub` 这类
+        后面还有关键字，不算。
+        """
+        index = self.pos + 1
+        return (index >= len(self.tokens)
+                or self.tokens[index][0] in ("NEWLINE", "COLON", "EOF"))
 
     def expect_keyword(self, word):
         tok = self.peek()
@@ -297,6 +313,16 @@ class Parser:
             node = self.identifier_statement()
             node.is_set = True
             return node
+        if word == "stop":
+            self.eat("IDENT")
+            return StopStmt().at(tok[2], tok[3])
+        if word == "end":
+            if self._bare_end_here():
+                # A bare `End` ends the whole script (VBScript's End statement).
+                # 中文：单独的 `End` 结束整个脚本（VBScript 的 End 语句）。
+                self.eat("IDENT")
+                return ScriptEnd().at(tok[2], tok[3])
+            self.error("Unexpected 'End': no matching block is open here", tok)
         if word in BLOCK_END_WORDS:
             self.error(f"Unexpected '{tok[1]}': no matching block is open here", tok)
 

@@ -26,6 +26,7 @@ from OpenVBSPP.ast_nodes import (Program, Assign, MemberAssign, AssignIndex, Una
                                  With, ForEach, TryStmt,
                                  LabelStmt, GoToStmt, OnErrorGoToLabel,
                                  ResumeStmt,
+                                 ScriptEnd, StopStmt,
                                  SelectCase, For,
                                  OptionExplicit, OptionTyping, OptionCompare,
                                  DimDecl, ReDimDecl, ConstDecl,
@@ -2918,6 +2919,20 @@ class Transformer:
                 func=ast.Attribute(value=ast.Name(id=ERR_MODULE, ctx=ast.Load()),
                                    attr="goto_zero", ctx=ast.Load()),
                 args=[], keywords=[]))
+
+        if isinstance(node, ScriptEnd):
+            # `End` unwinds the whole script: it is a BaseException so neither
+            # `On Error Resume Next` nor `Try` can swallow it.
+            # 中文：`End` 结束整个脚本；它是 BaseException，On Error 与 Try 都接不住。
+            return ast.Raise(exc=ast.Call(
+                func=ast.Attribute(value=ast.Name(id=BUILTIN_MODULE, ctx=ast.Load()),
+                                   attr="ScriptEnd", ctx=ast.Load()),
+                args=[], keywords=[]), cause=None)
+
+        if isinstance(node, StopStmt):
+            # VBScript's `Stop` is a debugger breakpoint; there is no debugger here.
+            # 中文：VBScript 的 `Stop` 是调试断点；这里没有调试器，所以什么都不做。
+            return ast.Pass()
 
         if isinstance(node, CallStmt):
             return self._transform_call_stmt(node)

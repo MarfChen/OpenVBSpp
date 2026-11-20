@@ -119,3 +119,19 @@ class ResumeStmt(AST):
         self.target = target
     def __repr__(self):
         return f"ResumeStmt({self.target!r})"
+
+
+class ScriptEnd(AST):
+    """A bare `End` terminates the script immediately.
+
+    中文：单独一个 `End` 立即结束整个脚本（VBScript 的 End 语句）。"""
+    def __repr__(self):
+        return "ScriptEnd()"
+
+
+class StopStmt(AST):
+    """`Stop` is a debugger breakpoint in VBScript; we accept and ignore it.
+
+    中文：`Stop` 在 VBScript 里是调试断点；这里接受该语句但不做任何事。"""
+    def __repr__(self):
+        return "StopStmt()"

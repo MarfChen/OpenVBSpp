@@ -34,6 +34,20 @@ from OpenVBSPP.ovpprt.format import to_text
 from OpenVBSPP.ovpprt.null import NULL, NullType
 
 
+class ScriptEnd(BaseException):
+    """Raised by a bare `End` to unwind the whole script.
+
+    中文：单独的 `End` 抛出此异常，用来终止整个脚本。
+
+    It derives from BaseException on purpose: `On Error Resume Next` and the
+    `Try`/`Catch` handlers only catch `Exception`, so nothing can swallow it.
+    中文：它故意继承 BaseException ——`On Error Resume Next` 与 `Try`/`Catch`
+    只捕获 `Exception`，因此谁也接不住它。
+    """
+
+    __slots__ = ()
+
+
 class _LazyModule:
     """A module proxy: the target module is imported on first attribute access.
 

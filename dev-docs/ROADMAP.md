@@ -29,7 +29,7 @@
 | 0.9.21 | VBScript completeness pass: `&H` / `&O` / `#date#` literals, the 19 remaining built-ins (`Sin` … `GetRef`), `ExecuteGlobal`, the `TimeValue` / `Time()` date bug, and a `doc/VBS_SUPERSET.md` corrected against the implementation |
 
 **Current status**: every native VBScript statement form is in place (only `Declare`
-is declined by design); 549 tests green;
+is declined by design); 557 tests green;
 in-process loops, arrays and calls are now on par with hand-written Python
 (0.99×–1.35×). On Windows COM is real through the `com-support` package — and
 on non-Windows platforms, with `OPENVBS_COM=0`, or without `pywin32`, you get an

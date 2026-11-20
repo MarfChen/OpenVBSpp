@@ -42,6 +42,8 @@ __all__ = [
     "OnErrorGoToZero",
     "OnErrorGoToLabel",
     "ResumeStmt",
+    "ScriptEnd",
+    "StopStmt",
     # expressions
     # 中文：表达式
     "Number",
