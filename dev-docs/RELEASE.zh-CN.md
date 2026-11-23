@@ -226,7 +226,7 @@ PyPI / GitHub Release 上贴的正文从这里取，写完记得和 README 的�
 |---|---|
 | Windows（硬门禁） | Python 3.10 / 3.11 / 3.12 / 3.13 |
 | Linux（硬门禁） | Python 3.10 / 3.13，`continue-on-error` 在 v0.9.15 已移除 |
-| 步骤 | toolchain → `pip install -e ".[dev]" --no-build-isolation` → 装 pywin32（仅 Windows）→ `coverage run -m unittest discover -s tests` → `coverage report` + `coverage xml` → 上传 Codecov（仅 Windows 3.13 且配了 token）→ 入口点自检（含 `-c` 内联）→ COM 冒烟（仅 Windows）→ `python -m build` → 干净 venv 装 wheel 冒烟（含 `vendor/com-support` 存在性断言与 `-c` 冒烟）→ 上传 `dist` 产物 |
+| 步骤 | toolchain → `pip install -e ".[dev]" --no-build-isolation` → 装 pywin32（仅 Windows）→ `coverage run -m unittest discover -s tests` → `coverage report`（打印在 job 日志里）→ 入口点自检（含 `-c` 内联）→ COM 冒烟（仅 Windows）→ `python -m build` → 干净 venv 装 wheel 冒烟（含 `vendor/com-support` 存在性断言与 `-c` 冒烟）→ 上传 `dist` 产物 |
 
 Windows 之所以是硬门禁：语言支持的 COM、WScript 语义、路径行为都在 Windows 上验证过。
 Linux 从 v0.9.15 起同样是**硬门禁**（3.10 与 3.13 两个点），矩阵里已没有
@@ -249,10 +249,10 @@ PyInstaller 构建 `dist/openvbs.exe`，再把它拷到临时目录做冒烟（`
    git push -u origin main --tags
    ```
 2. 仓库 Settings → Actions → General：确认允许 workflow（新仓库默认允许，无需改）。
-3. **不需要任何 secret** 就能跑测试。只有下面两件事需要额外配：
-   - 想在 CI 里发 PyPI：加 `PYPI_API_TOKEN` secret，再加一个 `twine upload` 的 job；
-   - 想要覆盖率徽章：在仓库里配 `CODECOV_TOKEN` secret（工作流已经写好了上传步骤，
-     没有这个 secret 时那一步会被 `if` 跳过，徽章保持灰色而不是报错）。
+3. **不需要任何 secret** 就能跑测试。只有下面这件事需要额外配：
+   - 想在 CI 里发 PyPI：加 `PYPI_API_TOKEN` secret，再加一个 `twine upload` 的 job。
+   覆盖率每次 CI 都会测并打印在 job 日志里；README 的覆盖率徽章是**静态** shields.io 字符串
+   （本地实测得出），不需要接任何第三方服务。
 4. 首次 push 后约 3–5 分钟出结果：6 个测试矩阵任务（4 Windows + 2 Linux）+ 2 个手动 exe 任务。
    全绿之后 CI 徽章自动变绿，**不需要改 README**。
 5. 想让文档站上线：Settings → Pages → Build and deployment → Source 选
@@ -267,14 +267,14 @@ README 首屏有 7 个徽章，分两类：
 | 徽章 | 类型 | 变成 / 保持绿色要做什么 |
 |---|---|---|
 | `tests-649 cases` | 静态（shields.io 手工字符串） | 一直是绿的；**改了用例数必须同时改 `README.md` 与 `README.zh-CN.md`**，否则是假绿 |
-| `version-0.9.20` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
+| `version-0.9.29` | 静态 | 发版时与五处版本号一起改（README 两个文件 + 两处正文） |
 | `license-Apache--2.0` | 静态 | 常绿 |
 | `python-3.10+` | 静态 | 常绿；将来放宽/收紧 requires-python 时同步 |
 | `dependencies-none` | 静态 | 常绿（`pywin32` 是可选 extra，不算运行期依赖） |
 | **CI** | **动态** | 仓库 push 后，`main` 分支上有一次成功的 workflow 运行即变绿；显示 `no status` 说明默认分支还没有运行记录 |
-| **coverage** | **动态** | 由 Codecov 提供；`CODECOV_TOKEN` 没配时是灰色，首次成功上传后变绿 |
+| `coverage-80%` | 静态 | 用 `coverage run --source=OpenVBSPP,cli -m unittest discover -s tests` 在本地实测；数字变化时同步改两个 README |
 
-静态徽章 = 项目自称，动态 CI 徽章 = 机器实测，两者都保留；评审者更看后者。
+静态徽章 = 项目自称，CI 徽章 = 机器实测，两者都保留；评审者更看后者。
 
 发布到 PyPI 之后可以再补两个动态徽章（现在加会是红色 "package not found"，所以先不加）：
 
@@ -283,9 +283,10 @@ README 首屏有 7 个徽章，分两类：
 ![pyversions](https://img.shields.io/pypi/pyversions/openvbspp)
 ```
 
-覆盖率采集从 v0.9.15 起已经在 CI 里（`coverage run` → `coverage xml` → `codecov-action@v5`），
-README 也已经放上 Codecov 徽章；**只要在仓库里配好 `CODECOV_TOKEN`，第一次成功运行后它就会变绿**。
-如果不想接 Codecov，把 README 里那一行徽章和 ci.yml 的上传步骤一起删掉即可。
+覆盖率从 v0.9.15 起就在 CI 里测：`coverage run --source=OpenVBSPP,cli` 后跟一个
+`coverage report`，结果打印在 job 日志里。从 v0.9.29 起 README 用的是**静态**
+`coverage-80%` 徽章，不再依赖 Codecov，也就不需要 token 或第三方服务；
+数字变化时在本地重跑一次命令并同步改两个 README。
 
 ---
 

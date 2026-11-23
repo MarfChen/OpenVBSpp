@@ -7,6 +7,19 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [0.9.29] - 2026-11-23
+
+### Changed
+
+- **The coverage badge is static.** The README used to show a Codecov badge that
+  rendered `unknown` because the upload step never ran (no `CODECOV_TOKEN`
+  secret). It is now a hand-written `coverage-80%` shields.io badge, measured
+  locally with `coverage run --source=OpenVBSPP,cli -m unittest discover -s tests`.
+  CI still measures coverage and prints the report in the job log, but the
+  `codecov-action` upload step and its token are gone, so there is no dead
+  integration or third-party dependency left. Documented in
+  [`dev-docs/RELEASE.md` §8](dev-docs/RELEASE.md).
+
 ## [0.9.28] - 2026-11-21
 
 ### Added

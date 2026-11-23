@@ -1,12 +1,12 @@
 # OpenVBS++
 
 ![tests](https://img.shields.io/badge/tests-649%20cases-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.28-blue)
+![version](https://img.shields.io/badge/version-0.9.29-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
 [![CI](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml)
-[![coverage](https://codecov.io/gh/MarfChen/OpenVBSpp/branch/main/graph/badge.svg)](https://codecov.io/gh/MarfChen/OpenVBSpp)
+![coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)
 
 **Run your existing `.vbs` scripts on a modern compiler — and get classes, try/catch,
 packages and real COM while you are at it.**
@@ -626,6 +626,9 @@ Package-manager docs: [doc/OVER.md](doc/OVER.md). Roadmap and deferred items:
 - **Next** — method overloading, remaining `Attribute` properties, events, `Collection`,
   VBScript-accurate comparison coercion (see [doc/VBS_SUPERSET.md §4.1](doc/VBS_SUPERSET.md))
 - **v1.0** — stable language spec, official `ovpprt` runtime library, IDE / LSP support
+- **v0.9.29** - the coverage badge is now a static `coverage-80%` string measured
+  locally; CI still prints the real coverage report, but no Codecov token or
+  third-party service is involved any more.
 - **v0.9.28** - a task-shaped [cookbook](doc/COOKBOOK.md), FileSystemObject.GetSpecialFolder /
   .GetFile / .GetAbsolutePathName, VBScript error numbers 53 and 76, and host booleans that
   finally behave like VBScript booleans (Do While Not stream.AtEndOfStream no longer hangs).

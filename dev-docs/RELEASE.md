@@ -241,7 +241,7 @@ Two workflows: `.github/workflows/ci.yml` (tests + exe) and
 |---|---|
 | Windows (hard gate) | Python 3.10 / 3.11 / 3.12 / 3.13 |
 | Linux (hard gate) | Python 3.10 / 3.13; `continue-on-error` was removed in v0.9.15 |
-| Steps | toolchain → `pip install -e ".[dev]" --no-build-isolation` → pywin32 (Windows only) → `coverage run -m unittest discover -s tests` → `coverage report` + `coverage xml` → upload to Codecov (Windows 3.13 with a token) → entry point self-check (including `-c` inline) → COM smoke (Windows only) → `python -m build` → clean-venv wheel smoke (asserting `vendor/com-support` exists plus a `-c` smoke) → upload `dist` artifacts |
+| Steps | toolchain → `pip install -e ".[dev]" --no-build-isolation` → pywin32 (Windows only) → `coverage run -m unittest discover -s tests` → `coverage report` (printed in the job log) → entry point self-check (including `-c` inline) → COM smoke (Windows only) → `python -m build` → clean-venv wheel smoke (asserting `vendor/com-support` exists plus a `-c` smoke) → upload `dist` artifacts |
 
 Windows is a hard gate because COM, WScript semantics and path behaviour are all
 validated there. Linux is a **hard gate** since v0.9.15 as well (3.10 and 3.13);
@@ -267,12 +267,12 @@ and fails outright on private ones.
    ```
 2. Repository Settings → Actions → General: confirm workflows are allowed (the
    default for new repositories; nothing to change).
-3. **No secret is needed** to run the tests. Only these two extras need one:
+3. **No secret is needed** to run the tests. Only one extra needs one:
    - publishing to PyPI from CI: add a `PYPI_API_TOKEN` secret and a
-     `twine upload` job;
-   - a coverage badge: add a `CODECOV_TOKEN` secret (the upload step already
-     exists; without the secret its `if` skips it, so the badge stays grey
-     instead of failing).
+     `twine upload` job.
+   Coverage is measured and printed in the job log on every run; the README
+   coverage badge is a static shields.io string (measured locally), so no
+   third-party service has to be wired up.
 4. The first push produces results in about 3–5 minutes: 6 test matrix jobs
    (4 Windows + 2 Linux) plus 2 manual exe jobs. Once everything is green the CI
    badge turns green by itself — **no README change needed**.
@@ -289,14 +289,14 @@ The README hero has 7 badges in two categories:
 | Badge | Type | What keeps it green |
 |---|---|---|
 | `tests-649 cases` | static (a hand-written shields.io string) | always green; **changing the case count means changing both `README.md` and `README.zh-CN.md`**, otherwise it is fake green |
-| `version-0.9.20` | static | bump together with the five version locations on release (two README files plus two body mentions) |
+| `version-0.9.29` | static | bump together with the five version locations on release (two README files plus two body mentions) |
 | `license-Apache--2.0` | static | always green |
 | `python-3.10+` | static | always green; update when `requires-python` changes |
 | `dependencies-none` | static | always green (`pywin32` is an optional extra, not a runtime dependency) |
 | **CI** | **dynamic** | after the push, one successful workflow run on `main` turns it green; `no status` means the default branch has no runs yet |
-| **coverage** | **dynamic** | served by Codecov; grey without `CODECOV_TOKEN`, green after the first successful upload |
+| `coverage-80%` | static | measured locally with `coverage run --source=OpenVBSPP,cli -m unittest discover -s tests`; re-measure and edit both READMEs when the real number moves |
 
-Static badges are the project's own claim, dynamic CI badges are machine-measured;
+Static badges are the project's own claim, the CI badge is machine-measured;
 keep both, but reviewers trust the latter more.
 
 Two more dynamic badges can be added once the package is on PyPI (adding them now
@@ -307,11 +307,11 @@ would show a red "package not found"):
 ![pyversions](https://img.shields.io/pypi/pyversions/openvbspp)
 ```
 
-Coverage collection has been in CI since v0.9.15 (`coverage run` → `coverage xml`
-→ `codecov-action@v5`) and the README already shows the Codecov badge; **configure
-`CODECOV_TOKEN` in the repository and it turns green after the first successful
-run**. If you would rather not use Codecov, delete the badge line from the README
-and the upload step from `ci.yml`.
+Coverage has been measured in CI since v0.9.15: `coverage run --source=OpenVBSPP,cli`
+followed by a `coverage report` that lands in the job log. Since v0.9.29 the README
+ships a **static** `coverage-80%` badge instead of a Codecov badge, so no token or
+third-party service is involved; re-run the command locally and edit both READMEs
+when the number moves.
 
 ---
 

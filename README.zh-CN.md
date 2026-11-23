@@ -1,11 +1,12 @@
 # OpenVBS++
 
 ![tests](https://img.shields.io/badge/tests-649%20cases-brightgreen)
-![version](https://img.shields.io/badge/version-0.9.28-blue)
+![version](https://img.shields.io/badge/version-0.9.29-blue)
 ![license](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![deps](https://img.shields.io/badge/dependencies-none-success)
 [![CI](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml/badge.svg)](https://github.com/MarfChen/OpenVBSpp/actions/workflows/ci.yml)
+![coverage](https://img.shields.io/badge/coverage-80%25-brightgreen)
 
 > **English** — the primary document is the English [README.md](README.md);
 > this file **README.zh-CN.md** is the full Chinese version of it.
@@ -26,7 +27,7 @@
 > Microsoft. VBScript is a trademark of Microsoft Corporation.
 > 详细的自查记录与合规清单见 [doc/LEGAL.md](doc/LEGAL.md)。
 
-**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.28**）是一个以 **VBScript 语法风格**为基础的编译器。
+**OpenVBS++**（Python 包名 `OpenVBSPP`，当前版本 **0.9.29**）是一个以 **VBScript 语法风格**为基础的编译器。
 它不解释源码，而是把 VBS 风格的脚本编译成**标准 Python AST**，再由 CPython 执行：
 
 ```
@@ -712,6 +713,8 @@ git commit -s. See [CONTRIBUTING.md](CONTRIBUTING.md) and
   （COM 相关用例在非 Windows 上跳过）
 - 下一步（方法重载、`Attribute` 其它属性、事件与 `Collection`）
 - **v1.0**：稳定语言规范、官方运行时库 `ovpprt`、IDE / LSP 支持
+- **v0.9.29**—覆盖率徽章改为本地实测的静态 `coverage-80%` 字符串；CI 仍会打印真实的覆盖率报告，
+  但不再需要 Codecov token 或任何第三方服务。
 - **v0.9.28**—可按任务查找的[实战手册](doc/COOKBOOK.zh-CN.md)、FileSystemObject.GetSpecialFolder / .GetFile /
   .GetAbsolutePathName、VBScript 错误号 53 与 76，以及终于行为正常的宿主布尔值
   （Do While Not stream.AtEndOfStream 不再死循环）。
