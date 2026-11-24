@@ -100,6 +100,77 @@ class TestClassBasics(unittest.TestCase):
         self.assertEqual(out(code), ["2"])
 
 
+class TestChainedMemberCalls(unittest.TestCase):
+    def test_call_on_returned_object(self):
+        code = (
+            "Class Child\n"
+            " Public Sub Run()\n"
+            "  echo 42\n"
+            " End Sub\n"
+            "End Class\n"
+            "Class Parent\n"
+            " Public Function GetChild(n)\n"
+            "  Set GetChild = New Child\n"
+            " End Function\n"
+            "End Class\n"
+            "Set p = New Parent\n"
+            "p.GetChild(1).Run"
+        )
+        self.assertEqual(out(code), ["42"])
+
+    def test_explicit_call_on_returned_object(self):
+        code = (
+            "Class Child\n"
+            " Public Sub Run()\n"
+            "  echo 42\n"
+            " End Sub\n"
+            "End Class\n"
+            "Class Parent\n"
+            " Public Function GetChild(n)\n"
+            "  Set GetChild = New Child\n"
+            " End Function\n"
+            "End Class\n"
+            "Set p = New Parent\n"
+            "Call p.GetChild(1).Run()"
+        )
+        self.assertEqual(out(code), ["42"])
+
+    def test_chained_call_with_arguments(self):
+        code = (
+            "Class Child\n"
+            " Public Sub Run(n)\n"
+            "  echo n\n"
+            " End Sub\n"
+            "End Class\n"
+            "Class Parent\n"
+            " Public Function GetChild(n)\n"
+            "  Set GetChild = New Child\n"
+            " End Function\n"
+            "End Class\n"
+            "Set p = New Parent\n"
+            "p.GetChild(1).Run 42"
+        )
+        self.assertEqual(out(code), ["42"])
+
+    def test_chained_member_assignment(self):
+        code = (
+            "Class Child\n"
+            " Public value\n"
+            "End Class\n"
+            "Class Parent\n"
+            " Public item\n"
+            " Public Function GetChild(n)\n"
+            "  Set GetChild = item\n"
+            " End Function\n"
+            "End Class\n"
+            "Set p = New Parent\n"
+            "Set p.item = New Child\n"
+            "p.GetChild(1).value = 42\n"
+            "echo p.item.value"
+        )
+        self.assertEqual(out(code), ["42"])
+
+
 class TestProperties(unittest.TestCase):
     def test_get_and_let(self):
         code = ("Class Foo\n Private n\n Public Property Get Value()\n  Value = n\n"
