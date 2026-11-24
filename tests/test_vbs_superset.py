@@ -32,6 +32,7 @@ import io
 import sys
 import unittest
 from pathlib import Path
+import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
@@ -287,6 +288,50 @@ class TestVBSSuperset(unittest.TestCase):
         for name, code, expected in VBS_FEATURES:
             with self.subTest(feature=name):
                 self.assertEqual(out(code), expected, f"feature: {name}")
+
+
+class TestVBSSourceEncoding(unittest.TestCase):
+    """Legacy VBScript source file encoding compatibility."""
+
+    def test_source_file_encodings(self):
+        from OpenVBSPP.cli import main as cli_main
+
+        expected = "\ud55c\uae00"
+        source = f'WScript.Echo "{expected}"\r\n'
+
+        for encoding in ("utf-8", "utf-8-sig", "utf-16-le"):
+            with self.subTest(encoding=encoding):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / "source.vbs"
+                    data = source.encode(encoding)
+
+                    if encoding == "utf-16-le":
+                        data = b"\xff\xfe" + data
+
+                    path.write_bytes(data)
+
+                    stdout = io.StringIO()
+                    with contextlib.redirect_stdout(stdout):
+                        result = cli_main([str(path)])
+
+                    self.assertEqual(result, 0)
+                    self.assertEqual(
+                        stdout.getvalue().splitlines(),
+                        [expected],
+                    )
+
+    def test_utf32_le_is_not_misidentified(self):
+        from OpenVBSPP.source import read_source
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "source.vbs"
+            path.write_bytes(
+                b"\xff\xfe\x00\x00"
+                + 'WScript.Echo "42"'.encode("utf-32-le")
+            )
+
+            with self.assertRaises(UnicodeDecodeError):
+                read_source(path)
 
 
 # --------------------------------------------------------------------- known gaps / 中文：已知缺口

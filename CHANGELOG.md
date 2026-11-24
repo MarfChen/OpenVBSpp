@@ -7,6 +7,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [Unreleased]
+
+### Fixed
+
+- **UTF-16 LE source files with BOM are now supported.** Legacy VBScript
+  files saved in this encoding previously failed with a `UnicodeDecodeError`.
+  The CLI, module compiler (`<script>` and `<namespace>`), and IDE now
+  share a source reader that detects the UTF-16 LE BOM while preserving
+  existing UTF-8 compatibility and newline normalization.
+
 ## [0.9.29] - 2026-11-23
 
 ### Changed

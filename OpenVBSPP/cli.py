@@ -25,6 +25,7 @@ from pathlib import Path
 
 from OpenVBSPP import __version__
 from OpenVBSPP.exceptions import OVPPError
+from OpenVBSPP.source import read_source
 
 
 DEMO = """
@@ -286,9 +287,9 @@ def main(argv=None):
         if not path.is_file():
             print(f"File not found: {path}", file=sys.stderr)
             return 1
-        # utf-8-sig also strips the BOM Notepad adds on Windows.
-        # 中文：utf-8-sig 顺手吃掉 Windows 记事本加的 BOM。
-        code = path.read_text(encoding="utf-8-sig")
+        # Support UTF-8 and BOM-marked UTF-16 LE source files.
+        # 中文：支持 UTF-8 和带 BOM 的 UTF-16 LE 源文件。
+        code = read_source(path)
         filename = str(path)
     else:
         code = DEMO
@@ -320,13 +321,14 @@ def main(argv=None):
     return 0
 
 def _load_source(target, inline=None):
-    """Read source: `inline` supplies the code directly, `target` `-` reads stdin, and
-    `utf-8-sig` strips a BOM.
+    """Read inline code, stdin, or a source file.
 
-    中文：读源码 —— `inline` 直接给源码，`target` 为 `-` 时读标准输入，`utf-8-sig`
-    eat a BOM.
+    Source files support UTF-8 (with or without BOM)
+    and UTF-16 LE with BOM.
 
-    中文：吃掉 BOM。"""
+    中文：读取内联代码、标准输入或源文件。
+    源文件支持 UTF-8（带或不带 BOM）以及带 BOM 的 UTF-16 LE。
+    """
     if inline is not None:
         if inline == "-":
             return sys.stdin.read(), "<stdin>"
@@ -336,7 +338,7 @@ def _load_source(target, inline=None):
     path = Path(target)
     if not path.is_file():
         return None, str(target)
-    return path.read_text(encoding="utf-8-sig"), str(path)
+    return read_source(path), str(path)
 
 
 def _command_check(target, as_json, inline=None):

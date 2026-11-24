@@ -34,6 +34,7 @@ python3-tk; without a display `available()` returns False and the front end fall
 
 import sys
 from pathlib import Path
+from OpenVBSPP.source import read_source
 
 
 FILETYPES = [
@@ -147,8 +148,7 @@ def read_script(path):
     The lexer accepts both, and normalising keeps everything simpler.
 
     中文：读脚本时自动去掉 BOM，换行统一成 \\n（词法器两种都能吃，统一更省心）。"""
-    text = Path(path).read_text(encoding="utf-8-sig")
-    return text.replace("\r\n", "\n").replace("\r", "\n")
+    return read_source(path)
 
 
 def write_script(path, source):
