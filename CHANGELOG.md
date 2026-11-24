@@ -7,6 +7,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [Unreleased]
+
+### Fixed
+
+- **Chained member calls on returned objects.** Statements such as
+  `obj.foo(1).bar` and `Call obj.foo(1).bar()` were incorrectly parsed
+  as two separate calls, causing a spurious `With` block syntax error.
+  The parser now preserves the member chain across intermediate calls.
+
 ## [0.9.29] - 2026-11-23
 
 ### Changed

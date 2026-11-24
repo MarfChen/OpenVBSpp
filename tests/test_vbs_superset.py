@@ -115,6 +115,21 @@ VBS_FEATURES = [
     ("Sub", "Sub Hi()\n echo \"hi\"\nEnd Sub\nHi", ["hi"]),
     ("Sub with args", "Sub P(a, b)\n echo a + b\nEnd Sub\nP 1, 2", ["3"]),
     ("Call statement", "Sub P(a)\n echo a\nEnd Sub\nCall P(7)", ["7"]),
+    ("chained member calls",
+     "Class Child\n"
+     " Public Sub Run()\n"
+     "  echo 42\n"
+     " End Sub\n"
+     "End Class\n"
+     "Class Parent\n"
+     " Public Function GetChild(n)\n"
+     "  Set GetChild = New Child\n"
+     " End Function\n"
+     "End Class\n"
+     "Set p = New Parent\n"
+     "p.GetChild(1).Run\n"
+     "Call p.GetChild(1).Run()",
+     ["42", "42"]),
     ("Function", "Function F(a)\n F = a * 2\nEnd Function\necho F(3)", ["6"]),
     ("ByRef", "Sub B(n)\n n = n + 1\nEnd Sub\nx = 1\nB x\necho x", ["2"]),
     ("ByVal", "Sub B(ByVal n)\n n = n + 1\nEnd Sub\nx = 1\nB x\necho x", ["1"]),

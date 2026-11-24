@@ -894,7 +894,14 @@ class Parser:
             callee = Var(name_tok[1]).at(name_tok[2], name_tok[3])
             callee = self.member_chain(callee)
 
-        args = self.parse_args() if self.peek()[0] == "LPAREN" else self.parse_bare_args()
+        while self.peek()[0] == "LPAREN":
+            args = self.parse_args()
+            if self.peek()[0] not in ("DOT", "QDOT"):
+                return CallStmt(callee, args).at(tok[2], tok[3])
+            callee = Call(callee, args).at(tok[2], tok[3])
+            callee = self.member_chain(callee)
+
+        args = self.parse_bare_args()
         return CallStmt(callee, args).at(tok[2], tok[3])
 
     def with_member_statement(self):
@@ -997,6 +1004,12 @@ class Parser:
 
         if nxt[0] == "LPAREN":
             args = self.parse_args()
+
+            if self.peek()[0] in ("DOT", "QDOT"):
+                target = Call(target, args).at(tok[2], tok[3])
+                target = self.member_chain(target)
+                return self.finish_call_or_assign(target, tok)
+
             if self.peek()[0] == "ASSIGN":
                 self.eat("ASSIGN")
                 expr = self.expr()
