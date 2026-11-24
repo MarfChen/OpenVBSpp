@@ -39,6 +39,7 @@ from OpenVBSPP.compiler import vbs_compile
 from OpenVBSPP.exceptions import OVPPError
 from OpenVBSPP.runtime import vbs_run
 from OpenVBSPP.ide.packages import capabilities as package_capabilities
+from OpenVBSPP.source import read_source
 
 
 DEFAULT_WORKSPACE = Path.home() / ".openvbspp" / "scripts"
@@ -161,7 +162,7 @@ class Workspace:
         if not path.is_file():
             return {"ok": False, "message": f"script '{name}' not found"}
         return {"ok": True, "name": name,
-                "source": path.read_text(encoding="utf-8-sig"),
+                "source": read_source(path),
                 "path": str(path)}
 
     def save(self, name, source):

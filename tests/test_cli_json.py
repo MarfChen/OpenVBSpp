@@ -71,6 +71,19 @@ class TestJsonCheck(JsonCliCase):
         self.assertEqual(code, 0)
         self.assertTrue(json.loads(out)["ok"])
 
+    def test_utf16_le_source(self):
+        path = self.dir / "unicode.vbs"
+        source = 'WScript.Echo "\ud55c\uae00"\r\n'
+        path.write_bytes(
+            b"\xff\xfe" + source.encode("utf-16-le")
+        )
+
+        code, out, _ = run_cli(
+            ["--json", "check", str(path)]
+        )
+        self.assertEqual(code, 0)
+        self.assertTrue(json.loads(out)["ok"])
+
 
 class TestJsonRun(JsonCliCase):
     def test_output_is_captured(self):
@@ -89,6 +102,23 @@ class TestJsonRun(JsonCliCase):
         payload = json.loads(out)
         self.assertFalse(payload["ok"])
         self.assertEqual(payload["error"]["line"], 1)
+
+    def test_utf16_le_source(self):
+        path = self.dir / "unicode.vbs"
+        expected = "\ud55c\uae00"
+        source = f'WScript.Echo "{expected}"\r\n'
+        path.write_bytes(
+            b"\xff\xfe" + source.encode("utf-16-le")
+        )
+
+        code, out, _ = run_cli(
+            ["--json", "run", str(path)]
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            json.loads(out)["output"],
+            expected + "\n",
+        )
 
 
 class TestHumanMode(JsonCliCase):

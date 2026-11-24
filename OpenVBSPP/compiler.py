@@ -55,6 +55,7 @@ from OpenVBSPP.plugins.modules import extract as extract_modules
 from OpenVBSPP.plugins.python_embed import extract as extract_python_blocks
 from OpenVBSPP.transformer import Transformer
 from OpenVBSPP.typecheck import check as type_check
+from OpenVBSPP.source import read_source
 
 
 COMPILED_FILENAME = "<OpenVBS++>"
@@ -269,7 +270,7 @@ def _merge_source(unit, source, filename, stack, verbose=False):
                 line_number=directive.line)
 
         if directive.kind == "script":
-            child_source = target.read_text(encoding="utf-8-sig")
+            child_source = read_source(target)
             parts.extend(_merge_source(unit, child_source, target,
                                        stack + [key], verbose))
         else:
@@ -299,7 +300,7 @@ def _build_module(path, stack, verbose=False):
     if key in _CACHE:
         return _CACHE[key]
 
-    source = Path(path).read_text(encoding="utf-8-sig")
+    source = read_source(path)
     unit = ModuleUnit(Path(path).stem)
     _CACHE[key] = unit            # placeholder, reused on repeated imports
     # 中文：先占位，重复引用同一个模块时复用。

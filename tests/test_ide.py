@@ -197,5 +197,42 @@ class TestServer(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 501)
 
 
+class TestIDESourceEncoding(unittest.TestCase):
+    def test_read_utf16_le_script(self):
+        from OpenVBSPP.ide import dialogs
+
+        source = 'echo "\ud55c\uae00"\r\necho 2\r\n'
+
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "source.vbs"
+            path.write_bytes(
+                b"\xff\xfe" + source.encode("utf-16-le")
+            )
+
+            self.assertEqual(
+                dialogs.read_script(path),
+                source.replace("\r\n", "\n"),
+            )
+
+    def test_workspace_load_utf16_le_script(self):
+        from OpenVBSPP.ide.service import Workspace
+
+        source = 'echo "\ud55c\uae00"\r\n'
+
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "source.vbs"
+            path.write_bytes(
+                b"\xff\xfe" + source.encode("utf-16-le")
+            )
+
+            result = Workspace(tmp).load("source")
+
+            self.assertTrue(result["ok"])
+            self.assertEqual(
+                result["source"],
+                source.replace("\r\n", "\n"),
+            )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

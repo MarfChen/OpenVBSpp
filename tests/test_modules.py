@@ -92,6 +92,18 @@ class TestScriptInclude(ModuleCase):
             self.run_file(main)
         self.assertEqual(ctx.exception.line_number, 2)
 
+    def test_utf16_le_script_include(self):
+        lib = self.dir / "lib.vbs"
+        lib.write_bytes(
+            b"\xff\xfe" + LIB.encode("utf-16-le")
+        )
+        main = self.write(
+            "main.vbs",
+            '<script src="lib.vbs">\n'
+            'echo Double(21)\n'
+        )
+        self.assertEqual(self.run_file(main), ["42"])
+
 
 class TestNamespace(ModuleCase):
     def test_namespace_prefix_call(self):
@@ -126,6 +138,18 @@ class TestNamespace(ModuleCase):
         main = self.write("main.vbs",
                           '<namespace src="lib.vbs" alias="u">\necho U.DOUBLE(4)\n')
         self.assertEqual(self.run_file(main), ["8"])
+
+    def test_utf16_le_namespace(self):
+        lib = self.dir / "lib.vbs"
+        lib.write_bytes(
+            b"\xff\xfe" + LIB.encode("utf-16-le")
+        )
+        main = self.write(
+            "main.vbs",
+            '<namespace src="lib.vbs" alias="u">\n'
+            'echo u.Double(21)\n'
+        )
+        self.assertEqual(self.run_file(main), ["42"])
 
 
 class TestModuleIsolation(ModuleCase):
