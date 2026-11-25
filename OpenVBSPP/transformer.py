@@ -1824,11 +1824,37 @@ class Transformer:
         count = len(index_args)
         for index, arg in enumerate(index_args):
             last = index == count - 1
-            node = ast.Subscript(
-                value=node,
-                slice=self.transform(arg),
-                ctx=ast.Store() if (store and last) else ast.Load(),
-            )
+
+            if store and last:
+                node = ast.Subscript(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(
+                                id=ARR_MODULE,
+                                ctx=ast.Load(),
+                            ),
+                            attr="checked_target",
+                            ctx=ast.Load(),
+                        ),
+                        args=[node],
+                        keywords=[],
+                    ),
+                    slice=self.transform(arg),
+                    ctx=ast.Store(),
+                )
+            else:
+                node = ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(
+                            id=ARR_MODULE,
+                            ctx=ast.Load(),
+                        ),
+                        attr="get_item",
+                        ctx=ast.Load(),
+                    ),
+                    args=[node, self.transform(arg)],
+                    keywords=[],
+                )
         return node
 
     # member access / 中文：成员访问

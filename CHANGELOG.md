@@ -7,6 +7,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Release-by-release engineering notes (how to cut a release) live in
 [`dev-docs/RELEASE.md`](dev-docs/RELEASE.md); the roadmap is in [`dev-docs/ROADMAP.md`](dev-docs/ROADMAP.md).
 
+## [Unreleased]
+
+### Fixed
+
+- **Negative array indices now raise VBScript error 9
+  ("Subscript out of range")** instead of accessing elements
+  from the end of a Python list. This covers reads, writes,
+  and multidimensional array subscripts.
+
 ## [0.9.29] - 2026-11-23
 
 ### Changed

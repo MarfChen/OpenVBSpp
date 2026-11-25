@@ -301,9 +301,12 @@ A non-integral Double keeps all of Python's significant digits instead of VBS's 
 `echo 1 / 3` prints `0.3333333333333333` where VBS prints `0.333333333333333`. The value in
 memory is the same Double; only the trailing digits of the text differ.
 
-### 3.5 Negative array indices are not checked
+### 3.5 Negative array indices
 
-`a(-1)` reads the last element in Python, while VBS reports "subscript out of range".
+Negative integer array indices now raise error 9
+("Subscript out of range"), matching VBScript behavior.
+This applies to reads, writes, and multidimensional array
+access through the standard array subscript syntax.
 
 ### 3.6 Nesting semantics of `Exit For`
 
