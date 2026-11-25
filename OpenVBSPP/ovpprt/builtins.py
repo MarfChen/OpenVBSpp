@@ -1292,9 +1292,12 @@ def call_value(value, args):
     if isinstance(value, Delegate) or (callable(value)
                                        and not isinstance(value, (list, tuple, str))):
         return value(*args)
-    for index in args[:-1]:
-        value = value[index]
-    return value[args[-1]] if args else value
+
+    from OpenVBSPP.ovpprt.array import get_item
+
+    for index in args:
+        value = get_item(value, index)
+    return value
 
 
 def coalesce(left, right):

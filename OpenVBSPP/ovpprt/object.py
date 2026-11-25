@@ -268,6 +268,8 @@ def call_method(obj, name, refs):
     中文：`.v`，ByVal 在方法入口解包，因此对内置对象就是把 `.v` 取出来按值调用。
     """
     from OpenVBSPP.ovpprt.collections import Dictionary
+    from OpenVBSPP.ovpprt.array import get_item
+
     if isinstance(obj, Dictionary):
         key = _dict_key(obj, name)
         if key is not None:
@@ -277,9 +279,9 @@ def call_method(obj, name, refs):
                 return _vbs_scalar(member(*values))
             if not values:
                 return _vbs_scalar(member)
-            for index in values[:-1]:
-                member = member[index]
-            return _vbs_scalar(member[values[-1]])
+            for index in values:
+                member = get_item(member, index)
+            return _vbs_scalar(member)
 
     target = _lookup(obj, name)
     if target is _MISSING:
@@ -296,9 +298,9 @@ def call_method(obj, name, refs):
     values = [ref.v for ref in refs]
     if not values:
         return _vbs_scalar(target)
-    for index in values[:-1]:
-        target = target[index]
-    return _vbs_scalar(target[values[-1]])
+    for index in values:
+        target = get_item(target, index)
+    return _vbs_scalar(target)
 
 
 def _is_nothing(value):
@@ -415,13 +417,15 @@ def set_member_index(obj, name, args, value):
     中文：`obj.name(i, j) = value` —— 数组字段的元素赋值。
     """
     from OpenVBSPP.ovpprt.collections import Dictionary
+    from OpenVBSPP.ovpprt.array import get_item, checked_target
+
     if isinstance(obj, Dictionary):
         key = _dict_key(obj, name)
         if key is not None:
             member = obj.item(key)
             for index in args[:-1]:
-                member = member[index]
-            member[args[-1]] = value
+                member = get_item(member, index)
+            checked_target(member)[args[-1]] = value
             return
 
     target = _lookup(obj, name)
@@ -430,5 +434,5 @@ def set_member_index(obj, name, args, value):
             f"Object of type '{type(obj).__name__}' has no member '{name}'")
 
     for index in args[:-1]:
-        target = target[index]
-    target[args[-1]] = value
+        target = get_item(target, index)
+    checked_target(target)[args[-1]] = value

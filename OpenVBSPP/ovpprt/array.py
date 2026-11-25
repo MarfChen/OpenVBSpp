@@ -28,6 +28,44 @@ are nested lists, and `a(i, j)` compiles to `a[i][j]`.
 from OpenVBSPP.ovpprt.empty import EMPTY
 
 
+def check_index(index):
+    """Reject negative array indices.
+
+    中文：拒绝负数数组下标。
+    """
+    if isinstance(index, int) and index < 0:
+        raise IndexError("Subscript out of range")
+    return index
+
+
+def get_item(value, index):
+    """Read an item, checking array bounds.
+
+    中文：读取元素，并检查数组下标。
+    """
+    if isinstance(value, list):
+        index = check_index(index)
+    return value[index]
+
+
+def checked_target(value):
+    """Guard array subscripts while preserving other objects.
+
+    中文：检查数组下标，同时保留其他对象的行为。
+    """
+    if isinstance(value, list):
+        return _CheckedArrayTarget(value)
+    return value
+
+
+class _CheckedArrayTarget:
+    def __init__(self, value):
+        self.value = value
+
+    def __setitem__(self, index, value):
+        self.value[check_index(index)] = value
+
+
 def make(dims):
     """Create an array from element counts (`dims[0]` is the length of dimension 1).
 
